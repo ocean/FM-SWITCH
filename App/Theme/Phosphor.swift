@@ -38,6 +38,9 @@ enum PhosphorPreset: String, CaseIterable, Identifiable {
     case ice
     case rose
     case paper
+    case violet
+    case lime
+    case tangerine
 
     var id: String { rawValue }
 
@@ -48,6 +51,9 @@ enum PhosphorPreset: String, CaseIterable, Identifiable {
         case .ice: "ICE"
         case .rose: "ROSE"
         case .paper: "PAPER"
+        case .violet: "VIOLET"
+        case .lime: "LIME"
+        case .tangerine: "TANGERINE"
         }
     }
 
@@ -58,6 +64,9 @@ enum PhosphorPreset: String, CaseIterable, Identifiable {
         case .ice: "#8FD3EE"
         case .rose: "#FF8DB5"
         case .paper: "#E4E0D3"
+        case .violet: "#B79CFF"
+        case .lime: "#C7F464"
+        case .tangerine: "#FF7A45"
         }
     }
 

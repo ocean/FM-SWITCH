@@ -25,6 +25,7 @@ struct FirmwareDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                ScreenshotGallery(entry: entry)
                 sourceCheck
 
                 if let what = entry.what {

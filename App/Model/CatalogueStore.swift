@@ -18,6 +18,10 @@ final class CatalogueStore {
     private(set) var chosenBuilds: [String: String] {
         didSet { UserDefaults.standard.set(chosenBuilds, forKey: "chosenBuilds") }
     }
+    /// The screenshots found in each firmware's README, by catalogue ID.
+    private(set) var screenshots: [String: [URL]] = [:]
+    /// What each mirror returned when a firmware's pictures were last looked for, by ID.
+    private(set) var screenshotTraces: [String: String] = [:]
 
     private let cacheURL: URL
 
@@ -100,6 +104,27 @@ final class CatalogueStore {
     /// Catalogue firmwares known to report this identity once installed.
     func entries(matching product: String) -> [CatalogueEntry] {
         entries.filter { $0.product == product }
+    }
+
+    /// Looks for screenshots in the firmware's README, once per session.
+    func fetchScreenshots(of id: String) async {
+        if screenshots[id] != nil { return }
+        guard let entry = entry(id: id), let repo = entry.repo else {
+            screenshots[id] = []
+            return
+        }
+        screenshots[id] = []
+        let (found, trace) = await Screenshots.discover(repo: repo, fetch: Network.fetch)
+        screenshotTraces[id] = trace
+        // The list may have been refreshed meanwhile; IDs are stable, so keep the result.
+        screenshots[id] = found
+    }
+
+    /// Every kind the catalogue's firmwares claim, in alphabetical order. The filters are
+    /// whatever the lists say today, so a new category shows up without an app update.
+    var allKinds: [String] {
+        let names = Set(catalogue?.entries.flatMap(\.kinds) ?? [])
+        return names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     func refresh() async {

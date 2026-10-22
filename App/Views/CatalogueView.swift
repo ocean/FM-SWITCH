@@ -7,6 +7,7 @@ struct CatalogueView: View {
     @Environment(\.phosphor) private var theme
     @Environment(\.isWideLayout) private var isWide
     @State private var search = ""
+    @State private var selectedKind: String?
     @State private var selected: CatalogueEntry?
     @FocusState private var isSearchFocused: Bool
 
@@ -18,12 +19,44 @@ struct CatalogueView: View {
     private var matchingEntries: [CatalogueEntry] {
         model.catalogue.entries.filter { entry in
             (model.settings.showBeta || !entry.beta)
+                && (selectedKind == nil || entry.kinds.contains { $0.caseInsensitiveCompare(selectedKind!) == .orderedSame })
                 && (search.isEmpty
                     || entry.name.localizedCaseInsensitiveContains(search)
                     || (entry.what ?? "").localizedCaseInsensitiveContains(search)
                     || (entry.author ?? "").localizedCaseInsensitiveContains(search)
                     || entry.kinds.contains { $0.localizedCaseInsensitiveContains(search) })
         }
+    }
+
+    /// One chip per kind the lists name, plus ALL. The kinds come from the lists live, so a
+    /// new category appears without an app update.
+    private var kindFilter: some View {
+        let kinds = model.catalogue.allKinds
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                chip("ALL", kind: nil)
+                ForEach(kinds, id: \.self) { chip($0.uppercased(), kind: $0) }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    private func chip(_ title: String, kind: String?) -> some View {
+        let isChosen = selectedKind == kind
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) { selectedKind = kind }
+        } label: {
+            Text(title)
+                .font(.pixel(9, bold: true, relativeTo: .caption2))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .foregroundStyle(isChosen ? theme.background : theme.bright)
+                .background(isChosen ? theme.bright : theme.surface)
+                .overlay(PixelBox().strokeBorder(isChosen ? theme.bright : theme.faint, lineWidth: 2))
+                .clipShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isChosen ? .isSelected : [])
     }
 
     /// Downloadable, or already saved on the phone (a saved copy can be flashed even if its
@@ -80,6 +113,7 @@ struct CatalogueView: View {
             }
 
             searchField
+            kindFilter
             statusLine
             firmwareList
         }
