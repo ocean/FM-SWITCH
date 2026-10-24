@@ -34,10 +34,12 @@ struct RetroRootView: View {
     @Environment(\.phosphor) private var theme
     @State private var tab = Self.initialTab
 
-    /// Debug builds accept `-initialTab firmware` (etc.) as a launch argument, for screenshots.
+    /// Debug builds accept `-initialTab firmware` (etc.) as a launch argument, for screenshots, and
+    /// open FIRMWARE for `-openFirmware <id>`.
     private static var initialTab: AppTab {
         #if DEBUG
-            UserDefaults.standard.string(forKey: "initialTab").flatMap(AppTab.init(rawValue:)) ?? .device
+            if UserDefaults.standard.string(forKey: "openFirmware") != nil { return .firmware }
+            return UserDefaults.standard.string(forKey: "initialTab").flatMap(AppTab.init(rawValue:)) ?? .device
         #else
             .device
         #endif
