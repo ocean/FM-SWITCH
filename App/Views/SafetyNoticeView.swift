@@ -12,28 +12,29 @@ enum SafetyNotice {
 
     static let recovery = """
         If your FM-1 won't start, some firmwares can start it in USB recovery mode if you hold down \
-        the "OCT−" key while switching it on. Then connect it and flash a firmware from the SAVED \
-        screen. Not every firmware does this, and if yours doesn't, recovery needs a computer: SETUP \
-        says more.
+        the "OCT−" key while switching it on. Then connect it and install a firmware you've saved. Not \
+        every firmware does this, and if yours doesn't, recovery needs a computer: the app's settings \
+        say more.
         """
 
     /// What's left when the FM-1 won't start at all.
     ///
     /// The tools are other people's, and haven't been tried with FM-SWITCH.
     static let romRecovery = """
-        If the FM-1 won't start at all, not even in USB recovery mode, FM-SWITCH can't help. If a computer \
-        sees a USB device with UBOOT in its name (such as WL80UBOOT), the FM-1's chip is in its own \
-        download mode, and tools built on jl-uboot-tool can put the official firmware back. Some \
-        firmwares (Melodee, FuMi-1 and Hortator among them) publish one with instructions. If it never \
-        gets that far, recovery needs an FM-1 Transporter. FM-SWITCH hasn't tried any of these.
+        If the FM-1 won't start at all, not even in USB recovery mode, FM-SWITCH can't help, but a \
+        computer usually can. M-Flasher, for Mac, Windows and Linux, backs up and reinstalls the FM-1 \
+        through its chip's own download mode, which works even when the firmware is broken: an FM-1 \
+        whose firmware is damaged often starts in that mode by itself. The firmware hub keeps a list of \
+        rescue tools, M-Flasher among them, with others for an FM-1 that doesn't get that far. \
+        FM-SWITCH hasn't tried any of these.
         """
 
     /// Where to find the computer recovery tools.
     static let romRecoveryLinks = [
-        CatalogueLink(label: "jl-uboot-tool", url: URL(literal: "https://github.com/kagaimiq/jl-uboot-tool")),
+        CatalogueLink(label: "M-Flasher", url: URL(literal: "https://github.com/jvitkauskas/m-flasher")),
         CatalogueLink(
-            label: "FM-1 Transporter",
-            url: URL(literal: "https://github.com/kurogedelic/FM-1-transporter")
+            label: "Rescue tools on the firmware hub",
+            url: URL(literal: "https://thefirmwarehub.com/tools/#rescue")
         ),
     ]
 }

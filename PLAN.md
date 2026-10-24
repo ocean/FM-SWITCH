@@ -159,7 +159,7 @@ FM1Kit (Swift package, no UI, unit-tested)
   Updater/      Updater actor: find → stage → loader → write → verify, resume,
                 progress as AsyncStream<UpdateEvent>, typed errors
 Catalogue/      CatalogueClient (catalog.json, ETag, offline cache), FirmwareStore
-                (downloaded .fwsc files in Application Support, sha256-checked)
+                (downloaded .fwsc files in iCloud Drive or Documents, sha256-checked)
 App/            Browse list + detail, Library (downloaded/offline), Official firmware
                 import, Flash screen (big progress, do-not-unplug, resume), Device status
 ```

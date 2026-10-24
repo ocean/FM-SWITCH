@@ -22,17 +22,18 @@ App/                     SwiftUI app (iOS 17+)
   Platform/iOS, macOS/   the few things done differently on each: staying awake, links, navigation
   Resources/Fonts/       Departure Mono, Silkscreen, VT323 (SIL OFL)
   Resources/Firmware/    M-VAVE's FM-1 V15, unmodified, and its Apache-2.0 notice
-  Assets.xcassets/       the app icon, made by scripts/make-icon.py
+  Assets.xcassets/       the app icons, made by scripts/make-app-icon.swift and make-icon.py
 AppTests/                firmware list and flashing tests (Swift Testing)
 Package.swift            fm1-catalogue, which builds the published firmware list from App/Catalogue
 Tools/fm1-catalogue/     its command line
 scripts/check.sh         every check CI runs
-scripts/make-icon.py     draws the app icon from its 32 x 32 pixel map (standard and tinted)
+scripts/make-app-icon.swift  draws the app icon (light, dark, tinted, Mac) and the launch screen
+scripts/make-icon.py     draws Retro's pixel icon from its 32 x 32 pixel map
 ```
 
 Talking to the FM-1 (the update protocol, `.fwsc` packages, CoreMIDI and a simulated FM-1)
 is [FM1Kit](https://github.com/ocean/FM1Kit), an open-source Swift package. `project.yml`
-uses its tagged release from GitHub, taking 0.2.x fixes but not 0.3.0, which may change the API.
+uses its tagged release from GitHub, taking 0.3.x fixes but not 0.4.0, which may change the API.
 
 ### The firmware list
 

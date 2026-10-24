@@ -22,11 +22,53 @@ struct LibraryTests {
         #expect(library.official == official)
     }
 
-    @Test func savesTheBuiltInCopyOnlyOnce() throws {
+    /// Devices sharing the folder in iCloud Drive would each add a copy otherwise.
+    @Test func readsTheBuiltInCopyFromTheAppRatherThanSavingIt() throws {
         let directory = Self.emptyDirectory()
-        _ = FirmwareLibrary(directory: directory)
-        let reopened = FirmwareLibrary(directory: directory)
-        #expect(reopened.items.count == 1)
+        let library = FirmwareLibrary(directory: directory)
+        let official = try #require(library.official)
+        #expect(library.items == [official])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
+        #expect(library.url(for: official) == FirmwareLibrary.bundledOfficialURL)
+        library.remove(official)
+        #expect(library.official == official)
+    }
+
+    @Test func savesPackagesUnderTheirNamesWithTheirDetailsBeside() throws {
+        let directory = Self.emptyDirectory()
+        let library = FirmwareLibrary(directory: directory)
+        let item = try FlashingTests.save("FM-1_916", in: library)
+        #expect(item.fileName.hasSuffix(".fwsc"))
+        #expect(!item.fileName.hasPrefix(String(item.sha256.prefix(16))))
+        let details = directory.appending(path: ".details/\(item.sha256).json")
+        #expect(FileManager.default.fileExists(atPath: details.path))
+
+        library.remove(item)
+        #expect(!FileManager.default.fileExists(atPath: details.path))
+        #expect(!FileManager.default.fileExists(atPath: library.url(for: item).path))
+    }
+
+    /// What another device sharing the folder saved shows up when the folder's read again.
+    @Test func picksUpFirmwaresAnotherDeviceSaved() async throws {
+        let directory = Self.emptyDirectory()
+        let thisDevice = FirmwareLibrary(directory: directory)
+        let otherDevice = FirmwareLibrary(directory: directory)
+        let item = try FlashingTests.save("FM-1_916", in: otherDevice)
+        #expect(!thisDevice.items.contains(item))
+        thisDevice.reload()
+        #expect(thisDevice.items.contains(item))
+        #expect(try await thisDevice.loadPackage(item).product == "FM-1_916")
+    }
+
+    /// Moving into iCloud Drive, here into another folder, takes every saved firmware along.
+    @Test func movesItsFirmwaresToANewFolder() async throws {
+        let library = FirmwareLibrary(directory: Self.emptyDirectory())
+        let item = try FlashingTests.save("FM-1_916", in: library)
+        let newDirectory = Self.emptyDirectory()
+        await library.move(to: newDirectory)
+        #expect(library.directory == newDirectory)
+        #expect(library.items.contains(item))
+        #expect(FileManager.default.fileExists(atPath: newDirectory.appending(path: item.fileName).path))
     }
 
     @Test func picksThePackagesThatCanFinishALoadersUpdate() throws {

@@ -9,7 +9,14 @@ import Observation
 @MainActor
 @Observable
 final class CatalogueStore {
-    private(set) var catalogue: MergedCatalogue?
+    private(set) var catalogue: MergedCatalogue? {
+        didSet {
+            let entries = catalogue?.entries ?? []
+            badges = Dictionary(entries.map { ($0.id, $0.badge) }, uniquingKeysWith: { first, _ in first })
+        }
+    }
+    /// Each firmware's badge, by catalogue ID.
+    private(set) var badges: [String: FirmwareBadgeDesign] = [:]
     private(set) var isRefreshing = false
     private(set) var errorMessage: String?
     /// What each firmware's own source said when its page was last opened, by catalogue ID.
@@ -38,6 +45,11 @@ final class CatalogueStore {
             if lhs.isOfficial != rhs.isOfficial { return lhs.isOfficial }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    /// The firmware's badge, or one from its name alone if it isn't listed.
+    func badge(id: String?, name: String) -> FirmwareBadgeDesign {
+        id.flatMap { badges[$0] } ?? FirmwareBadgeDesign(name: name)
     }
 
     func entry(id: String) -> CatalogueEntry? {

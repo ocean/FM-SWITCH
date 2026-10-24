@@ -5,113 +5,69 @@ import SwiftUI
 /// asks for confirmation when that switches the FM-1 to a different firmware, or installs the
 /// identity its custom firmware already reports.
 struct FlashConfirmView: View {
-    /// What the check before flashing found.
-    private enum Checked: Equatable {
-        case checking
-        case found(InstallKind)
-        /// The FM-1 is in its update loader, so the flash finishes that update; there's nothing
-        /// to check.
-        case finishingUpdate
-        case failed(String)
-    }
-
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var checked = Checked.checking
+    @State private var checked = InstallCheckState.checking
     @State private var backedUp = false
+    @State private var acceptsUntested = false
     let target: StoredFirmware
     var requiresOfficial = false
     var onStart: () -> Void = {}
 
     var body: some View {
-        let steps = model.device.plan(
-            for: target,
-            requiresOfficial: requiresOfficial,
-            alwaysViaOfficial: model.settings.alwaysViaOfficial
-        )
-        let missingOfficial =
-            (requiresOfficial || model.settings.alwaysViaOfficial) && target.source != .official
-            && model.library.official == nil
-        let switching = isSwitching(steps)
-        let sameIdentity = !switching && checked == .found(.sameIdentity)
+        let readiness = InstallReadiness(
+            target: target, requiresOfficial: requiresOfficial, checked: checked, model: model)
+        let steps = readiness.steps
         VStack(alignment: .leading, spacing: 16) {
-            ScreenHeader(title: switching ? "SWITCH FIRMWARE?" : sameIdentity ? "REINSTALL OR UPDATE?" : "FLASH?")
+            ScreenHeader(
+                title: readiness.isSwitching
+                    ? "SWITCH FIRMWARE?" : readiness.isSameIdentity ? "REINSTALL OR UPDATE?" : "FLASH?")
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                         MonoText("\(index + 1). \(step.name) \(step.version)", size: 17)
                     }
-                    if missingOfficial {
+                    if readiness.isMissingOfficial {
                         MonoText(
                             "This needs the official firmware first, and none is saved. Add it under SAVED.", size: 14)
                     }
+                    if readiness.isUntested {
+                        MonoText("IN TESTING. \(InstallReadiness.untestedWarning)", size: 14)
+                        PixelToggle("I'LL TRY IT WHILE IT'S IN TESTING", isOn: $acceptsUntested)
+                    }
                     deviceNotes(firstStep: steps.first)
-                    checkNotes(switching: switching)
+                    checkNotes(switching: readiness.isSwitching)
                     NoteText("Takes a minute or two per step. Stay in the app until it finishes.")
                 }
             }
             .scrollIndicators(.hidden)
-            buttons(steps, switching: switching, sameIdentity: sameIdentity, missingOfficial: missingOfficial)
+            buttons(readiness)
         }
         .padding(20)
         .overlay { CRTOverlay() }
-        .task(id: "\(steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") { await check(steps.first) }
+        .task(id: "\(steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
+            checked = .checking
+            checked = await InstallReadiness.check(steps.first, on: model.device)
+        }
     }
 
     /// CANCEL, and the button that starts: SWITCH, INSTALL for the same identity, or START.
-    private func buttons(
-        _ steps: [StoredFirmware], switching: Bool, sameIdentity: Bool, missingOfficial: Bool
-    ) -> some View {
+    private func buttons(_ readiness: InstallReadiness) -> some View {
         HStack(spacing: 10) {
             Button("CANCEL") { dismiss() }
                 .buttonStyle(.pixel)
             // Starting from the REINSTALL OR UPDATE? question is the confirmation it asks for.
-            Button(switching ? "SWITCH" : sameIdentity ? "INSTALL" : "START") {
+            Button(readiness.isSwitching ? "SWITCH" : readiness.isSameIdentity ? "INSTALL" : "START") {
                 model.device.flash(
-                    steps,
-                    confirmsSwitchingFirmware: switching && backedUp,
-                    confirmsSameIdentity: sameIdentity
+                    readiness.steps,
+                    confirmsSwitchingFirmware: readiness.isSwitching && backedUp,
+                    confirmsSameIdentity: readiness.isSameIdentity
                 )
                 dismiss()
                 onStart()
             }
             .buttonStyle(.pixelProminent)
-            .disabled(missingOfficial || !canStart(steps, switching: switching))
-        }
-    }
-
-    /// Whether these steps move the FM-1 to a different firmware: always for a chain through the
-    /// official firmware, otherwise as the check found.
-    private func isSwitching(_ steps: [StoredFirmware]) -> Bool {
-        steps.count > 1 || checked == .found(.switchingFirmware)
-    }
-
-    private func canStart(_ steps: [StoredFirmware], switching: Bool) -> Bool {
-        guard model.device.identity != nil else { return false }
-        switch checked {
-        case .checking, .failed:
-            return false
-        case .finishingUpdate:
-            return true
-        case .found(let kind):
-            return !(kind == .reinstall && steps.count == 1) && (!switching || backedUp)
-        }
-    }
-
-    private func check(_ first: StoredFirmware?) async {
-        guard let first, let identity = model.device.identity else {
-            checked = .checking
-            return
-        }
-        guard !identity.isLoader else {
-            checked = .finishingUpdate
-            return
-        }
-        checked = .checking
-        do {
-            checked = .found(try await model.device.check(first).kind)
-        } catch {
-            checked = .failed(error.localizedDescription)
+            .disabled(!readiness.canStart(confirmsSwitch: backedUp, acceptsUntested: acceptsUntested))
         }
     }
 

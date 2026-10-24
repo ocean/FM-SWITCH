@@ -8,84 +8,13 @@ import SwiftUI
 @MainActor
 @Observable
 final class DeviceController {
-    enum FlashPhase: Equatable {
-        case preparing
-        case staging(requests: Int)
-        case waitingForLoader
-        case writing(fraction: Double)
-        /// The loader reading back what it wrote; not every loader does this.
-        case verifying(fraction: Double)
-        case rebooting
-        case succeeded(String)
-        case failed(String, canResume: Bool)
-
-        var label: String {
-            switch self {
-            case .preparing: "CONNECTING"
-            case .staging: "CHECKING PACKAGE"
-            case .waitingForLoader: "WAITING FOR LOADER"
-            case .writing: "WRITING"
-            case .verifying: "VERIFYING"
-            case .rebooting: "REBOOTING"
-            case .succeeded: "DONE"
-            case .failed: "STOPPED"
-            }
-        }
-    }
-
-    /// Restoring V15's factory voices, which M-VAVE's updater offers after installing V15.
-    enum VoiceRestore: Equatable {
-        case idle
-        case writing(fraction: Double)
-        case succeeded
-        case failed(String)
-
-        var isRunning: Bool {
-            if case .writing = self { true } else { false }
-        }
-    }
-
-    struct FlashJob: Equatable {
-        var steps: [StoredFirmware]
-        /// Whether the person confirmed that these steps switch the FM-1 to a different firmware,
-        /// which can erase its projects and samples.
-        var confirmsSwitchingFirmware = false
-        /// Whether the person confirmed installing the identity a custom firmware already reports:
-        /// a reinstall, or another release of the same firmware.
-        var confirmsSameIdentity = false
-        var index = 0
-        var phase = FlashPhase.preparing
-
-        var current: StoredFirmware { steps[index] }
-
-        var isRunning: Bool {
-            switch phase {
-            case .succeeded, .failed: false
-            default: true
-            }
-        }
-
-        /// How far the current phase has got, or `nil` while it can't be measured.
-        ///
-        /// Each phase counts from 0 on its own: whether a loader verifies after writing isn't known
-        /// until it starts, so one bar across every phase would have to jump back. Some loaders
-        /// don't read the whole image, so writing can end short of 1.
-        var phaseFraction: Double? {
-            switch phase {
-            case .staging(let requests): min(Double(requests) / 75, 1)
-            case .writing(let fraction), .verifying(let fraction): fraction
-            case .succeeded: 1
-            case .preparing, .waitingForLoader, .rebooting, .failed: nil
-            }
-        }
-    }
-
     private(set) var identity: FM1Identity?
     private(set) var isScanning = false
     private(set) var lastScan: Date?
     private(set) var ports: [MIDIPortDescriptor] = []
     private(set) var job: FlashJob?
     private(set) var voiceRestore = VoiceRestore.idle
+    private(set) var backupRun = BackupRun.idle
     private(set) var log: [String] = []
     private(set) var transportName = ""
     private(set) var transportError: String?
@@ -105,9 +34,11 @@ final class DeviceController {
 
     var isFlashing: Bool { job?.isRunning ?? false }
 
-    /// Whether anything is being written to the FM-1, a flash or a voice restore, so nothing else
-    /// may talk to it.
-    var isWriting: Bool { isFlashing || voiceRestore.isRunning }
+    /// Whether the FM-1 is busy, so nothing else may talk to it.
+    ///
+    /// It's busy during a flash, a voice restore or a backup. A backup doesn't write a project
+    /// slot or the sample bank, but it does load each project in turn.
+    var isWriting: Bool { isFlashing || voiceRestore.isRunning || backupRun.isRunning }
 
     var simulatedDevice: SimulatedFM1? { transport as? SimulatedFM1 }
 
@@ -131,6 +62,7 @@ final class DeviceController {
             options.unplugDuringWriteAt = settings.simulatedCablePull ? 0.45 : nil
             options.writesBackwards = settings.simulatedReadsBackwards
             options.checksAfterWriting = settings.simulatedVerifies
+            if settings.simulatedOpenFirmware { SimulatedOpenFirmware.apply(to: &options) }
             transport = SimulatedFM1(options: options)
         }
         transportName = kind.name
@@ -144,7 +76,11 @@ final class DeviceController {
             for await _ in changes {
                 // Let a burst of add/remove notifications settle before probing.
                 try? await Task.sleep(for: .milliseconds(400))
-                guard let self, !isWriting else { continue }
+                // The FM-1 reboots during an install, so a change seen then is checked once it's done.
+                while self?.isWriting == true {
+                    try? await Task.sleep(for: .seconds(1))
+                }
+                guard let self else { return }
                 await scan()
             }
         }
@@ -161,6 +97,15 @@ final class DeviceController {
         }
         ports = await transport.ports()
         identity = await updater.identify()
+        // An FM-1 that's just been plugged in, or has just rebooted, can show up a moment before
+        // it answers.
+        var retries = 3
+        while identity == nil, !ports.isEmpty, retries > 0, !Task.isCancelled {
+            retries -= 1
+            try? await Task.sleep(for: .seconds(1))
+            ports = await transport.ports()
+            identity = await updater.identify()
+        }
     }
 
     // MARK: - Flashing.
@@ -181,7 +126,7 @@ final class DeviceController {
     /// What installing `item` on the connected FM-1 would do, sending only the handshake (and,
     /// for M-VAVE's open firmware, its capability query).
     func check(_ item: StoredFirmware) async throws -> InstallCheck {
-        let package = try library.loadPackage(item)
+        let package = try await library.loadPackage(item)
         return try await updater.check(package)
     }
 
@@ -232,7 +177,7 @@ final class DeviceController {
             let item = steps[index]
             appendLog("▸ \(item.name) \(item.version) (\(item.product))")
             do {
-                let package = try library.loadPackage(item)
+                let package = try await library.loadPackage(item)
                 simulatedDevice?.prepare(for: package)
 
                 let (events, continuation) = AsyncStream<UpdateEvent>.makeStream()
@@ -306,7 +251,7 @@ final class DeviceController {
         defer { setKeepAwake(false) }
         do {
             guard let official = library.official else { throw FM1UpdateError.factoryVoicesUnavailable }
-            let package = try library.loadPackage(official)
+            let package = try await library.loadPackage(official)
             let (fractions, continuation) = AsyncStream<Double>.makeStream()
             let consumer = Task { @MainActor [weak self] in
                 for await fraction in fractions {
@@ -334,6 +279,43 @@ final class DeviceController {
         voiceRestore = .idle
     }
 
+    // MARK: - Backing up.
+
+    /// Saves the projects and samples of an FM-1 running M-VAVE's open firmware into `store`.
+    ///
+    /// While it runs, the FM-1 loads each project in turn, then goes back to the one being edited,
+    /// unsaved changes and all. No project slot or sample is changed.
+    func backUp(into store: BackupStore) async {
+        guard !isWriting else { return }
+        backupRun = .saving(fraction: 0)
+        setKeepAwake(true)
+        defer { setKeepAwake(false) }
+        let (fractions, continuation) = AsyncStream<Double>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let consumer = Task { @MainActor [weak self] in
+            for await fraction in fractions {
+                self?.backupRun = .saving(fraction: fraction)
+            }
+        }
+        let result: Result<OpenFirmwareBackup, any Error>
+        do {
+            result = .success(try await updater.backUpOpenFirmware { continuation.yield($0) })
+        } catch {
+            result = .failure(error)
+        }
+        continuation.finish()
+        await consumer.value
+        do {
+            backupRun = .succeeded(try store.save(try result.get()))
+        } catch {
+            backupRun = .failed(error.localizedDescription)
+        }
+    }
+
+    func dismissBackup() {
+        guard !backupRun.isRunning else { return }
+        backupRun = .idle
+    }
+
     private static func isResumable(_ error: any Error) -> Bool {
         switch error as? FM1UpdateError {
         case .disconnected(.writing, _), .stalled(.writing, _), .loaderNotFound:
@@ -349,8 +331,8 @@ final class DeviceController {
 
     // MARK: - Staying alive.
 
-    /// Keeps the device awake for the whole flash or restore, so the person only has to stay in
-    /// the app.
+    /// Keeps the device awake for the whole flash, restore or backup, so the person only has to
+    /// stay in the app.
     private func setKeepAwake(_ on: Bool) {
         wakeKeeper.isHolding = on
     }

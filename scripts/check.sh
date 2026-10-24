@@ -9,9 +9,9 @@
 # With no arguments it runs every group. Name groups to run only those, in the order given:
 #   lint    formatting and SwiftLint
 #   build   the warnings-as-errors simulator build that `test` and `unused` use
-#   test    the tests, on the simulator build
+#   test    the tests, on the simulator build, including the accessibility audit UI tests
 #   device  an unsigned iPhone and iPad device build
-#   mac     the Mac app: a warnings-as-errors build, then the tests on macOS
+#   mac     the Mac app: a warnings-as-errors build, then the unit tests on macOS
 #   docs    the DocC documentation, with warnings as errors
 #   unused  SwiftLint analyze and Periphery, on the simulator build
 #   tool    fm1-catalogue, the command-line tool that builds the published firmware list
@@ -49,7 +49,7 @@ require_build() {
 
 check_lint() {
     step "Formatting (swift format)"
-    swift format lint --strict --recursive App AppTests Tools Package.swift
+    swift format lint --strict --recursive App AppTests AppUITests Tools Package.swift
 
     step "Lint (SwiftLint)"
     swiftlint lint --strict --quiet
@@ -80,9 +80,18 @@ check_device() {
 
 check_mac() {
     step "Mac build with warnings as errors, and tests on macOS"
-    # Signed to run locally only, as tests need a signed app to host them.
+    # Signed to run locally only, as tests need a signed app to host them. That can't carry iCloud,
+    # which needs a developer certificate, so these builds use the entitlements without it: the
+    # app keeps its files on the Mac then. The accessibility audit runs on iPhone only: on the
+    # Mac, UI tests need the Accessibility permission granted by hand.
+    local entitlements=.build/mac-without-icloud.entitlements
+    cp App/FMSwitch-macOS.entitlements "$entitlements"
+    for key in icloud-container-identifiers icloud-services ubiquity-container-identifiers; do
+        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.$key" "$entitlements"
+    done
     xcodebuild test -project FMSwitch.xcodeproj -scheme FMSwitch -destination 'platform=macOS' \
-        -derivedDataPath .build/mac CODE_SIGN_IDENTITY=- FMSWITCH_STRICT=YES \
+        -derivedDataPath .build/mac CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$entitlements" \
+        FMSWITCH_STRICT=YES -skip-testing:FMSwitchUITests \
         > .build/logs/mac.log 2>&1 || fail_with_log .build/logs/mac.log
     grep -E 'Test run with' .build/logs/mac.log || true
 }
@@ -103,7 +112,7 @@ check_unused() {
     periphery scan --project FMSwitch.xcodeproj --schemes FMSwitch --strict --quiet --skip-build \
         --retain-public --disable-redundant-public-analysis \
         --index-store-path .build/xcode/Index.noindex/DataStore \
-        --report-include 'App/**/*.swift' --report-include 'AppTests/**/*.swift'
+        --report-include 'App/**/*.swift' --report-include 'AppTests/**/*.swift' --report-include 'AppUITests/**/*.swift'
 }
 
 check_tool() {

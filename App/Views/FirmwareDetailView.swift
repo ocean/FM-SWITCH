@@ -73,6 +73,7 @@ struct FirmwareDetailView: View {
                 Spacer()
                 if entry.isOfficial { PixelTag(text: "OFFICIAL") }
                 if entry.beta { PixelTag(text: "BETA", inverted: false) }
+                if !entry.isHardwareTested { PixelTag(text: "IN TESTING", inverted: false) }
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(entry.name.uppercased())
@@ -101,11 +102,11 @@ struct FirmwareDetailView: View {
             if let licence = entry.licence { detailRow("LICENCE", licence) }
             if let stars = entry.stars { detailRow("STARS", "★ \(stars)") }
             detailRow("RECOVERY", entry.rescueMode?.summary ?? "Not known")
-            detailRow("LISTED ON", listedOn)
+            detailRow("LISTED ON", entry.listedOn)
             if entry.listing.contains(.hub), let hubUpdated = model.catalogue.catalogue?.hubUpdated {
                 detailRow("HUB LIST", "Updated \(hubUpdated)")
             }
-            detailRow("FILE FROM", packageSource)
+            detailRow("FILE FROM", entry.packageSource)
             detailRow("SHA-256", entry.sha256.map { String($0.prefix(16)) + "…" } ?? "Not published")
             if entry.isDownloadable && !entry.hasPublishedChecksum {
                 NoteText(
@@ -121,27 +122,6 @@ struct FirmwareDetailView: View {
             if entry.requiresOfficialFirmware {
                 MonoText("Installs from the official firmware: the official firmware is flashed first.", size: 13)
             }
-        }
-    }
-
-    private var listedOn: String {
-        [
-            entry.listing.contains(.hub) ? "Firmware hub" : nil,
-            entry.listing.contains(.editor) ? "fm1-editor.com" : nil,
-            entry.listing.contains(.resourceHub) ? "FM1 Resource Hub" : nil,
-        ]
-        .compactMap(\.self)
-        .joined(separator: " + ")
-    }
-
-    private var packageSource: String {
-        switch entry.packageOrigin {
-        case .hub: "Firmware hub mirror"
-        case .githubRelease: "GitHub release"
-        case .publisherManifest: "The publisher's site"
-        case .projectPage: "The project's page"
-        case .mvave: "M-VAVE's downloads"
-        case nil: "None found"
         }
     }
 

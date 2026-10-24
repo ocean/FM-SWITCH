@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Draws the app icon from its pixel map and writes it into the asset catalogue.
+"""Draws Retro's pixel icon from its pixel map and writes it into the asset catalogue.
 
 The icon is a cartridge with a lightning bolt on its label, going into a synth: swapping the
 synth's software by flashing it. It's drawn on a 32 x 32 grid, so each cell is exactly 32 pixels
 of the 1024-pixel icon, with a one-cell block shadow like the app's buttons. The Mac's sizes are
 drawn from the same grid.
 
-It also draws the launch screen's icon and background colour.
+It writes it as RetroIcon, the alternate icon iPhone and iPad offer once Retro's been found. The
+app's own icon and the launch screen are drawn by `make-app-icon.swift`.
 
 Run it after changing the map or the colours: `scripts/make-icon.py`. It needs only Python 3.
 """
@@ -117,16 +118,6 @@ def render(cells, palette, size=SIZE):
     return rows
 
 
-# The launch screen's icon: the same drawing on a clear background, over the app's background
-# colour, 4 points to a cell.
-LAUNCH_PALETTE = {
-    **PALETTES["AppIcon.png"],
-    ".": (0, 0, 0, 0),
-}
-LAUNCH_POINTS = 128
-# The app's background with the green accent, from PhosphorTheme.background.
-LAUNCH_BACKGROUND = (0x0F, 0x14, 0x11)
-
 # The Mac's icon sizes, in points, each at 1x and 2x.
 MAC_SIZES = [16, 32, 128, 256, 512]
 
@@ -157,43 +148,37 @@ def contents():
     }
 
 
-def write_launch_screen():
-    """Writes the launch screen's icon and background colour, which iPhone and iPad show at once."""
-    cells = with_shadow(read_map())
-    image_set = CATALOGUE / "LaunchIcon.imageset"
-    image_set.mkdir(parents=True, exist_ok=True)
-    images = []
-    for scale in (1, 2, 3):
-        name = f"LaunchIcon@{scale}x.png"
-        (image_set / name).write_bytes(png(render(cells, LAUNCH_PALETTE, LAUNCH_POINTS * scale)))
-        images.append({"idiom": "universal", "scale": f"{scale}x", "filename": name})
-    info = {"author": "xcode", "version": 1}
-    (image_set / "Contents.json").write_text(json.dumps({"images": images, "info": info}, indent=2) + "\n")
+def write_icon_set(name, includes_mac):
+    """Writes the icon as the set `name`, with the Mac's sizes too if `includes_mac`.
 
-    colour_set = CATALOGUE / "LaunchBackground.colorset"
-    colour_set.mkdir(parents=True, exist_ok=True)
-    red, green, blue = (f"0x{value:02X}" for value in LAUNCH_BACKGROUND)
-    colour = {"color-space": "srgb", "components": {"red": red, "green": green, "blue": blue, "alpha": "1.000"}}
-    colours = {"colors": [{"idiom": "universal", "color": colour}], "info": info}
-    (colour_set / "Contents.json").write_text(json.dumps(colours, indent=2) + "\n")
+    The Mac sizes are for drawing the pixel icon as the app's icon again, as it was before the
+    standard look's.
+    """
+    cells = with_shadow(read_map())
+    icon_set = CATALOGUE / f"{name}.appiconset"
+    icon_set.mkdir(parents=True, exist_ok=True)
+    for file, palette in PALETTES.items():
+        (icon_set / file).write_bytes(png(render(cells, palette)))
+    icon_contents = contents()
+    if includes_mac:
+        # The Mac draws its icon at fixed sizes; below 32 pixels a cell is less than a pixel, so
+        # the smallest ones lose some detail.
+        for points in MAC_SIZES:
+            for scale in (1, 2):
+                pixels = render(cells, PALETTES["AppIcon.png"], points * scale)
+                (icon_set / mac_file(points, scale)).write_bytes(png(pixels))
+    else:
+        icon_contents["images"] = [image for image in icon_contents["images"] if image["idiom"] != "mac"]
+    (icon_set / "Contents.json").write_text(json.dumps(icon_contents, indent=2) + "\n")
+    return icon_set
 
 
 def main():
-    cells = with_shadow(read_map())
-    icon_set = CATALOGUE / "AppIcon.appiconset"
-    icon_set.mkdir(parents=True, exist_ok=True)
-    for name, palette in PALETTES.items():
-        (icon_set / name).write_bytes(png(render(cells, palette)))
-    # The Mac draws its icon at fixed sizes; below 32 pixels a cell is less than a pixel, so the
-    # smallest ones lose some detail.
-    for points in MAC_SIZES:
-        for scale in (1, 2):
-            pixels = render(cells, PALETTES["AppIcon.png"], points * scale)
-            (icon_set / mac_file(points, scale)).write_bytes(png(pixels))
-    (icon_set / "Contents.json").write_text(json.dumps(contents(), indent=2) + "\n")
+    # The alternate icon that iPhone and iPad offer once Retro's been found. The Mac has no
+    # alternate icons.
+    write_icon_set("RetroIcon", includes_mac=False)
     (CATALOGUE / "Contents.json").write_text(json.dumps({"info": {"author": "xcode", "version": 1}}, indent=2) + "\n")
-    write_launch_screen()
-    print(f"Wrote {icon_set.relative_to(CATALOGUE.parent.parent)} and the launch screen's assets")
+    print("Wrote RetroIcon")
 
 
 if __name__ == "__main__":

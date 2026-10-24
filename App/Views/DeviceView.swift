@@ -7,6 +7,7 @@ struct DeviceView: View {
     @Environment(\.phosphor) private var theme
     @Binding var tab: AppTab
     @State private var restoringVoices = false
+    @State private var isSaving = false
 
     private var device: DeviceController { model.device }
 
@@ -34,6 +35,7 @@ struct DeviceView: View {
                         hintPanel
                     }
                 } trailing: {
+                    if model.offersSaveMyFM1 { savePanel }
                     if device.identity == .officialV15 { voicesPanel }
                     portsPanel
                 }
@@ -41,7 +43,25 @@ struct DeviceView: View {
             .padding(16)
         }
         .scrollIndicators(.hidden)
+        // Plug and unplug events can be missed, so it checks again each time it's shown.
+        .task { await device.scan() }
         .voiceRestoreSheet(isPresented: $restoringVoices, model: model, theme: theme)
+        .retroSaveSheet(isPresented: $isSaving, model: model, theme: theme)
+    }
+
+    /// Save my FM-1, offered on M-VAVE's open firmware, or while there are earlier saves.
+    private var savePanel: some View {
+        PixelPanel(title: "SAVE MY FM-1") {
+            MonoText(
+                device.identity?.isOpenFirmware == true
+                    ? "Keep a copy of your projects and samples on this \(ThisDevice.name)."
+                    : "Your earlier saves. Saving again needs M-VAVE's open firmware.",
+                size: 14
+            )
+            Button(device.identity?.isOpenFirmware == true ? "SAVE MY FM-1" : "EARLIER SAVES") { isSaving = true }
+                .buttonStyle(.pixel)
+                .disabled(device.isWriting && !device.backupRun.isRunning)
+        }
     }
 
     private var voicesPanel: some View {

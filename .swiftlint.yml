@@ -4,6 +4,7 @@
 included:
   - App
   - AppTests
+  - AppUITests
   - Tools
 
 disabled_rules:
@@ -20,6 +21,7 @@ disabled_rules:
 
 opt_in_rules:
   - accessibility_label_for_image
+  - accessibility_trait_for_button
   - anonymous_argument_in_multiline_closure
   - array_init
   - closure_body_length
@@ -140,3 +142,30 @@ large_tuple:
   warning: 3  # Regex captures and colour components come as three-element tuples.
   error: 4
 
+
+# The standard look's design rules (REDESIGN.md, "How it should feel"), checked so they don't drift.
+custom_rules:
+  no_glass:
+    name: "No glass"
+    regex: '\.glassEffect\(|GlassEffectContainer|\.buttonStyle\(\.glass'
+    message: "The standard look uses solid surfaces, not glass (REDESIGN.md)."
+    severity: error
+  standard_motion:
+    name: "Motion from Motion"
+    included: 'App/Standard/.*\.swift'
+    excluded: 'App/Standard/Theme/Motion\.swift'
+    regex: '\.(spring|easeInOut|easeIn|easeOut|linear|interactiveSpring|bouncy|snappy|smooth)\b(\(|\s|\))'
+    message: "Animate with Motion's springs and fades, which respect Reduce Motion."
+    severity: error
+  dynamic_type:
+    name: "Dynamic Type"
+    included: 'App/Standard/.*\.swift'
+    excluded: 'App/Standard/(FM1Drawing|Firmwares/FirmwareBadge)\.swift'
+    regex: '\.system\(size:'
+    message: "Use text styles (.body, .headline…) so text follows Dynamic Type."
+    severity: error
+  sensory_feedback:
+    name: "Haptics through sensoryFeedback"
+    regex: 'UI(Impact|Notification|Selection)FeedbackGenerator'
+    message: "Use .sensoryFeedback, tied to the state change the visual comes from."
+    severity: error

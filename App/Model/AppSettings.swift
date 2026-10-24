@@ -18,12 +18,50 @@ enum TransportKind: String, CaseIterable, Identifiable {
     }
 }
 
+/// The app's two looks: the standard one, and the 8-bit one found by tapping the FM-1's screen.
+enum Look: String, CaseIterable, Identifiable {
+    case standard
+    case retro
+
+    var id: String { rawValue }
+}
+
+/// Light or dark for the standard look, or whichever the device is using.
+enum Appearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    /// The scheme to ask for, or nil to follow the device.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
 /// User preferences, persisted in `UserDefaults`.
 @MainActor
 @Observable
 final class AppSettings {
     private let defaults: UserDefaults
 
+    var look: Look { didSet { defaults.set(look.rawValue, forKey: Keys.look) } }
+    /// Whether Retro has been found, which puts it in Settings from then on.
+    var isRetroFound: Bool { didSet { defaults.set(isRetroFound, forKey: Keys.isRetroFound) } }
+    var appearance: Appearance { didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance) } }
     var phosphorHex: String { didSet { defaults.set(phosphorHex, forKey: Keys.phosphorHex) } }
     var glow: Double { didSet { defaults.set(glow, forKey: Keys.glow) } }
     var scanlines: Bool { didSet { defaults.set(scanlines, forKey: Keys.scanlines) } }
@@ -43,10 +81,17 @@ final class AppSettings {
     }
     /// The simulated loader reads the image again after writing it, as Felucca's loader does.
     var simulatedVerifies: Bool { didSet { defaults.set(simulatedVerifies, forKey: Keys.simulatedVerifies) } }
+    /// The simulated FM-1 runs M-VAVE's open firmware, with projects and samples to save.
+    var simulatedOpenFirmware: Bool {
+        didSet { defaults.set(simulatedOpenFirmware, forKey: Keys.simulatedOpenFirmware) }
+    }
     /// The `SafetyNotice.version` the user last acknowledged (0 for never).
     var acknowledgedNoticeVersion: Int {
         didSet { defaults.set(acknowledgedNoticeVersion, forKey: Keys.acknowledgedNotice) }
     }
+
+    /// How many tip cards have been shown, so each shows once.
+    var tipNudgesShown: Int { didSet { defaults.set(tipNudgesShown, forKey: Keys.tipNudgesShown) } }
 
     var needsSafetyNotice: Bool { acknowledgedNoticeVersion < SafetyNotice.version }
 
@@ -61,6 +106,10 @@ final class AppSettings {
             }
             defaults.set(Self.lookVersion, forKey: Keys.lookVersion)
         }
+        let savedLook = Self.savedLook(in: defaults)
+        look = savedLook
+        isRetroFound = defaults.bool(forKey: Keys.isRetroFound) || savedLook == .retro
+        appearance = defaults.string(forKey: Keys.appearance).flatMap(Appearance.init(rawValue:)) ?? .system
         let standard = PhosphorTheme.standard
         phosphorHex = defaults.string(forKey: Keys.phosphorHex) ?? PhosphorPreset.green.hex
         glow = defaults.object(forKey: Keys.glow) as? Double ?? standard.glow
@@ -80,7 +129,15 @@ final class AppSettings {
         simulatedCablePull = defaults.object(forKey: Keys.simulatedCablePull) as? Bool ?? false
         simulatedReadsBackwards = defaults.object(forKey: Keys.simulatedReadsBackwards) as? Bool ?? false
         simulatedVerifies = defaults.object(forKey: Keys.simulatedVerifies) as? Bool ?? false
+        // `bool(forKey:)` reads `-simulatedOpenFirmware YES` too, for UI tests.
+        simulatedOpenFirmware = defaults.bool(forKey: Keys.simulatedOpenFirmware)
         acknowledgedNoticeVersion = defaults.integer(forKey: Keys.acknowledgedNotice)
+        tipNudgesShown = defaults.integer(forKey: Keys.tipNudgesShown)
+    }
+
+    /// The look last picked, read straight from `defaults`.
+    static func savedLook(in defaults: UserDefaults = .standard) -> Look {
+        defaults.string(forKey: Keys.look).flatMap(Look.init(rawValue:)) ?? .standard
     }
 
     /// Puts the colour and screen effects back to the defaults.
@@ -102,6 +159,9 @@ final class AppSettings {
     }
 
     private enum Keys {
+        static let look = "look"
+        static let isRetroFound = "isRetroFound"
+        static let appearance = "appearance"
         static let lookVersion = "lookVersion"
         static let phosphorHex = "phosphorHex"
         static let glow = "glow"
@@ -115,6 +175,8 @@ final class AppSettings {
         static let simulatedCablePull = "simulatedCablePull"
         static let simulatedReadsBackwards = "simulatedReadsBackwards"
         static let simulatedVerifies = "simulatedVerifies"
+        static let simulatedOpenFirmware = "simulatedOpenFirmware"
         static let acknowledgedNotice = "acknowledgedNoticeVersion"
+        static let tipNudgesShown = "tipNudgesShown"
     }
 }

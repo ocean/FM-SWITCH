@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// Look, connection and flashing preferences, plus credits.
@@ -17,9 +18,23 @@ struct SettingsView: View {
                     }
 
                     PixelPanel(title: "IF IT WON'T START AT ALL") { romRecovery }
+                    PixelPanel(title: "TIP JAR") { RetroTipJar(tipJar: model.tipJar) }
                     PixelPanel(title: "CREDITS") { credits }
                 } trailing: {
+                    PixelPanel(title: "LOOK") {
+                        MonoText("You're using Retro. The standard look is the app's everyday one.", size: 14)
+                        Button("SWITCH TO STANDARD") { model.settings.look = .standard }
+                            .buttonStyle(.pixel)
+                        if AlternateIcon.isAvailable { RetroIconButton() }
+                    }
                     PixelPanel(title: "COLOUR + SCREEN") { lookSettings }
+                    PixelPanel(title: "FIRMWARES + BACKUPS") {
+                        MonoText(SharedStorage.whereFilesAre(inICloud: model.isUsingICloud), size: 14)
+                        Button("OPEN IN \(SavedFiles.folderAppName.uppercased())") {
+                            SavedFiles.open(model.filesFolder)
+                        }
+                        .buttonStyle(.pixelCompact)
+                    }
                     PixelPanel(title: "CONNECTION") { connectionSettings }
                     PixelPanel(title: "FLASHING") { flashingSettings }
                 }
@@ -89,6 +104,7 @@ struct SettingsView: View {
             PixelToggle("PULL THE CABLE AT 45%", isOn: $settings.simulatedCablePull)
             PixelToggle("READ BACKWARDS, LIKE V15", isOn: $settings.simulatedReadsBackwards)
             PixelToggle("VERIFY AFTER WRITING, LIKE FELUCCA", isOn: $settings.simulatedVerifies)
+            PixelToggle("RUN OPEN FIRMWARE, WITH PROJECTS", isOn: $settings.simulatedOpenFirmware)
             Button("RESET SIMULATED FM-1") { model.applyConnectionSettings() }
                 .buttonStyle(.pixel)
                 .disabled(model.device.isWriting)
@@ -149,5 +165,75 @@ struct SettingsView: View {
             Slider(value: value, in: 0...1)
                 .tint(theme.bright)
         }
+    }
+}
+
+/// Tips as in-app purchases on iPhone and iPad, or a link to Ko-fi on the Mac.
+struct RetroTipJar: View {
+    @Environment(\.phosphor) private var theme
+    @Environment(\.purchase) private var purchase
+    let tipJar: TipJar
+    /// What it says under the tips, until one's bought.
+    var message = Tips.note
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if TipJar.isInApp {
+                HStack(spacing: 8) {
+                    ForEach(tipJar.tips) { tip in
+                        Button {
+                            Task { await buy(tip) }
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text(tip.name.uppercased())
+                                Text(tipJar.status == .buying(tip.id) ? "…" : tip.price)
+                            }
+                        }
+                        .buttonStyle(.pixelCompact)
+                        .accessibilityLabel("\(tip.name), \(tip.price)")
+                        .disabled(tipJar.status == .buying(tip.id))
+                    }
+                }
+                if tipJar.status == .loading { NoteText("LOADING TIPS…") }
+            } else {
+                PixelLink(Tips.koFi) {
+                    Text("▸ LEAVE A TIP ON KO-FI")
+                        .font(.pixel(11, bold: true, relativeTo: .callout))
+                        .foregroundStyle(theme.bright)
+                }
+            }
+            NoteText(note)
+        }
+        .task { await tipJar.load() }
+        .sensoryFeedback(.success, trigger: tipJar.status == .thanked)
+    }
+
+    /// Buys with SwiftUI's purchase action, which shows the App Store's sheet in this window.
+    private func buy(_ tip: Tip) async {
+        await tipJar.buy(tip) { try await purchase($0) }
+    }
+
+    private var note: String {
+        switch tipJar.status {
+        case .thanked: Tips.thanks
+        case .failed: Tips.unavailable
+        default: message
+        }
+    }
+}
+
+/// Switches the Home Screen icon between Retro's pixel-art one and the standard one.
+private struct RetroIconButton: View {
+    @State private var isRetro = AlternateIcon.isRetro
+
+    var body: some View {
+        Button(isRetro ? "USE STANDARD ICON" : "USE PIXEL ICON") {
+            Task {
+                // iOS tells the person the icon has changed, or keeps the old one if it refuses.
+                try? await AlternateIcon.set(retro: !isRetro)
+                isRetro = AlternateIcon.isRetro
+            }
+        }
+        .buttonStyle(.pixelCompact)
     }
 }

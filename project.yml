@@ -1,16 +1,16 @@
 name: FMSwitch
 options:
-  bundleIdPrefix: com.drewrobinson
+  bundleIdPrefix: dev.drewr
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
   createIntermediateGroups: true
 packages:
-  # The tagged release, taking 0.2.x fixes but not 0.3.0, which may change the API. To work
+  # The tagged release, taking 0.3.x fixes but not 0.4.0, which may change the API. To work
   # against a local checkout at ../FM1Kit instead, generate from project.local.yml.
   FM1Kit:
     url: https://github.com/ocean/FM1Kit.git
-    minorVersion: 0.2.0
+    minorVersion: 0.3.0
 # Each developer's signing team, from the git-ignored Signing.local.xcconfig.
 configFiles:
   Debug: Signing.xcconfig
@@ -54,11 +54,20 @@ targets:
         # The Mac's equivalent: every font in the app's Resources folder.
         ATSApplicationFontsPath: .
         LSApplicationCategoryType: public.app-category.music
-        # The pixel-art icon on the app's background, drawn by scripts/make-icon.py.
-        UILaunchScreen:
-          UIColorName: LaunchBackground
-          UIImageName: LaunchIcon
-        UIUserInterfaceStyle: Dark
+        # The app's iCloud Drive folder, FM-SWITCH, with its firmwares and backups, shown in the Files
+        # app and the Finder.
+        NSUbiquitousContainers:
+          iCloud.dev.drewr.fmswitch:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: FM-SWITCH
+            NSUbiquitousContainerSupportedFolderLevels: Any
+        # Shows the app's Documents folder, where firmwares and backups are kept when iCloud Drive
+        # is off, in the Files app.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # The app icon on a violet glow, from App/Platform/iOS/LaunchScreen.storyboard. A storyboard,
+        # because UILaunchScreen can't stretch an image to fill the screen.
+        UILaunchStoryboardName: LaunchScreen
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
@@ -69,13 +78,17 @@ targets:
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.drewrobinson.fmswitch
+        PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Retro's pixel-art icon, which iPhone and iPad offer in Settings once Retro's been found.
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES[sdk=iphone*]: RetroIcon
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
+        # iCloud Drive, for the firmwares and backups shared between the person's devices.
+        CODE_SIGN_ENTITLEMENTS[sdk=iphone*]: App/FMSwitch-iOS.entitlements
         # The Mac app is sandboxed: it reaches the network, opens files the person picks, and
-        # talks MIDI, which the sandbox allows.
+        # talks MIDI, which the sandbox allows. It uses iCloud Drive too.
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/FMSwitch-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
         ENABLE_PREVIEWS: YES
@@ -85,20 +98,45 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - path: AppTests
+      # The tips the App Store would offer, for StoreKit's test session.
+      - path: FMSwitch.storekit
+        buildPhase: resources
     dependencies:
       - target: FMSwitch
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "6.0"
-        PRODUCT_BUNDLE_IDENTIFIER: com.drewrobinson.fmswitch.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch.tests
+        # StoreKitTest's own header uses a deprecated StoreKit type, which fails the build with
+        # warnings as errors. Every other warning is still an error.
+        OTHER_SWIFT_FLAGS: $(inherited) -Xcc -Wno-error=deprecated-declarations
         # A Mac app's executable is inside Contents/MacOS, which XcodeGen's default misses.
         TEST_HOST[sdk=macosx*]: $(BUILT_PRODUCTS_DIR)/FMSwitch.app/Contents/MacOS/FMSwitch
+  # Apple's accessibility audit on the main screens, on iPhone. scripts/check.sh skips it on the Mac.
+  FMSwitchUITests:
+    type: bundle.ui-testing
+    platform: auto
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: AppUITests
+    dependencies:
+      - target: FMSwitch
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch.uitests
+        TEST_TARGET_NAME: FMSwitch
 schemes:
   FMSwitch:
     build:
       targets:
         FMSwitch: all
+    run:
+      # Tips from FMSwitch.storekit rather than App Store Connect, when run from Xcode.
+      storeKitConfiguration: FMSwitch.storekit
     test:
       targets:
         - FMSwitchTests
+        - FMSwitchUITests

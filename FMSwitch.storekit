@@ -1,0 +1,68 @@
+{
+  "identifier" : "6F0C2B1E-5A4D-4C8B-9E21-3D7A0F6B8C14",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.0",
+      "familyShareable" : false,
+      "internalID" : "7A1D3C2E-0B4F-4E6A-8C51-2F9D7E3B1A01",
+      "localizations" : [
+        {
+          "description" : "A nibble-sized thank-you for FM-SWITCH.",
+          "displayName" : "Nibble",
+          "locale" : "en_AU"
+        }
+      ],
+      "productID" : "dev.drewr.fmswitch.tip.nibble",
+      "referenceName" : "Nibble",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "5.0",
+      "familyShareable" : false,
+      "internalID" : "7A1D3C2E-0B4F-4E6A-8C51-2F9D7E3B1A02",
+      "localizations" : [
+        {
+          "description" : "A byte-sized thank-you for FM-SWITCH.",
+          "displayName" : "Byte",
+          "locale" : "en_AU"
+        }
+      ],
+      "productID" : "dev.drewr.fmswitch.tip.byte",
+      "referenceName" : "Byte",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "10.0",
+      "familyShareable" : false,
+      "internalID" : "7A1D3C2E-0B4F-4E6A-8C51-2F9D7E3B1A03",
+      "localizations" : [
+        {
+          "description" : "A kilobyte-sized thank-you for FM-SWITCH.",
+          "displayName" : "Kilobyte",
+          "locale" : "en_AU"
+        }
+      ],
+      "productID" : "dev.drewr.fmswitch.tip.kilobyte",
+      "referenceName" : "Kilobyte",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_AU",
+    "_storefront" : "AUS",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

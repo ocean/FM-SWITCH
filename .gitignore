@@ -6,3 +6,4 @@ DerivedData/
 xcuserdata/
 *.xcodeproj/
 Signing.local.xcconfig
+__pycache__/

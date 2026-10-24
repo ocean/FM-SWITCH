@@ -10,27 +10,9 @@ struct CatalogueView: View {
     @State private var selected: CatalogueEntry?
     @FocusState private var isSearchFocused: Bool
 
-    private var visibleEntries: [CatalogueEntry] {
-        matchingEntries.filter { model.settings.showLinksOnly || isFlashable($0) }
-    }
+    private var filter: FirmwareFilter { FirmwareFilter(search: search) }
 
-    /// Entries passing the beta and search filters, before links-only ones are hidden.
-    private var matchingEntries: [CatalogueEntry] {
-        model.catalogue.entries.filter { entry in
-            (model.settings.showBeta || !entry.beta)
-                && (search.isEmpty
-                    || entry.name.localizedCaseInsensitiveContains(search)
-                    || (entry.what ?? "").localizedCaseInsensitiveContains(search)
-                    || (entry.author ?? "").localizedCaseInsensitiveContains(search)
-                    || entry.kinds.contains { $0.localizedCaseInsensitiveContains(search) })
-        }
-    }
-
-    /// Downloadable, or already saved on the phone (a saved copy can be flashed even if its
-    /// download has since disappeared).
-    private func isFlashable(_ entry: CatalogueEntry) -> Bool {
-        entry.isDownloadable || model.library.items.contains { $0.catalogueID == entry.id }
-    }
+    private var visibleEntries: [CatalogueEntry] { filter.visible(in: model) }
 
     var body: some View {
         Group {
@@ -127,7 +109,7 @@ struct CatalogueView: View {
     /// Says how many links-only firmwares are hidden, with a switch to show or hide them.
     @ViewBuilder
     private var linksOnlyFooter: some View {
-        let linksOnly = matchingEntries.filter { !isFlashable($0) }.count
+        let linksOnly = filter.matching(in: model).filter { !FirmwareFilter.isInstallable($0, in: model) }.count
         if linksOnly > 0 {
             VStack(alignment: .leading, spacing: 8) {
                 NoteText(linksOnlyMessage(count: linksOnly))
@@ -215,13 +197,14 @@ private struct CatalogueRow: View {
     private var tags: some View {
         HStack(spacing: 6) {
             if entry.isOfficial { PixelTag(text: "OFFICIAL") }
-            if model.library.stored(for: entry) != nil || model.library.otherBuild(for: entry) != nil {
+            if FirmwareFilter.isSaved(entry, in: model) {
                 PixelTag(text: "SAVED")
             } else if model.library.outdated(for: entry) != nil {
                 PixelTag(text: "UPDATE")
             }
             if !entry.isDownloadable { PixelTag(text: "LINKS ONLY", inverted: false) }
             if entry.beta { PixelTag(text: "BETA", inverted: false) }
+            if !entry.isHardwareTested { PixelTag(text: "IN TESTING", inverted: false) }
             if entry.requiresOfficialFirmware { PixelTag(text: "VIA OFFICIAL", inverted: false) }
             if model.device.identity?.text == entry.product { PixelTag(text: "ID MATCH", inverted: false) }
             Spacer()
