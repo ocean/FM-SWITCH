@@ -5,18 +5,9 @@ import UniformTypeIdentifiers
 ///
 /// Search, a few filters, and a card for each firmware.
 struct FirmwareListView: View {
-    /// The list's quick filters.
-    enum Scope: String, CaseIterable, Identifiable {
-        case all = "All"
-        case saved = "Saved"
-        case games = "Games"
-
-        var id: String { rawValue }
-    }
-
     @Environment(AppModel.self) private var model
     @State private var search = ""
-    @State private var scope = Scope.all
+    @State private var scope = FirmwareScope.all
     @State private var isImporting = false
     @State private var importMessage: String?
     /// The firmware showing beside the list, when there's room for it.
@@ -24,13 +15,7 @@ struct FirmwareListView: View {
     var onSelect: (CatalogueEntry) -> Void
 
     private var entries: [CatalogueEntry] {
-        FirmwareFilter(search: search).visible(in: model).filter { entry in
-            switch scope {
-            case .all: true
-            case .saved: FirmwareFilter.isSaved(entry, in: model)
-            case .games: entry.kinds.contains { $0.localizedCaseInsensitiveContains("game") }
-            }
-        }
+        FirmwareFilter(search: search).visible(in: model).filter { scope.includes($0, in: model) }
     }
 
     var body: some View {
@@ -93,11 +78,25 @@ struct FirmwareListView: View {
         }
     }
 
+    private var scopes: [FirmwareScope] {
+        FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model), includingSaved: true)
+    }
+
     private var scopePicker: some View {
+        ScrollView(.horizontal) {
+            scopeButtons
+        }
+        .scrollIndicators(.hidden)
+        // The row runs to the screen's edges, and its buttons line up with the cards below.
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .padding(.horizontal, -16)
+    }
+
+    private var scopeButtons: some View {
         HStack(spacing: 8) {
-            ForEach(Scope.allCases) { option in
+            ForEach(scopes, id: \.self) { option in
                 let isPicked = option == scope
-                Button(option.rawValue) {
+                Button(option.name) {
                     withAnimation(Motion.standard) { scope = option }
                 }
                 .font(.subheadline.weight(.semibold))
@@ -141,7 +140,7 @@ struct FirmwareListView: View {
         let message =
             switch scope {
             case .saved: "Firmwares you download appear here, ready to install even when you're offline."
-            case .all, .games: search.isEmpty ? "No firmwares to show yet." : "Nothing matches “\(search)”."
+            default: search.isEmpty ? "No firmwares to show yet." : "Nothing matches “\(search)”."
             }
         Text(message)
             .font(.callout)

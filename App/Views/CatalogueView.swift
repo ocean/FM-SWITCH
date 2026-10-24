@@ -7,12 +7,15 @@ struct CatalogueView: View {
     @Environment(\.phosphor) private var theme
     @Environment(\.isWideLayout) private var isWide
     @State private var search = ""
+    @State private var scope = FirmwareScope.all
     @State private var selected: CatalogueEntry?
     @FocusState private var isSearchFocused: Bool
 
     private var filter: FirmwareFilter { FirmwareFilter(search: search) }
 
-    private var visibleEntries: [CatalogueEntry] { filter.visible(in: model) }
+    private var visibleEntries: [CatalogueEntry] {
+        filter.visible(in: model).filter { scope.includes($0, in: model) }
+    }
 
     var body: some View {
         Group {
@@ -62,6 +65,7 @@ struct CatalogueView: View {
             }
 
             searchField
+            kindFilter
             statusLine
             firmwareList
         }
@@ -85,6 +89,36 @@ struct CatalogueView: View {
         .padding(.vertical, 9)
         .background(PixelBox().fill(theme.surface))
         .overlay(PixelBox().strokeBorder(isSearchFocused ? theme.bright : theme.dim, lineWidth: 2))
+    }
+
+    /// ALL, a filter for each kind the lists give (the most common first).
+    private var kindFilter: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                let scopes = FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model), includingSaved: false)
+                ForEach(scopes, id: \.self) { scopeButton($0) }
+            }
+            .padding(.vertical, 1)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private func scopeButton(_ option: FirmwareScope) -> some View {
+        let isChosen = scope == option
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) { scope = option }
+        } label: {
+            Text(option.name.uppercased())
+                .font(.pixel(9, bold: true, relativeTo: .caption2))
+                .padding(.horizontal, 10)
+                .frame(minHeight: 32)
+                .foregroundStyle(isChosen ? theme.background : theme.bright)
+                .background(isChosen ? theme.bright : theme.surface)
+                .overlay(PixelBox().strokeBorder(isChosen ? theme.bright : theme.faint, lineWidth: 2))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isChosen ? .isSelected : [])
     }
 
     private var firmwareList: some View {

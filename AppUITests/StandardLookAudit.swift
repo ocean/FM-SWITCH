@@ -29,9 +29,10 @@ import XCUIAutomation
             // Illustrations are one image to VoiceOver, but XCUITest still lists the text inside them.
             let decorative = descendants(matching: .any).matching(identifier: "decorative")
             let illustrations = decorative.allElementsBoundByIndex.map(\.frame)
+            let screen = windows.firstMatch.frame
             // On the firmware list, the search field floats over the bottom of the screen.
             let searchFieldArea =
-                navigationBars["Firmwares"].exists ? windows.firstMatch.frame.maxY - 108 : .infinity
+                navigationBars["Firmwares"].exists ? screen.maxY - 108 : .infinity
             try performAccessibilityAudit(for: Self.auditTypes.subtracting(skipped)) { issue in
                 guard let element = issue.element else {
                     // On the firmware list, text blurred under the search field is reported with no
@@ -45,6 +46,9 @@ import XCUIAutomation
                 // Text under the search field, or scrolled out of view behind a button, can't be
                 // read there, so it can't fail contrast there.
                 if issue.auditType == .contrast, frame.maxY > searchFieldArea || !element.isHittable { return true }
+                // A filter in a row that scrolls sideways can be cut off by the screen's edge, and
+                // reads in full once scrolled to.
+                if issue.auditType == .contrast, frame.minX < screen.minX || frame.maxX > screen.maxX { return true }
                 if issue.auditType == .contrast, floating.contains(where: { $0.intersects(frame) }),
                     !floating.contains(where: { $0.contains(frame) })
                 {
