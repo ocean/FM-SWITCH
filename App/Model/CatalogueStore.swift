@@ -26,6 +26,10 @@ final class CatalogueStore {
         didSet { UserDefaults.standard.set(chosenBuilds, forKey: "chosenBuilds") }
     }
 
+    /// The pictures in each firmware's README, by catalogue ID, once they've been looked for.
+    private(set) var screenshots: [String: [URL]] = [:]
+    private var lookingForScreenshots: Set<String> = []
+
     private let cacheURL: URL
 
     init(directory: URL = AppDirectories.support) {
@@ -77,6 +81,16 @@ final class CatalogueStore {
     /// Picks one of a release's builds; later releases keep to it.
     func choose(build name: String, for id: String) {
         chosenBuilds[id] = name
+    }
+
+    /// Looks for the pictures in a firmware's README, once a session.
+    func findScreenshots(of id: String) async {
+        guard screenshots[id] == nil, !lookingForScreenshots.contains(id), let repo = entry(id: id)?.repo else {
+            return
+        }
+        lookingForScreenshots.insert(id)
+        defer { lookingForScreenshots.remove(id) }
+        screenshots[id] = await Screenshots.find(repo: repo, fetch: Network.fetch)
     }
 
     /// Asks the firmware's own source (its GitHub releases, or its publisher's site) for a newer

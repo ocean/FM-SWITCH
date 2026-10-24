@@ -34,6 +34,10 @@ struct FirmwareDetailView: View {
                     }
                 }
 
+                if let pictures = model.catalogue.screenshots[listed.id], !pictures.isEmpty {
+                    RetroPictures(pictures: pictures, name: entry.name)
+                }
+
                 builds
 
                 actions
@@ -51,6 +55,7 @@ struct FirmwareDetailView: View {
         .scrollIndicators(.hidden)
         .background(theme.background.ignoresSafeArea())
         .task { await model.catalogue.checkSource(of: listed.id) }
+        .task { await model.catalogue.findScreenshots(of: listed.id) }
         .sheet(item: $confirming) { item in
             FlashConfirmView(target: item, requiresOfficial: entry.requiresOfficialFirmware) {
                 // The flash covers the screen; a page of its own goes back, a pane stays.

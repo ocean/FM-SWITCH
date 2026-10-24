@@ -16,6 +16,9 @@ struct FirmwarePageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                if let pictures = model.catalogue.screenshots[listed.id], !pictures.isEmpty {
+                    FirmwarePictures(pictures: pictures, name: entry.name)
+                }
                 VStack(alignment: .leading, spacing: 18) {
                     untested
                     newerRelease
@@ -36,6 +39,7 @@ struct FirmwarePageView: View {
             .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await model.catalogue.checkSource(of: listed.id) }
+        .task { await model.catalogue.findScreenshots(of: listed.id) }
         .sheet(item: $installing) { item in
             BeforeYouStartView(target: item, requiresOfficial: entry.requiresOfficialFirmware)
                 .environment(model)
