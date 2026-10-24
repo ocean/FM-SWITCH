@@ -19,6 +19,7 @@ struct FMSwitchApp: App {
                 .environment(\.phosphor, model.settings.theme)
                 .preferredColorScheme(colorScheme)
                 .tint(model.settings.look == .retro ? model.settings.theme.bright : Palette.accent)
+                .opensLinksInApp()
                 .onChange(of: model.settings.look) { _, look in SystemAppearance.apply(for: look) }
                 #if os(iOS)
                     .overlay {
