@@ -69,8 +69,12 @@ check_test() {
     require_build test
     step "Tests"
     rm -rf .build/logs/tests.xcresult
+    # A failed test gets a second go, in a fresh launch. On a simulator that's never run them, as
+    # CI's always are, StoreKit's test session offers no tips to the first launch, and the
+    # accessibility audit can catch a screen before it settles.
     xcodebuild test-without-building -project FMSwitch.xcodeproj -scheme FMSwitch \
         -destination "$(simulator_destination)" -derivedDataPath .build/xcode -quiet \
+        -retry-tests-on-failure -test-iterations 2 -test-repetition-relaunch-enabled YES \
         -resultBundlePath .build/logs/tests.xcresult || show_test_failures .build/logs/tests.xcresult
 }
 
