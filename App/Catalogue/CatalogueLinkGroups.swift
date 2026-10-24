@@ -25,6 +25,13 @@ extension CatalogueLink {
 }
 
 extension CatalogueEntry {
+    /// The lists' links, then the signed build's run on GitHub Actions, for a firmware built from
+    /// its source.
+    var pageLinks: [CatalogueLink] {
+        guard isBuiltFromSource, let build = sourceBuild, let url = build.run ?? build.commitURL else { return links }
+        return links + [CatalogueLink(label: "Signed build of commit \(build.shortCommit)", url: url)]
+    }
+
     /// The project site, source code and manual, where the firmware has them: one link of each.
     var mainLinks: [CatalogueLink] {
         CatalogueLink.Kind.allCases.compactMap { kind in
@@ -35,6 +42,6 @@ extension CatalogueEntry {
     /// Every other link, in the order the lists give them.
     var moreLinks: [CatalogueLink] {
         let main = mainLinks
-        return links.filter { !main.contains($0) }
+        return pageLinks.filter { !main.contains($0) }
     }
 }

@@ -58,10 +58,11 @@ struct FirmwareFilter {
     }
 
     /// The filters a list offers: All, Saved when asked for, a filter for each kind the lists give
-    /// (the most common first).
+    /// (the most common first), and Built from source when any firmware is.
     nonisolated static func scopes(for entries: [CatalogueEntry], includingSaved: Bool) -> [FirmwareScope] {
         var scopes: [FirmwareScope] = includingSaved ? [.all, .saved] : [.all]
         scopes += kinds(of: entries).map(FirmwareScope.kind)
+        if entries.contains(where: \.isBuiltFromSource) { scopes.append(.builtFromSource) }
         return scopes
     }
 
@@ -81,12 +82,15 @@ enum FirmwareScope: Hashable {
     case saved
     /// Firmwares the lists give this kind, such as "synth".
     case kind(String)
+    /// Firmwares built from their source by GitHub Actions, as a signed record says.
+    case builtFromSource
 
     var name: String {
         switch self {
         case .all: "All"
         case .saved: "Saved"
         case .kind(let kind): FirmwareFilter.name(of: kind)
+        case .builtFromSource: "Built from source"
         }
     }
 
@@ -96,6 +100,7 @@ enum FirmwareScope: Hashable {
         case .all: true
         case .saved: FirmwareFilter.isSaved(entry, in: model)
         case .kind(let kind): FirmwareFilter.isKind(kind, entry)
+        case .builtFromSource: entry.isBuiltFromSource
         }
     }
 }

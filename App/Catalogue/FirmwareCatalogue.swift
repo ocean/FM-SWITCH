@@ -89,6 +89,17 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var stars: Int?
     /// The licence, as aroum's FM1 Resource Hub gives it, e.g. "Open Source (GPL-3.0-only)".
     var licence: String?
+    /// How the firmware hub's package was built, when GitHub signed a record of it.
+    var sourceBuild: SourceBuild?
+
+    /// Whether the package offered was built from the project's source by GitHub Actions, as a
+    /// signed record says, and not on someone's own computer.
+    ///
+    /// The record is for one file, so a newer release found at the firmware's source doesn't
+    /// count until the firmware hub has checked its record too.
+    var isBuiltFromSource: Bool {
+        sourceBuild != nil && sourceBuild?.sha256 == sha256
+    }
 
     init(
         id: String,
@@ -162,6 +173,25 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+/// A package built from a project's source by GitHub Actions, which signed a record of the build
+/// that the firmware hub checks.
+struct SourceBuild: Codable, Sendable, Hashable {
+    /// The package the record is for.
+    var sha256: String
+    /// The repository built, such as "llozd/bytemania".
+    var repo: String
+    /// The commit built, in full.
+    var commit: String
+    /// The build on GitHub Actions.
+    var run: URL?
+
+    /// The commit on GitHub.
+    var commitURL: URL? { URL(string: "https://github.com/\(repo)/commit/\(commit)") }
+
+    /// The commit as GitHub shortens it, such as "e670b35".
+    var shortCommit: String { String(commit.prefix(7)) }
+}
+
 /// A labelled link shown on a firmware's page.
 struct CatalogueLink: Codable, Sendable, Hashable {
     var label: String
@@ -224,10 +254,11 @@ struct HubFeed: Decodable, Sendable {
         var play: String?
         var repo: String?
         var stars: Int?
+        var provenance: HubBuildRecord?
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars
+                editor, play, repo, stars, provenance
             case kinds = "kind"
         }
 
@@ -257,6 +288,21 @@ struct HubFeed: Decodable, Sendable {
             play = try container.decodeIfPresent(String.self, forKey: .play)
             repo = try container.decodeIfPresent(String.self, forKey: .repo)
             stars = try container.decodeIfPresent(Int.self, forKey: .stars)
+            provenance = try? container.decodeIfPresent(HubBuildRecord.self, forKey: .provenance)
+        }
+
+        /// The build record, when it's one the hub counts: checked, for this package, and naming a
+        /// full commit.
+        var sourceBuild: SourceBuild? {
+            guard let provenance, provenance.isVerified,
+                provenance.sha256.lowercased() == sha256.lowercased(),
+                provenance.commit.count == 40, provenance.commit.allSatisfy(\.isHexDigit)
+            else { return nil }
+            return SourceBuild(
+                sha256: provenance.sha256.lowercased(),
+                repo: provenance.repo,
+                commit: provenance.commit.lowercased(),
+                run: provenance.run.flatMap(URL.init(string:)))
         }
 
         func entry(relativeTo feedURL: URL) -> CatalogueEntry {
@@ -275,7 +321,7 @@ struct HubFeed: Decodable, Sendable {
                     links.append(link)
                 }
             }
-            return CatalogueEntry(
+            var entry = CatalogueEntry(
                 id: id,
                 name: name,
                 author: author,
@@ -295,6 +341,32 @@ struct HubFeed: Decodable, Sendable {
                 listing: .hub,
                 stars: stars
             )
+            entry.sourceBuild = sourceBuild
+            return entry
         }
+    }
+}
+
+/// The firmware hub's record of how a package was built, from a signed GitHub attestation.
+struct HubBuildRecord: Decodable, Sendable {
+    var sha256: String
+    var repo: String
+    var commit: String
+    var run: String?
+    /// Whether the hub checked the record's signature.
+    var isVerified: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case sha256, repo, commit, run
+        case isVerified = "verified"
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sha256 = try container.decode(String.self, forKey: .sha256)
+        repo = try container.decode(String.self, forKey: .repo)
+        commit = try container.decode(String.self, forKey: .commit)
+        run = try container.decodeIfPresent(String.self, forKey: .run)
+        isVerified = try container.decodeIfPresent(Bool.self, forKey: .isVerified) ?? false
     }
 }

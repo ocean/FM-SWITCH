@@ -91,7 +91,7 @@ struct CatalogueView: View {
         .overlay(PixelBox().strokeBorder(isSearchFocused ? theme.bright : theme.dim, lineWidth: 2))
     }
 
-    /// ALL, a filter for each kind the lists give (the most common first).
+    /// ALL, a filter for each kind the lists give (the most common first), and BUILT FROM SOURCE.
     private var kindFilter: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 6) {

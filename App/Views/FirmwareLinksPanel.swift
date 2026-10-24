@@ -8,7 +8,7 @@ struct FirmwareLinksPanel: View {
     let entry: CatalogueEntry
 
     var body: some View {
-        if !entry.links.isEmpty {
+        if !entry.pageLinks.isEmpty {
             let more = entry.moreLinks
             PixelPanel(title: "LINKS") {
                 linkRows(entry.mainLinks)

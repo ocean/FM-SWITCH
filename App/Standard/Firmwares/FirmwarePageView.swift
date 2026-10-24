@@ -205,9 +205,9 @@ struct FirmwarePageView: View {
     }
 
     @ViewBuilder private var links: some View {
-        if !entry.links.isEmpty {
+        if !entry.pageLinks.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(entry.links.enumerated()), id: \.offset) { index, link in
+                ForEach(Array(entry.pageLinks.enumerated()), id: \.offset) { index, link in
                     if index > 0 { Divider().overlay(Palette.line) }
                     PixelLink(link.url) {
                         HStack {
@@ -240,6 +240,7 @@ struct FirmwarePageView: View {
                 detailRow("Recovery", entry.rescueMode?.summary ?? "Not known")
                 detailRow("Listed on", entry.listedOn)
                 detailRow("Tested on an FM-1", entry.isHardwareTested ? "Yes" : "In testing")
+                detailRow("Built from source", entry.sourceBuildSummary)
                 detailRow("File from", entry.packageSource)
                 detailRow("SHA-256", entry.sha256.map { String($0.prefix(16)) + "…" } ?? "Not published")
                 if entry.requiresOfficialFirmware {

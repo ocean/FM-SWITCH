@@ -108,6 +108,7 @@ struct FirmwareDetailView: View {
             if let stars = entry.stars { detailRow("STARS", "★ \(stars)") }
             detailRow("RECOVERY", entry.rescueMode?.summary ?? "Not known")
             detailRow("LISTED ON", entry.listedOn)
+            detailRow("FROM SOURCE", entry.sourceBuildSummary)
             if entry.listing.contains(.hub), let hubUpdated = model.catalogue.catalogue?.hubUpdated {
                 detailRow("HUB LIST", "Updated \(hubUpdated)")
             }
