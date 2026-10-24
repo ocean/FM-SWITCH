@@ -15,7 +15,8 @@ concurrency:
 jobs:
   check:
     name: ${{ matrix.name }}
-    runs-on: macos-26
+    # Xcode 27, as the app is built with. The image is a preview, so runs may queue a while.
+    runs-on: xcode-27
     permissions:
       contents: read # To check out the code.
     strategy:
