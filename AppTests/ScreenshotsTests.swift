@@ -5,7 +5,8 @@ import Testing
 
 /// Finding the pictures in a firmware project's README.
 struct ScreenshotsTests {
-    private let readme = URL(string: "https://raw.githubusercontent.com/zvenson/zp12/HEAD/README.md")!
+    /// zp12's README on GitHub's file server, where it's looked for first.
+    private let readme = Screenshots.readmeAddresses(repo: "zvenson/zp12")[0]
 
     @Test func findsMarkdownAndHTMLPictures() {
         let pictures = Screenshots.pictures(

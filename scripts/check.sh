@@ -68,8 +68,18 @@ check_build() {
 check_test() {
     require_build test
     step "Tests"
+    rm -rf .build/logs/tests.xcresult
     xcodebuild test-without-building -project FMSwitch.xcodeproj -scheme FMSwitch \
-        -destination "$(simulator_destination)" -derivedDataPath .build/xcode -quiet
+        -destination "$(simulator_destination)" -derivedDataPath .build/xcode -quiet \
+        -resultBundlePath .build/logs/tests.xcresult || show_test_failures .build/logs/tests.xcresult
+}
+
+# Shows why each test failed, which the quiet test log leaves out, then fails.
+show_test_failures() {
+    xcrun xcresulttool get test-results summary --path "$1" --compact |
+        jq -r '.testFailures[] | "\(.testIdentifierString): \(.failureText)"' || true
+    printf '\nFull results: %s\n' "$1"
+    exit 1
 }
 
 check_device() {
