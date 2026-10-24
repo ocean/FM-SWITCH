@@ -151,6 +151,7 @@ struct FirmwarePageView: View {
         VStack(alignment: .leading, spacing: 10) {
             if stored != nil || entry.isDownloadable {
                 installButton
+                if stored == nil { saveButton }
                 installNote
             } else {
                 Text(
@@ -185,6 +186,15 @@ struct FirmwarePageView: View {
         }
         .buttonStyle(.prominent(Palette.firmwares))
         .disabled(isDownloading || (stored == nil && entry.needsBuildChoice))
+    }
+
+    /// Saves it here without installing, to install later, even offline.
+    private var saveButton: some View {
+        Button("Save to this \(ThisDevice.name) for later") {
+            Task { await save() }
+        }
+        .buttonStyle(.secondary)
+        .disabled(isDownloading || entry.needsBuildChoice)
     }
 
     @ViewBuilder private var installNote: some View {
@@ -260,6 +270,16 @@ struct FirmwarePageView: View {
         GridRow {
             Text(label).foregroundStyle(Palette.secondaryInk)
             Text(value).foregroundStyle(Palette.ink).textSelection(.enabled)
+        }
+    }
+
+    /// Downloads the firmware and keeps it here, without installing it.
+    private func save() async {
+        errorMessage = nil
+        do {
+            try await model.library.download(entry)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
