@@ -73,6 +73,8 @@ final class AppSettings {
     var showLinksOnly: Bool { didSet { defaults.set(showLinksOnly, forKey: Keys.showLinksOnly) } }
     /// Install the official firmware first on every swap, not only when a firmware requires it.
     var alwaysViaOfficial: Bool { didSet { defaults.set(alwaysViaOfficial, forKey: Keys.alwaysViaOfficial) } }
+    /// What the person says starts their FM-1, or nil until they've been asked.
+    var startUp: StartUp? { didSet { defaults.set(startUp?.rawValue, forKey: Keys.startUp) } }
     var simulatedRecoveryMode: Bool { didSet { defaults.set(simulatedRecoveryMode, forKey: Keys.simulatedRecovery) } }
     var simulatedCablePull: Bool { didSet { defaults.set(simulatedCablePull, forKey: Keys.simulatedCablePull) } }
     /// The simulated loader reads the image from the end, as M-VAVE's V15 loader does.
@@ -81,6 +83,11 @@ final class AppSettings {
     }
     /// The simulated loader reads the image again after writing it, as Felucca's loader does.
     var simulatedVerifies: Bool { didSet { defaults.set(simulatedVerifies, forKey: Keys.simulatedVerifies) } }
+    /// The simulated FM-1 has m-bootloader and runs a Felucca-based firmware, so it refuses M-VAVE's
+    /// packages.
+    var simulatedMBootloader: Bool {
+        didSet { defaults.set(simulatedMBootloader, forKey: Keys.simulatedMBootloader) }
+    }
     /// The simulated FM-1 runs M-VAVE's open firmware, with projects and samples to save.
     var simulatedOpenFirmware: Bool {
         didSet { defaults.set(simulatedOpenFirmware, forKey: Keys.simulatedOpenFirmware) }
@@ -125,10 +132,12 @@ final class AppSettings {
         showBeta = defaults.object(forKey: Keys.showBeta) as? Bool ?? true
         showLinksOnly = defaults.object(forKey: Keys.showLinksOnly) as? Bool ?? false
         alwaysViaOfficial = defaults.object(forKey: Keys.alwaysViaOfficial) as? Bool ?? false
+        startUp = defaults.string(forKey: Keys.startUp).flatMap(StartUp.init(rawValue:))
         simulatedRecoveryMode = defaults.object(forKey: Keys.simulatedRecovery) as? Bool ?? false
         simulatedCablePull = defaults.object(forKey: Keys.simulatedCablePull) as? Bool ?? false
         simulatedReadsBackwards = defaults.object(forKey: Keys.simulatedReadsBackwards) as? Bool ?? false
         simulatedVerifies = defaults.object(forKey: Keys.simulatedVerifies) as? Bool ?? false
+        simulatedMBootloader = defaults.bool(forKey: Keys.simulatedMBootloader)
         // `bool(forKey:)` reads `-simulatedOpenFirmware YES` too, for UI tests.
         simulatedOpenFirmware = defaults.bool(forKey: Keys.simulatedOpenFirmware)
         acknowledgedNoticeVersion = defaults.integer(forKey: Keys.acknowledgedNotice)
@@ -171,10 +180,12 @@ final class AppSettings {
         static let showBeta = "showBeta"
         static let showLinksOnly = "showLinksOnly"
         static let alwaysViaOfficial = "alwaysViaOfficial"
+        static let startUp = "startUp"
         static let simulatedRecovery = "simulatedRescueMode"  // The original key, so saved settings carry over.
         static let simulatedCablePull = "simulatedCablePull"
         static let simulatedReadsBackwards = "simulatedReadsBackwards"
         static let simulatedVerifies = "simulatedVerifies"
+        static let simulatedMBootloader = "simulatedMBootloader"
         static let simulatedOpenFirmware = "simulatedOpenFirmware"
         static let acknowledgedNotice = "acknowledgedNoticeVersion"
         static let tipNudgesShown = "tipNudgesShown"

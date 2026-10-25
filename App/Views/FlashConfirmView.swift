@@ -10,13 +10,22 @@ struct FlashConfirmView: View {
     @State private var checked = InstallCheckState.checking
     @State private var backedUp = false
     @State private var acceptsUntested = false
+    /// Whether to ask what starts the FM-1, decided once as it opens so the question stays while
+    /// it's answered.
+    @State private var asksStartUp = false
+    @State private var usesFeluccaUpdateCode = false
+    @State private var showsWhy = false
     let target: StoredFirmware
     var requiresOfficial = false
     var onStart: () -> Void = {}
 
     var body: some View {
         let readiness = InstallReadiness(
-            target: target, requiresOfficial: requiresOfficial, checked: checked, model: model)
+            target: target,
+            requiresOfficial: requiresOfficial,
+            checked: checked,
+            usesFeluccaUpdateCode: usesFeluccaUpdateCode,
+            model: model)
         let steps = readiness.steps
         VStack(alignment: .leading, spacing: 16) {
             ScreenHeader(
@@ -35,6 +44,7 @@ struct FlashConfirmView: View {
                         MonoText("IN TESTING. \(InstallReadiness.untestedWarning)", size: 14)
                         PixelToggle("I'LL TRY IT WHILE IT'S IN TESTING", isOn: $acceptsUntested)
                     }
+                    startUp(readiness)
                     deviceNotes(firstStep: steps.first)
                     checkNotes(switching: readiness.isSwitching)
                     NoteText("Takes a minute or two per step. Stay in the app until it finishes.")
@@ -47,14 +57,34 @@ struct FlashConfirmView: View {
         .overlay { CRTOverlay() }
         .task(id: "\(steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
             checked = .checking
+            usesFeluccaUpdateCode = await InstallReadiness.usesFeluccaUpdateCode(target, in: model.library)
+            asksStartUp = asksStartUp || (usesFeluccaUpdateCode && model.settings.startUp != .mVave)
             checked = await InstallReadiness.check(steps.first, on: model.device)
+        }
+    }
+
+    /// What starts the FM-1, when this firmware's install depends on it, and what that means.
+    @ViewBuilder private func startUp(_ readiness: InstallReadiness) -> some View {
+        if asksStartUp {
+            MonoText(StartUp.question.uppercased(), size: 14)
+            NoteText(StartUp.questionDetail)
+            ForEach(StartUp.allCases) { choice in
+                StartUpChoice(choice: choice, startUp: Bindable(model.settings).startUp)
+            }
+            NoteText(StartUp.changeLater)
+        }
+        if let warning = readiness.macWarning {
+            MonoText("! \(warning.title.uppercased())", size: 14)
+            MonoText(warning.body, size: 14)
+            PixelToggle("WHY?", isOn: $showsWhy)
+            if showsWhy { NoteText(warning.why) }
         }
     }
 
     /// CANCEL, and the button that starts: SWITCH, INSTALL for the same identity, or START.
     private func buttons(_ readiness: InstallReadiness) -> some View {
         HStack(spacing: 10) {
-            Button("CANCEL") { dismiss() }
+            Button(readiness.macWarning?.keep.uppercased() ?? "CANCEL") { dismiss() }
                 .buttonStyle(.pixel)
             // Starting from the REINSTALL OR UPDATE? question is the confirmation it asks for.
             Button(readiness.isSwitching ? "SWITCH" : readiness.isSameIdentity ? "INSTALL" : "START") {
@@ -126,5 +156,33 @@ struct FlashConfirmView: View {
         } else {
             NoteText("Back up the FM-1's projects, sounds and samples before changing its firmware.")
         }
+    }
+}
+
+/// One answer to what starts the FM-1, picked by tapping anywhere on it.
+struct StartUpChoice: View {
+    @Environment(\.phosphor) private var theme
+    var choice: StartUp
+    @Binding var startUp: StartUp?
+
+    var body: some View {
+        Button {
+            startUp = choice
+        } label: {
+            HStack(alignment: .top) {
+                Text(startUp == choice ? "(●)" : "( )")
+                    .font(.mono(17))
+                    .foregroundStyle(theme.bright)
+                VStack(alignment: .leading, spacing: 2) {
+                    MonoText(choice.name.uppercased(), size: 14)
+                    if let detail = choice.detail { NoteText(detail) }
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(choice.name)
+        .accessibilityAddTraits(startUp == choice ? [.isSelected] : [])
     }
 }

@@ -23,6 +23,13 @@ struct InstallReadiness: Equatable {
     /// Whether the firmware is from the list but hasn't been tested on a real FM-1, so the person
     /// has to accept that first.
     var isUntested: Bool
+    /// Whether the firmware is built on Felucca's update code, so what's possible afterwards from
+    /// an iPhone depends on the FM-1's start-up.
+    var hasFeluccaUpdateCode: Bool
+    /// What the person says starts their FM-1, or nil until they've been asked.
+    var startUp: StartUp?
+    /// The warning that getting back to M-VAVE's firmwares will take a Mac, when it applies.
+    var macWarning: FeluccaUpdateCode.Warning?
 
     /// Why an untested firmware is a risk, for both looks' confirmation screens.
     static let untestedWarning = """
@@ -33,7 +40,13 @@ struct InstallReadiness: Equatable {
         """
 
     @MainActor
-    init(target: StoredFirmware, requiresOfficial: Bool, checked: InstallCheckState, model: AppModel) {
+    init(
+        target: StoredFirmware,
+        requiresOfficial: Bool,
+        checked: InstallCheckState,
+        usesFeluccaUpdateCode: Bool,
+        model: AppModel
+    ) {
         let viaOfficial = requiresOfficial || model.settings.alwaysViaOfficial
         steps = model.device.plan(
             for: target, requiresOfficial: requiresOfficial, alwaysViaOfficial: model.settings.alwaysViaOfficial)
@@ -42,6 +55,16 @@ struct InstallReadiness: Equatable {
         isMissingOfficial = viaOfficial && target.source != .official && model.library.official == nil
         let listed = target.catalogueID.flatMap(model.catalogue.listedEntry(id:))
         isUntested = target.source == .catalogue && listed?.isHardwareTested == false
+        hasFeluccaUpdateCode = usesFeluccaUpdateCode
+        startUp = model.settings.startUp
+        if hasFeluccaUpdateCode, let startUp, startUp != .mVave {
+            macWarning = FeluccaUpdateCode.Warning(installing: target.catalogueID, named: target.name, startUp: startUp)
+        }
+    }
+
+    /// Whether the person has to say what starts their FM-1 before this can install.
+    var needsStartUp: Bool {
+        hasFeluccaUpdateCode && startUp == nil
     }
 
     /// Whether these steps move the FM-1 to a different firmware, which can erase its projects
@@ -65,7 +88,7 @@ struct InstallReadiness: Equatable {
     /// Whether the install can start, once the person has (or hasn't) confirmed a switch, and
     /// accepted an untested firmware.
     func canStart(confirmsSwitch: Bool, acceptsUntested: Bool) -> Bool {
-        guard identity != nil, !isMissingOfficial, !isUntested || acceptsUntested else { return false }
+        guard identity != nil, !isMissingOfficial, !isUntested || acceptsUntested, !needsStartUp else { return false }
         switch checked {
         case .checking, .failed:
             return false
@@ -73,6 +96,17 @@ struct InstallReadiness: Equatable {
             return true
         case .found:
             return !isAlreadyInstalled && (!isSwitching || confirmsSwitch)
+        }
+    }
+
+    /// Whether `target` is built on Felucca's update code, read from its package, or for one that
+    /// can't be read, from ``FeluccaUpdateCode/known``.
+    @MainActor
+    static func usesFeluccaUpdateCode(_ target: StoredFirmware, in library: FirmwareLibrary) async -> Bool {
+        do {
+            return try await library.loadPackage(target).usesFeluccaUpdateCode
+        } catch {
+            return FeluccaUpdateCode.isKnown(target.catalogueID)
         }
     }
 

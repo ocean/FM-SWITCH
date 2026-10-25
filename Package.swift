@@ -10,7 +10,7 @@ import PackageDescription
 let fm1Kit: Package.Dependency =
     Context.environment["FM1KIT"] == "local"
     ? .package(path: "../FM1Kit")
-    : .package(url: "https://github.com/ocean/FM1Kit.git", .upToNextMinor(from: "0.4.1"))
+    : .package(url: "https://github.com/ocean/FM1Kit.git", .upToNextMinor(from: "0.4.2"))
 
 let package = Package(
     name: "FM1Catalogue",

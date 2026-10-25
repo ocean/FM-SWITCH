@@ -86,6 +86,9 @@ final class DownloadModeController {
     /// Why the FM-1 didn't restart into download mode, when it didn't.
     private(set) var enteringProblem: String?
 
+    /// Whether m-bootloader was on the FM-1 when it was last read.
+    private(set) var hadMBootloader = false
+
     let backups: FlashBackupStore
     private let library: FirmwareLibrary
     private let device: DeviceController
@@ -207,6 +210,7 @@ final class DownloadModeController {
                 showing: { self.phase = .reading($0) },
                 running: { try await service.read(progress: $0) })
             saved = try backups.save(reading.files)
+            hadMBootloader = reading.hasMBootloader
         } catch {
             await fail(error, saved: nil)
             return

@@ -245,6 +245,38 @@ struct DownloadModeConfirmView: View {
 
     private var tools: DownloadModeController { model.downloadMode }
 
+    /// Whether this puts m-bootloader on in place of M-VAVE's, which changes what an iPhone can
+    /// undo.
+    private var isFirstMBootloader: Bool {
+        tools.job == .mBootloader && !tools.hadMBootloader
+    }
+
+    /// What choosing m-bootloader means for switching firmware from an iPhone.
+    private var mBootloaderChoice: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("m-bootloader: easier rescue, but less switching from your iPhone")
+                .font(.headline)
+            Text(
+                """
+                With m-bootloader, you can always rescue your FM-1 from this Mac by holding REC while \
+                switching it on.
+                """
+            )
+            Text(
+                """
+                But if you install AMB-1, Felucca or a firmware like them from your iPhone, getting back to \
+                V15 or Open V12 will need this Mac.
+                """
+            )
+            Text("If you mostly switch firmware on your iPhone, keeping M-VAVE's start-up is simpler.")
+                .foregroundStyle(Palette.secondaryInk)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.control))
+    }
+
     var body: some View {
         DownloadModeCard {
             Text(tools.job?.title ?? "Write to your FM-1").font(.title3.weight(.bold))
@@ -262,13 +294,17 @@ struct DownloadModeConfirmView: View {
                 Notice(warning, systemImage: "exclamationmark.triangle", isWarning: true)
             }
             Notice(recovery, systemImage: "lifepreserver", isWarning: plan.writesBootArea || !plan.keepsMBootloader)
+            if isFirstMBootloader { mBootloaderChoice }
             Toggle("I'll keep my FM-1 plugged in and switched on until it's done", isOn: $understands)
             HStack(spacing: 10) {
-                Button("Cancel") { Task { await tools.finish() } }
+                // Keeping M-VAVE's is as easy to pick as installing m-bootloader.
+                Button(isFirstMBootloader ? "Keep M-VAVE's" : "Cancel") { Task { await tools.finish() } }
                     .buttonStyle(.secondary)
-                Button("Write to my FM-1") { Task { await tools.confirm() } }
-                    .buttonStyle(.prominent(Palette.accent))
-                    .disabled(!understands)
+                Button(isFirstMBootloader ? "Install m-bootloader" : "Write to my FM-1") {
+                    Task { await tools.confirm() }
+                }
+                .buttonStyle(.prominent(Palette.accent))
+                .disabled(!understands)
             }
         }
     }

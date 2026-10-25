@@ -104,6 +104,7 @@ struct SettingsView: View {
             PixelToggle("PULL THE CABLE AT 45%", isOn: $settings.simulatedCablePull)
             PixelToggle("READ BACKWARDS, LIKE V15", isOn: $settings.simulatedReadsBackwards)
             PixelToggle("VERIFY AFTER WRITING, LIKE FELUCCA", isOn: $settings.simulatedVerifies)
+            PixelToggle("M-BOOTLOADER, REFUSES M-VAVE'S", isOn: $settings.simulatedMBootloader)
             PixelToggle("RUN OPEN FIRMWARE, WITH PROJECTS", isOn: $settings.simulatedOpenFirmware)
             Button("RESET SIMULATED FM-1") { model.applyConnectionSettings() }
                 .buttonStyle(.pixel)
@@ -115,6 +116,9 @@ struct SettingsView: View {
         @Bindable var settings = model.settings
         PixelToggle("ALWAYS VIA OFFICIAL FIRMWARE", isOn: $settings.alwaysViaOfficial)
         NoteText("Off: the official firmware is only flashed first when a firmware needs it.")
+        MonoText("YOUR FM-1'S START-UP", size: 14)
+        ForEach(StartUp.allCases) { StartUpChoice(choice: $0, startUp: $settings.startUp) }
+        NoteText("Asked before installing a firmware that can't go back to V15 from here with m-bootloader.")
         PixelToggle("SHOW BETA FIRMWARES", isOn: $settings.showBeta)
         PixelToggle("SHOW LINKS-ONLY FIRMWARES", isOn: $settings.showLinksOnly)
         NoteText("Links-only firmwares have no file this app can download; they link to their own sites.")

@@ -61,6 +61,10 @@ struct StandardSettingsView: View {
             Toggle("Show test versions", isOn: $settings.showBeta)
             Toggle("Show firmwares without a download", isOn: $settings.showLinksOnly)
             Toggle("Always install the official firmware first", isOn: $settings.alwaysViaOfficial)
+            Picker("Your FM-1's start-up", selection: $settings.startUp) {
+                Text("Ask when it matters").tag(StartUp?.none)
+                ForEach(StartUp.allCases) { Text($0.name).tag(Optional($0)) }
+            }
         } header: {
             caption("Firmware list")
         }
@@ -153,6 +157,8 @@ struct StandardSettingsView: View {
                 Toggle("Pull the cable at 45%", isOn: $settings.simulatedCablePull)
                 Toggle("Read backwards, like V15", isOn: $settings.simulatedReadsBackwards)
                 Toggle("Check after writing, like Felucca", isOn: $settings.simulatedVerifies)
+                Toggle("Has m-bootloader, and refuses M-VAVE's packages", isOn: $settings.simulatedMBootloader)
+                    .onChange(of: settings.simulatedMBootloader) { model.applyConnectionSettings() }
                 Toggle("Run open firmware, with projects to save", isOn: $settings.simulatedOpenFirmware)
                     // It changes what the FM-1 reports, so it starts again straight away.
                     .onChange(of: settings.simulatedOpenFirmware) { model.applyConnectionSettings() }

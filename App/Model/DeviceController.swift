@@ -30,6 +30,8 @@ final class DeviceController {
 
     private let library: FirmwareLibrary
     private let history: FlashHistory
+    /// The person's settings, for what they've said starts their FM-1.
+    private var settings: AppSettings?
 
     init(library: FirmwareLibrary, history: FlashHistory) {
         self.library = library
@@ -50,6 +52,7 @@ final class DeviceController {
 
     func configure(_ kind: TransportKind, settings: AppSettings) {
         guard !isWriting else { return }
+        self.settings = settings
         watchTask?.cancel()
         transportError = nil
         switch kind {
@@ -66,6 +69,10 @@ final class DeviceController {
             options.unplugDuringWriteAt = settings.simulatedCablePull ? 0.45 : nil
             options.writesBackwards = settings.simulatedReadsBackwards
             options.checksAfterWriting = settings.simulatedVerifies
+            if settings.simulatedMBootloader {
+                options.bootloaderVersion = "1.2"
+                options.comparesBootArea = true
+            }
             if settings.simulatedOpenFirmware { SimulatedOpenFirmware.apply(to: &options) }
             transport = SimulatedFM1(options: options)
         }
@@ -209,7 +216,7 @@ final class DeviceController {
                 history.record(item)
             } catch {
                 appendLog("✕ \(error.localizedDescription)")
-                job?.phase = .failed(error.localizedDescription, canResume: Self.isResumable(error))
+                job?.phase = .failed(failureMessage(for: error, installing: item), canResume: Self.isResumable(error))
                 return
             }
         }
@@ -330,6 +337,24 @@ final class DeviceController {
     func dismissBackup() {
         guard !backupRun.isRunning else { return }
         backupRun = .idle
+    }
+
+    /// What went wrong, in words: FM1Kit's, apart from a refusal that only a Mac gets past, which
+    /// is said plainly.
+    private func failureMessage(for error: any Error, installing item: StoredFirmware) -> String {
+        guard case .bootloaderMismatch = error as? FM1UpdateError else { return error.localizedDescription }
+        let running = identity.flatMap { history.lastInstall(matching: $0.text)?.name } ?? "the firmware it had"
+        // With M-VAVE's start-up these firmwares still take V15, so going through it gets past them.
+        if settings?.startUp == .mVave, item.source != .official {
+            return """
+                Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
+                Install V15 first, then \(item.name).
+                """
+        }
+        return """
+            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) while \
+            m-bootloader is on it. To put \(item.name) back, use FM-SWITCH on a Mac.
+            """
     }
 
     private static func isResumable(_ error: any Error) -> Bool {

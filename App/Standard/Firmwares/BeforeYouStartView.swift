@@ -10,16 +10,25 @@ struct BeforeYouStartView: View {
     @State private var staysPluggedIn = false
     @State private var hasSaved = false
     @State private var acceptsUntested = false
+    /// Whether to ask what starts the FM-1, decided once as the sheet opens so the question stays
+    /// while it's answered.
+    @State private var asksStartUp = false
+    @State private var usesFeluccaUpdateCode = false
     let target: StoredFirmware
     var requiresOfficial = false
 
     var body: some View {
         let readiness = InstallReadiness(
-            target: target, requiresOfficial: requiresOfficial, checked: checked, model: model)
+            target: target,
+            requiresOfficial: requiresOfficial,
+            checked: checked,
+            usesFeluccaUpdateCode: usesFeluccaUpdateCode,
+            model: model)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     plan(readiness)
+                    startUp(readiness)
                     status(readiness)
                     checklist(readiness)
                 }
@@ -41,6 +50,8 @@ struct BeforeYouStartView: View {
         .sensoryFeedback(.selection, trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested])
         .task(id: "\(readiness.steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
             checked = .checking
+            usesFeluccaUpdateCode = await InstallReadiness.usesFeluccaUpdateCode(target, in: model.library)
+            asksStartUp = asksStartUp || (usesFeluccaUpdateCode && model.settings.startUp != .mVave)
             checked = await InstallReadiness.check(readiness.steps.first, on: model.device)
         }
         #if os(macOS)
@@ -74,6 +85,17 @@ struct BeforeYouStartView: View {
                 systemImage: "exclamationmark.triangle",
                 isWarning: true
             )
+        }
+    }
+
+    /// What starts the FM-1, when this firmware's install depends on it, and what that means.
+    @ViewBuilder private func startUp(_ readiness: InstallReadiness) -> some View {
+        @Bindable var settings = model.settings
+        if asksStartUp {
+            StartUpQuestion(startUp: $settings.startUp.animation(Motion.fade))
+        }
+        if let warning = readiness.macWarning {
+            MacWarningCard(warning: warning)
         }
     }
 
@@ -154,7 +176,10 @@ struct BeforeYouStartView: View {
         let isTicked =
             hasDataCable && staysPluggedIn && (!readiness.isSwitching || hasSaved)
             && (!readiness.isUntested || acceptsUntested)
-        return Button(isTicked ? "Install \(target.name)" : "Tick each one to install") {
+        let title =
+            readiness.needsStartUp
+            ? "Choose your FM-1's start-up" : isTicked ? "Install \(target.name)" : "Tick each one to install"
+        let install = Button(title) {
             model.device.flash(
                 readiness.steps,
                 confirmsSwitchingFirmware: readiness.isSwitching && hasSaved,
@@ -165,6 +190,14 @@ struct BeforeYouStartView: View {
         .buttonStyle(.prominent(Palette.firmwares))
         .disabled(!isTicked || !readiness.canStart(confirmsSwitch: hasSaved, acceptsUntested: acceptsUntested))
         .animation(Motion.fade, value: isTicked)
+        return HStack(spacing: 10) {
+            // Keeping things as they are is as easy to pick as installing.
+            if let warning = readiness.macWarning {
+                Button(warning.keep) { dismiss() }
+                    .buttonStyle(.secondary)
+            }
+            install
+        }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(Palette.ground)
