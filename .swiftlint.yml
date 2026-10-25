@@ -5,6 +5,8 @@ included:
   - App
   - AppTests
   - AppUITests
+  - Helper
+  - Shared
   - Tools
 
 disabled_rules:

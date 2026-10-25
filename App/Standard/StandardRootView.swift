@@ -9,6 +9,8 @@ struct StandardRootView: View {
         case myFM1
         case firmwares
         case save
+        /// The Mac's download-mode tools.
+        case downloadMode
         case settings
     }
 
@@ -41,6 +43,15 @@ struct StandardRootView: View {
     }
 
     private var isInstalling: Bool { model.device.job != nil }
+
+    /// Whether the FM-1's flash is being read or written in download mode.
+    private var isUsingDownloadMode: Bool {
+        #if os(macOS)
+            model.downloadMode.phase.isRunning
+        #else
+            false
+        #endif
+    }
 
     private var tipNudge: TipNudge? {
         isInstalling || model.settings.needsSafetyNotice ? nil : model.tipNudge
@@ -115,6 +126,9 @@ struct StandardRootView: View {
     private var sidebarLayout: some View {
         NavigationSplitView {
             sidebar
+                #if DEBUG
+                    .task { openSectionFromLaunchArguments() }
+                #endif
         } detail: {
             NavigationStack {
                 switch section ?? .myFM1 {
@@ -127,6 +141,10 @@ struct StandardRootView: View {
                     firmwaresSideBySide
                 case .save:
                     SaveMyFM1View()
+                case .downloadMode:
+                    #if os(macOS)
+                        DownloadModeView()
+                    #endif
                 case .settings:
                     StandardSettingsView()
                 }
@@ -146,17 +164,7 @@ struct StandardRootView: View {
                 .tag(Section.myFM1)
                 .listItemTint(.monochrome)
             }
-            SwiftUI.Section("Tasks") {
-                Label("Firmwares", systemImage: "arrow.left.arrow.right")
-                    .tag(Section.firmwares)
-                    .listItemTint(Palette.firmwaresTint)
-                // Kept while it's open, so unplugging doesn't snatch the page away.
-                if model.offersSaveMyFM1 || section == .save {
-                    Label("Save my FM-1", systemImage: "square.and.arrow.down")
-                        .tag(Section.save)
-                        .listItemTint(Palette.save)
-                }
-            }
+            tasks
             #if os(iOS)
                 SwiftUI.Section {
                     Label("Settings", systemImage: "gearshape")
@@ -165,10 +173,31 @@ struct StandardRootView: View {
                 }
             #endif
         }
-        // Leaving mid-save would leave the FM-1 on another project.
-        .disabled(model.device.backupRun.isRunning)
+        // Leaving mid-save would leave the FM-1 on another project, and leaving mid-write would
+        // hide how it's going.
+        .disabled(model.device.backupRun.isRunning || isUsingDownloadMode)
         .navigationTitle("FM-SWITCH")
         .navigationSplitViewColumnWidth(min: 200, ideal: 220)
+    }
+
+    /// The sidebar's tasks.
+    private var tasks: some View {
+        SwiftUI.Section("Tasks") {
+            Label("Firmwares", systemImage: "arrow.left.arrow.right")
+                .tag(Section.firmwares)
+                .listItemTint(Palette.firmwaresTint)
+            // Kept while it's open, so unplugging doesn't snatch the page away.
+            if model.offersSaveMyFM1 || section == .save {
+                Label("Save my FM-1", systemImage: "square.and.arrow.down")
+                    .tag(Section.save)
+                    .listItemTint(Palette.save)
+            }
+            #if os(macOS)
+                Label("Backup & rescue", systemImage: "externaldrive.badge.checkmark")
+                    .tag(Section.downloadMode)
+                    .listItemTint(Palette.accent)
+            #endif
+        }
     }
 
     /// Settings: its own window on the Mac, and in the sidebar on iPad.
@@ -206,6 +235,18 @@ struct StandardRootView: View {
     }
 
     #if DEBUG
+        /// Debug builds accept `-openPage firmwares`, `-openPage save`, `-openPage downloadMode` or
+        /// `-openPage settings` as a launch argument with the sidebar, for screenshots.
+        private func openSectionFromLaunchArguments() {
+            switch UserDefaults.standard.string(forKey: "openPage") {
+            case "firmwares": section = .firmwares
+            case "save": section = .save
+            case "downloadMode": section = .downloadMode
+            case "settings": section = .settings
+            default: break
+            }
+        }
+
         /// Debug builds accept `-openPage firmwares`, `-openPage save`, `-openPage settings` or
         /// `-openPage <firmware ID>` as a launch argument on iPhone, for screenshots.
         private func openPageFromLaunchArguments() async {

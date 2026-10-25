@@ -49,7 +49,7 @@ require_build() {
 
 check_lint() {
     step "Formatting (swift format)"
-    swift format lint --strict --recursive App AppTests AppUITests Tools Package.swift
+    swift format lint --strict --recursive App AppTests AppUITests Helper Shared Tools Package.swift
 
     step "Lint (SwiftLint)"
     swiftlint lint --strict --quiet
@@ -104,7 +104,7 @@ check_mac() {
         /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.$key" "$entitlements"
     done
     xcodebuild test -project FMSwitch.xcodeproj -scheme FMSwitch -destination 'platform=macOS' \
-        -derivedDataPath .build/mac CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$entitlements" \
+        -derivedDataPath .build/mac CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS="$PWD/$entitlements" \
         FMSWITCH_STRICT=YES -skip-testing:FMSwitchUITests \
         > .build/logs/mac.log 2>&1 || fail_with_log .build/logs/mac.log
     grep -E 'Test run with' .build/logs/mac.log || true

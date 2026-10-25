@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+FM-SWITCH's privileged helper, as SMAppService registers it from the app's
+Contents/Library/LaunchDaemons. launchd starts it when the app connects, and it quits once
+it's been idle for a minute.
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.drewr.fmswitch.helper</string>
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/FMSwitchHelper</string>
+	<key>MachServices</key>
+	<dict>
+		<key>dev.drewr.fmswitch.helper</key>
+		<true/>
+	</dict>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>dev.drewr.fmswitch</string>
+	</array>
+</dict>
+</plist>

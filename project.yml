@@ -6,7 +6,7 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
 packages:
-  # The tagged release, taking 0.3.x fixes but not 0.4.0, which may change the API. To work
+  # The tagged release, taking 0.4.x fixes but not 0.5.0, which may change the API. To work
   # against a local checkout at ../FM1Kit instead, generate from project.local.yml.
   FM1Kit:
     url: https://github.com/ocean/FM1Kit.git
@@ -37,9 +37,27 @@ targets:
         destinationFilters: [iOS]
       - path: App/Platform/macOS
         destinationFilters: [macOS]
+      # Shared with the Mac's privileged helper.
+      - path: Shared
+        destinationFilters: [macOS]
+      # The helper's launchd property list, which SMAppService reads from the app's bundle.
+      - path: Helper/dev.drewr.fmswitch.helper.plist
+        destinationFilters: [macOS]
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchDaemons
     dependencies:
       - package: FM1Kit
         product: FM1Kit
+      # Download mode, on the Mac. On iPhone and iPad the library is empty.
+      - package: FM1Kit
+        product: FM1Rescue
+      # The helper runs from the app's Contents/MacOS, as its launchd property list says.
+      - target: FMSwitchHelper
+        destinationFilters: [macOS]
+        copy:
+          destination: executables
     info:
       path: App/Info.plist
       properties:
@@ -92,6 +110,32 @@ targets:
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/FMSwitch-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
         ENABLE_PREVIEWS: YES
+  # The Mac's privileged helper: reads and writes an FM-1's flash in download mode, which needs
+  # root. The app registers it with SMAppService, and it only answers FM-SWITCH.
+  FMSwitchHelper:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Helper
+        excludes:
+          - "*.plist"
+      - path: Shared
+    dependencies:
+      - package: FM1Kit
+        product: FM1Kit
+      - package: FM1Kit
+        product: FM1Rescue
+    settings:
+      base:
+        PRODUCT_NAME: FMSwitchHelper
+        PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch.helper
+        SWIFT_VERSION: "6.0"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: YES
+        # Gives the tool a bundle identifier in its signature.
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
+        SKIP_INSTALL: YES
   FMSwitchTests:
     type: bundle.unit-test
     platform: auto

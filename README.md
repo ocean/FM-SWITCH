@@ -19,10 +19,14 @@ App/                     SwiftUI app (iOS 17+)
   Model/                 settings, catalogue, saved firmwares, flash history, device controller
   Views/                 Device, Firmware (catalogue), Saved, Setup, Flash; the wide layout
                          (sidebar and two panes) for iPad and Mac
-  Platform/iOS, macOS/   the few things done differently on each: staying awake, links, navigation
+  Platform/iOS, macOS/   the few things done differently on each: staying awake, links, navigation;
+                         on the Mac, Backup & rescue (download mode), with m-bootloader 1.2 (MIT)
   Resources/Fonts/       Departure Mono, Silkscreen, VT323 (SIL OFL)
   Resources/Firmware/    M-VAVE's FM-1 V15, unmodified, and its Apache-2.0 notice
   Assets.xcassets/       the app icons, made by scripts/make-app-icon.swift and make-icon.py
+Helper/                  the Mac's privileged helper, which reads and writes the FM-1's flash
+                         in download mode as root, for the app, over XPC
+Shared/                  the download-mode code the Mac app and its helper share
 AppTests/                firmware list and flashing tests (Swift Testing)
 Package.swift            fm1-catalogue, which builds the published firmware list from App/Catalogue
 Tools/fm1-catalogue/     its command line
@@ -33,7 +37,7 @@ scripts/make-icon.py     draws Retro's pixel icon from its 32 x 32 pixel map
 
 Talking to the FM-1 (the update protocol, `.fwsc` packages, CoreMIDI and a simulated FM-1)
 is [FM1Kit](https://github.com/ocean/FM1Kit), an open-source Swift package. `project.yml`
-uses its tagged release from GitHub, taking 0.3.x fixes but not 0.4.0, which may change the API.
+uses its tagged release from GitHub, taking 0.4.x fixes but not 0.5.0, which may change the API.
 
 ### The firmware list
 
@@ -88,8 +92,9 @@ open FMSwitch.xcodeproj
 
 Pick an iPhone or iPad simulator, or **My Mac**, and run. iPad (landscape, or a 13-inch in
 either orientation) and the Mac get the wide layout: a sidebar, and lists with the picked item
-beside them. The Mac app is native SwiftUI, sandboxed, and talks to the FM-1 over USB MIDI like
-the iPhone. In the Simulator the app uses the simulated FM-1 (set under
+beside them. The Mac app is native SwiftUI and talks to the FM-1 over USB MIDI like the iPhone.
+It isn't sandboxed, as it's signed with Developer ID and downloaded from the website, and it
+registers the privileged helper that download mode needs. In the Simulator the app uses the simulated FM-1 (set under
 **SETUP ▸ CONNECTION**). It runs the whole protocol: install, the reboot into the loader, and
 the identity check. It can also start in USB rescue mode or "pull the cable" at 45% to test
 **RESUME**.
@@ -107,6 +112,32 @@ DEVELOPMENT_TEAM = <your team ID>
 ```
 
 A team picked under Signing & Capabilities works too, but `xcodegen generate` forgets it.
+
+## Backup & rescue on the Mac
+
+The Mac's **Backup & rescue** page uses the FM-1's USB download mode, through FM1Kit's
+`FM1Rescue`: whole-flash backups (saved in Backups › Whole flash as M-Flasher's `.bin` and
+`.json`), restoring them, and installing a firmware or a bootloader straight to the flash. Every
+job reads the whole flash and saves it first; a write is shown, then made only once confirmed,
+and every change is checked against the chip's CRC-32.
+
+Taking the FM-1 from macOS's disk driver needs root, so `Helper/` is a small privileged helper,
+which the app registers with `SMAppService` and the person allows once in System Settings ›
+General › Login Items & Extensions. launchd starts it when the app connects, it quits after a
+minute idle, and it only answers FM-SWITCH signed by the same team. With the simulated FM-1,
+the page runs FM1Rescue's software chip in the app instead, so it needs no helper.
+
+To try the helper from a debug build, copy the built app to /Applications first, so macOS keeps
+one registration for it.
+
+## Releasing the Mac app
+
+1. In Xcode, pick **Any Mac** and run Product ▸ Archive.
+2. In the Organiser: Distribute App ▸ **Direct Distribution**. Xcode signs the app and its
+   helper with Developer ID (making the certificate the first time) and sends it to Apple to be
+   notarised.
+3. Once it's notarised, Export, then zip the app for the website:
+   `ditto -c -k --keepParent FMSwitch.app FM-SWITCH.zip`.
 
 ## Phase 0 with real hardware
 

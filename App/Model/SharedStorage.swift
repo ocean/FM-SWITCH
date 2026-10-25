@@ -9,8 +9,16 @@ import Foundation
 enum SharedStorage {
     static let containerIdentifier = "iCloud.dev.drewr.fmswitch"
 
-    /// The folders on this device, used until iCloud Drive answers, or when it's off.
-    static let onDevice = Folders(root: URL.documentsDirectory)
+    /// The folders on this device, used until iCloud Drive answers, or when it's off: the app's
+    /// Documents on iPhone and iPad, and Application Support › FM-SWITCH on the Mac, which isn't
+    /// sandboxed, so its Documents folder would be the person's own.
+    static let onDevice: Folders = {
+        #if os(macOS)
+            Folders(root: URL.applicationSupportDirectory.appending(path: "FM-SWITCH", directoryHint: .isDirectory))
+        #else
+            Folders(root: URL.documentsDirectory)
+        #endif
+    }()
 
     /// Firmwares and backups, each in a folder of their own.
     struct Folders: Sendable {

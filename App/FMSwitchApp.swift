@@ -66,6 +66,10 @@ final class AppModel {
     let backups = BackupStore()
     let tipJar = TipJar()
     let device: DeviceController
+    #if os(macOS)
+        /// Whole-flash backups, restores and installs in the chip's download mode.
+        let downloadMode: DownloadModeController
+    #endif
     /// Whether firmwares and backups are in iCloud Drive, shared with the person's other devices,
     /// rather than only on this one.
     private(set) var isUsingICloud = false
@@ -76,6 +80,13 @@ final class AppModel {
     init() {
         device = DeviceController(library: library, history: history)
         device.configure(settings.transportKind, settings: settings)
+        #if os(macOS)
+            downloadMode = DownloadModeController(
+                library: library,
+                device: device,
+                backupsFolder: { [backups] in backups.directory },
+                isSimulated: { [settings] in settings.transportKind == .simulated })
+        #endif
         // Firmwares used to be kept, without names, where iOS can delete them for space. They're
         // kept in Firmwares now, so the old folder goes.
         try? FileManager.default.removeItem(at: AppDirectories.support.appending(path: "Firmware"))
@@ -92,6 +103,9 @@ final class AppModel {
         iCloudWatcher = ICloudWatcher { [weak self] in
             self?.library.reload()
             self?.backups.reload()
+            #if os(macOS)
+                self?.downloadMode.backups.reload()
+            #endif
         }
     }
 
