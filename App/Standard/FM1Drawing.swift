@@ -28,7 +28,7 @@ struct FM1Drawing: View {
     private static let size = CGSize(width: 372, height: 200)
 
     private static let pageKeys = [
-        "FX", "SCL", "ENV", "LFO", "EDIT", "GLO", "HOME", "SAVE", "ARP", "SEQ", "PLAY", "REC",
+        "FX", "SEL", "ENV", "LFO", "EDIT", "GLO", "HOME", "SAVE", "ARP", "SEQ", "PLAY", "REC",
     ]
 
     #if DEBUG
