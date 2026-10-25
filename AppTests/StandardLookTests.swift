@@ -19,13 +19,13 @@ struct StandardLookTests {
 
     @Test func progressRunsThroughTheStagesInOrder() throws {
         var job = try Self.job()
-        var seen: [InstallProgress] = []
+        var seen: [FMSwitch.InstallProgress] = []
         for phase: DeviceController.FlashPhase in [
             .preparing, .staging(requests: 40), .waitingForLoader, .writing(fraction: 0.5),
             .verifying(fraction: 0.5), .rebooting, .succeeded("FM-1_910"),
         ] {
             job.phase = phase
-            seen.append(InstallProgress(job))
+            seen.append(FMSwitch.InstallProgress(job))
         }
         #expect(seen.map(\.fraction) == seen.map(\.fraction).sorted())
         #expect(
@@ -38,15 +38,15 @@ struct StandardLookTests {
     @Test func progressSpreadsAcrossTheSteps() throws {
         var job = try Self.job(steps: 2)
         job.phase = .succeeded("")
-        #expect(InstallProgress(job).fraction == 0.5)
+        #expect(FMSwitch.InstallProgress(job).fraction == 0.5)
         job.index = 1
         job.phase = .writing(fraction: 0)
-        #expect(InstallProgress(job).fraction > 0.5)
+        #expect(FMSwitch.InstallProgress(job).fraction > 0.5)
     }
 
     @Test func trackerNeverGoesBackwards() throws {
         var job = try Self.job()
-        var tracker = InstallProgress.Tracker()
+        var tracker = FMSwitch.InstallProgress.Tracker()
         job.phase = .writing(fraction: 0.6)
         tracker.update(with: job)
         let reached = tracker.current.fraction

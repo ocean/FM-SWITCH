@@ -10,7 +10,7 @@ packages:
   # against a local checkout at ../FM1Kit instead, generate from project.local.yml.
   FM1Kit:
     url: https://github.com/ocean/FM1Kit.git
-    minorVersion: 0.3.0
+    minorVersion: 0.4.0
 # Each developer's signing team, from the git-ignored Signing.local.xcconfig.
 configFiles:
   Debug: Signing.xcconfig
