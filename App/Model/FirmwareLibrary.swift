@@ -355,8 +355,13 @@ final class FirmwareLibrary {
 
     // MARK: - Removing.
 
+    /// Whether `item` can be removed: everything but the official firmware that comes with the app.
+    func canRemove(_ item: StoredFirmware) -> Bool {
+        item != builtInOfficial
+    }
+
     func remove(_ item: StoredFirmware) {
-        guard item != builtInOfficial else { return }
+        guard canRemove(item) else { return }
         try? FileManager.default.removeItem(at: url(for: item))
         try? FileManager.default.removeItem(at: detailsURL(for: item))
         items.removeAll { $0.id == item.id }

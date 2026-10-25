@@ -198,7 +198,11 @@ struct FirmwarePageView: View {
     }
 
     @ViewBuilder private var installNote: some View {
-        if let stored {
+        if let stored, !model.library.canRemove(stored) {
+            Text("Comes with the app, so it installs even offline.")
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryInk)
+        } else if let stored {
             HStack {
                 Text("Saved on this \(ThisDevice.name), so it installs even offline.")
                 Spacer()

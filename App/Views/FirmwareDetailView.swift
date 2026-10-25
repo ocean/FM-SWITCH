@@ -167,10 +167,7 @@ struct FirmwareDetailView: View {
     private var actions: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let stored {
-                Button("FLASH TO FM-1") { confirming = stored }
-                    .buttonStyle(.pixelProminent)
-                Button("REMOVE FROM \(ThisDevice.name.uppercased())") { model.library.remove(stored) }
-                    .buttonStyle(.pixel)
+                storedActions(stored)
             } else if entry.isDownloadable {
                 Button(saveTitle) {
                     Task { await download() }
@@ -194,6 +191,19 @@ struct FirmwareDetailView: View {
                     size: 14
                 )
             }
+        }
+    }
+
+    /// Flashing the saved copy, and removing it unless it comes with the app.
+    @ViewBuilder
+    private func storedActions(_ stored: StoredFirmware) -> some View {
+        Button("FLASH TO FM-1") { confirming = stored }
+            .buttonStyle(.pixelProminent)
+        if model.library.canRemove(stored) {
+            Button("REMOVE FROM \(ThisDevice.name.uppercased())") { model.library.remove(stored) }
+                .buttonStyle(.pixel)
+        } else {
+            NoteText("Comes with the app, so it installs even offline.")
         }
     }
 

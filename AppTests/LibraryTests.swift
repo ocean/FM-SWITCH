@@ -30,6 +30,8 @@ struct LibraryTests {
         #expect(library.items == [official])
         #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
         #expect(library.url(for: official) == FirmwareLibrary.bundledOfficialURL)
+        // So neither look offers to remove it.
+        #expect(!library.canRemove(official))
         library.remove(official)
         #expect(library.official == official)
     }

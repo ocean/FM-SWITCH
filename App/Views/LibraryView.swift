@@ -214,9 +214,11 @@ struct LibraryView: View {
                     Spacer()
                     Button("FLASH") { flashing = item }
                         .buttonStyle(.pixelCompact)
-                    Button("✕") { library.remove(item) }
-                        .buttonStyle(.pixelCompact)
-                        .accessibilityLabel("Remove \(item.name)")
+                    if library.canRemove(item) {
+                        Button("✕") { library.remove(item) }
+                            .buttonStyle(.pixelCompact)
+                            .accessibilityLabel("Remove \(item.name)")
+                    }
                 }
                 .padding(.vertical, 4)
             }
