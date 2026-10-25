@@ -1,3 +1,4 @@
+import XCTest
 import XCUIAutomation
 
 // UI tests run on iPhone only: on the Mac, they need the Accessibility permission granted by hand,
@@ -33,13 +34,13 @@ import XCUIAutomation
             // On the firmware list, the search field floats over the bottom of the screen.
             let searchFieldArea =
                 navigationBars["Firmwares"].exists ? screen.maxY - 108 : .infinity
-            try performAccessibilityAudit(for: Self.auditTypes.subtracting(skipped)) { issue in
+            let types = Self.auditTypes.subtracting(skipped)
+            // Whether an issue is one of those above, which isn't a failure.
+            let isExpected = { (issue: XCUIAccessibilityAuditIssue) -> Bool in
                 guard let element = issue.element else {
                     // On the firmware list, text blurred under the search field is reported with no
                     // element to place it, so a short list is audited too, clear of it.
-                    if issue.auditType == .contrast, searchFieldArea.isFinite, !isClearOfSearchField { return true }
-                    print("Accessibility audit: \(issue.compactDescription), with no element")
-                    return false
+                    return issue.auditType == .contrast && searchFieldArea.isFinite && !isClearOfSearchField
                 }
                 let frame = element.frame
                 if illustrations.contains(where: { $0.contains(frame) }) { return true }
@@ -55,9 +56,28 @@ import XCUIAutomation
                     return true
                 }
                 // Each firmware's summary is cut to two lines in the list, and shown in full on its page.
-                if issue.auditType == .textClipped, element.identifier == "summary" { return true }
+                return issue.auditType == .textClipped && element.identifier == "summary"
+            }
+            // Text still fading in fails contrast, and on CI's machines, which draw without a graphics
+            // card, a fade can take seconds. So the audit looks again after a pause, a few times,
+            // before it records what it finds.
+            for _ in 0..<3 {
+                var isClear = true
+                try performAccessibilityAudit(for: types) { issue in
+                    if !isExpected(issue) { isClear = false }
+                    return true
+                }
+                if isClear { return }
+                _ = XCTWaiter.wait(for: [XCTestExpectation(description: "The screen settles.")], timeout: 1)
+            }
+            try performAccessibilityAudit(for: types) { issue in
+                if isExpected(issue) { return true }
                 // The failure only says what kind of issue it is, so this says where.
-                print("Accessibility audit: \(issue.compactDescription): '\(element.label)' at \(frame)")
+                if let element = issue.element {
+                    print("Accessibility audit: \(issue.compactDescription): '\(element.label)' at \(element.frame)")
+                } else {
+                    print("Accessibility audit: \(issue.compactDescription), with no element")
+                }
                 return false
             }
         }
