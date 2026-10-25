@@ -43,7 +43,9 @@ struct ReleaseCheck: Sendable {
         case .gitHub:
             return try await checkGitHub(entry)
         case .publisher:
-            guard let found = await discovery.discover(name: entry.name, links: entry.links),
+            guard
+                let found = await discovery.discover(
+                    name: entry.name, links: entry.links, isOfficial: entry.isOfficial),
                 found.url != entry.packageURL,
                 let version = Self.version(of: found),
                 ReleaseVersion.isNewer(version, than: entry.version)

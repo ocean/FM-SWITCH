@@ -34,8 +34,12 @@ struct PackageDiscovery: Sendable {
         self.fetch = fetch
     }
 
-    func discover(name: String, links: [CatalogueLink]) async -> DiscoveredPackage? {
-        if links.contains(where: { $0.url.host()?.contains("m-vave.com") == true }) {
+    /// Finds the package for a firmware called `name`, from its `links`.
+    ///
+    /// Only M-VAVE's official firmware gets the package on their downloads page: other firmwares
+    /// link there too, such as their open firmware, which isn't on it.
+    func discover(name: String, links: [CatalogueLink], isOfficial: Bool = false) async -> DiscoveredPackage? {
+        if isOfficial {
             return await officialPackage()
         }
         for repo in Self.gitHubRepos(in: links) {

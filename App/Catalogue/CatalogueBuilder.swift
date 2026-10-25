@@ -96,7 +96,10 @@ public struct CatalogueBuilder: Sendable {
         let resolved = await withTaskGroup(of: (Int, CatalogueEntry).self) { group in
             for (index, entry) in merged.enumerated() where entry.packageURL == nil {
                 group.addTask {
-                    guard let found = await discovery.discover(name: entry.name, links: entry.links) else {
+                    guard
+                        let found = await discovery.discover(
+                            name: entry.name, links: entry.links, isOfficial: entry.isOfficial)
+                    else {
                         return (index, Self.fallBack(entry, to: previousByID[entry.id]))
                     }
                     return (index, Self.apply(found, to: entry))
@@ -352,7 +355,12 @@ public struct CatalogueBuilder: Sendable {
 
     /// Keeps the package found on an earlier refresh when discovery fails this time.
     static func fallBack(_ entry: CatalogueEntry, to previous: CatalogueEntry?) -> CatalogueEntry {
-        guard let previous, previous.packageURL != nil else { return entry }
+        // A firmware that isn't M-VAVE's official one never keeps their package, as an earlier list
+        // could give it to their open firmware.
+        guard let previous, previous.packageURL != nil, entry.isOfficial || previous.packageOrigin != .mvave
+        else {
+            return entry
+        }
         var entry = entry
         entry.packageURL = previous.packageURL
         entry.packageOrigin = previous.packageOrigin
