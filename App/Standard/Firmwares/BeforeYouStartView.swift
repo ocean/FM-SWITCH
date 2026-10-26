@@ -13,7 +13,7 @@ struct BeforeYouStartView: View {
     /// Whether to ask what starts the FM-1, decided once as the sheet opens so the question stays
     /// while it's answered.
     @State private var asksStartUp = false
-    @State private var usesFeluccaUpdateCode = false
+    @State private var refusesV15 = false
     let target: StoredFirmware
     var requiresOfficial = false
 
@@ -22,7 +22,7 @@ struct BeforeYouStartView: View {
             target: target,
             requiresOfficial: requiresOfficial,
             checked: checked,
-            usesFeluccaUpdateCode: usesFeluccaUpdateCode,
+            refusesV15OverOtherBootloaders: refusesV15,
             model: model)
         NavigationStack {
             ScrollView {
@@ -50,8 +50,8 @@ struct BeforeYouStartView: View {
         .sensoryFeedback(.selection, trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested])
         .task(id: "\(readiness.steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
             checked = .checking
-            usesFeluccaUpdateCode = await InstallReadiness.usesFeluccaUpdateCode(target, in: model.library)
-            asksStartUp = asksStartUp || (usesFeluccaUpdateCode && model.settings.startUp != .mVave)
+            refusesV15 = await InstallReadiness.refusesV15OverOtherBootloaders(target, in: model.library)
+            asksStartUp = asksStartUp || (refusesV15 && model.settings.startUp != .mVave)
             checked = await InstallReadiness.check(readiness.steps.first, on: model.device)
         }
         #if os(macOS)
@@ -193,7 +193,7 @@ struct BeforeYouStartView: View {
         return HStack(spacing: 10) {
             // Keeping things as they are is as easy to pick as installing.
             if let warning = readiness.macWarning {
-                Button(warning.keep) { dismiss() }
+                Button(warning.decline) { dismiss() }
                     .buttonStyle(.secondary)
             }
             install

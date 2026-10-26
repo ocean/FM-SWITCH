@@ -13,7 +13,7 @@ struct FlashConfirmView: View {
     /// Whether to ask what starts the FM-1, decided once as it opens so the question stays while
     /// it's answered.
     @State private var asksStartUp = false
-    @State private var usesFeluccaUpdateCode = false
+    @State private var refusesV15 = false
     @State private var showsWhy = false
     let target: StoredFirmware
     var requiresOfficial = false
@@ -24,7 +24,7 @@ struct FlashConfirmView: View {
             target: target,
             requiresOfficial: requiresOfficial,
             checked: checked,
-            usesFeluccaUpdateCode: usesFeluccaUpdateCode,
+            refusesV15OverOtherBootloaders: refusesV15,
             model: model)
         let steps = readiness.steps
         VStack(alignment: .leading, spacing: 16) {
@@ -57,8 +57,8 @@ struct FlashConfirmView: View {
         .overlay { CRTOverlay() }
         .task(id: "\(steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
             checked = .checking
-            usesFeluccaUpdateCode = await InstallReadiness.usesFeluccaUpdateCode(target, in: model.library)
-            asksStartUp = asksStartUp || (usesFeluccaUpdateCode && model.settings.startUp != .mVave)
+            refusesV15 = await InstallReadiness.refusesV15OverOtherBootloaders(target, in: model.library)
+            asksStartUp = asksStartUp || (refusesV15 && model.settings.startUp != .mVave)
             checked = await InstallReadiness.check(steps.first, on: model.device)
         }
     }
@@ -84,7 +84,7 @@ struct FlashConfirmView: View {
     /// CANCEL, and the button that starts: SWITCH, INSTALL for the same identity, or START.
     private func buttons(_ readiness: InstallReadiness) -> some View {
         HStack(spacing: 10) {
-            Button(readiness.macWarning?.keep.uppercased() ?? "CANCEL") { dismiss() }
+            Button(readiness.macWarning?.decline.uppercased() ?? "CANCEL") { dismiss() }
                 .buttonStyle(.pixel)
             // Starting from the REINSTALL OR UPDATE? question is the confirmation it asks for.
             Button(readiness.isSwitching ? "SWITCH" : readiness.isSameIdentity ? "INSTALL" : "START") {

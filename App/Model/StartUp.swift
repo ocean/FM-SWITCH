@@ -31,8 +31,10 @@ enum StartUp: String, CaseIterable, Identifiable, Sendable {
     static let changeLater = "You can change this later in Settings."
 }
 
-/// Firmwares built on Felucca's update code, which, while m-bootloader is on the FM-1, refuse the
-/// packages that would take it back to V15 or Open V12.
+/// Firmwares built on Felucca's earlier update code, which, while m-bootloader is on the FM-1,
+/// refuse the packages that would take it back to V15 or Open V12.
+///
+/// Firmwares on the fixed code, such as LOOM-8 and Del Rio, accept V15 and aren't included.
 ///
 /// Installing one from an iPhone is fine; getting back to M-VAVE's firmwares then takes a Mac.
 enum FeluccaUpdateCode {
@@ -40,7 +42,7 @@ enum FeluccaUpdateCode {
     ///
     /// They're named in the warning, and used when a package can't be read; otherwise FM1Kit
     /// reads it from the package. Each was checked in its package's code, or for HYP-1, in its
-    /// source and on an FM-1 (FM1Kit's findings, 2026-10-25).
+    /// source and on an FM-1 (FM1Kit's findings, 2026-10-25 and 2026-10-26).
     static let known: [String: String] = [
         "amb": "AMB-1",
         "dub": "DUB-1",
@@ -65,7 +67,7 @@ enum FeluccaUpdateCode {
             refused. On a Mac, FM-SWITCH writes the flash directly in the chip's download mode, \
             which works whatever is installed and keeps m-bootloader.
             """
-        var keep = "Keep things as they are"
+        var decline = "Don't install"
 
         init(installing catalogueID: String?, named name: String, startUp: StartUp) {
             let others = known.filter { $0.key != catalogueID }.values.sorted()

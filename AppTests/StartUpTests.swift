@@ -28,11 +28,11 @@ struct StartUpTests {
         #expect(!FeluccaUpdateCode.isKnown(nil))
     }
 
-    @Test func aPackageWithoutFeluccasUpdateCodeIsntFlagged() async throws {
+    @Test func aPackageThatAcceptsV15IsntFlagged() async throws {
         let library = FirmwareLibrary(
             directory: URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory))
         let item = try FlashingTests.save("FM-1_015", in: library)
-        #expect(await !InstallReadiness.usesFeluccaUpdateCode(item, in: library))
+        #expect(await !InstallReadiness.refusesV15OverOtherBootloaders(item, in: library))
     }
 
     @Test func theWarningNamesTheOthersAndHedgesWhenUnsure() {

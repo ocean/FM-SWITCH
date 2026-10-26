@@ -23,9 +23,9 @@ struct InstallReadiness: Equatable {
     /// Whether the firmware is from the list but hasn't been tested on a real FM-1, so the person
     /// has to accept that first.
     var isUntested: Bool
-    /// Whether the firmware is built on Felucca's update code, so what's possible afterwards from
-    /// an iPhone depends on the FM-1's start-up.
-    var hasFeluccaUpdateCode: Bool
+    /// Whether the firmware refuses V15 while m-bootloader is on the FM-1, so what's possible
+    /// afterwards from an iPhone depends on the FM-1's start-up.
+    var refusesV15OverOtherBootloaders: Bool
     /// What the person says starts their FM-1, or nil until they've been asked.
     var startUp: StartUp?
     /// The warning that getting back to M-VAVE's firmwares will take a Mac, when it applies.
@@ -44,7 +44,7 @@ struct InstallReadiness: Equatable {
         target: StoredFirmware,
         requiresOfficial: Bool,
         checked: InstallCheckState,
-        usesFeluccaUpdateCode: Bool,
+        refusesV15OverOtherBootloaders: Bool,
         model: AppModel
     ) {
         let viaOfficial = requiresOfficial || model.settings.alwaysViaOfficial
@@ -55,16 +55,16 @@ struct InstallReadiness: Equatable {
         isMissingOfficial = viaOfficial && target.source != .official && model.library.official == nil
         let listed = target.catalogueID.flatMap(model.catalogue.listedEntry(id:))
         isUntested = target.source == .catalogue && listed?.isHardwareTested == false
-        hasFeluccaUpdateCode = usesFeluccaUpdateCode
+        self.refusesV15OverOtherBootloaders = refusesV15OverOtherBootloaders
         startUp = model.settings.startUp
-        if hasFeluccaUpdateCode, let startUp, startUp != .mVave {
+        if refusesV15OverOtherBootloaders, let startUp, startUp != .mVave {
             macWarning = FeluccaUpdateCode.Warning(installing: target.catalogueID, named: target.name, startUp: startUp)
         }
     }
 
     /// Whether the person has to say what starts their FM-1 before this can install.
     var needsStartUp: Bool {
-        hasFeluccaUpdateCode && startUp == nil
+        refusesV15OverOtherBootloaders && startUp == nil
     }
 
     /// Whether these steps move the FM-1 to a different firmware, which can erase its projects
@@ -99,12 +99,12 @@ struct InstallReadiness: Equatable {
         }
     }
 
-    /// Whether `target` is built on Felucca's update code, read from its package, or for one that
-    /// can't be read, from ``FeluccaUpdateCode/known``.
+    /// Whether `target` refuses V15 while m-bootloader is on the FM-1, read from its package, or for
+    /// one that can't be read, from ``FeluccaUpdateCode/known``.
     @MainActor
-    static func usesFeluccaUpdateCode(_ target: StoredFirmware, in library: FirmwareLibrary) async -> Bool {
+    static func refusesV15OverOtherBootloaders(_ target: StoredFirmware, in library: FirmwareLibrary) async -> Bool {
         do {
-            return try await library.loadPackage(target).usesFeluccaUpdateCode
+            return try await library.loadPackage(target).refusesV15OverOtherBootloaders
         } catch {
             return FeluccaUpdateCode.isKnown(target.catalogueID)
         }
