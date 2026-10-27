@@ -77,8 +77,13 @@ struct FirmwareDetailView: View {
                 }
                 Spacer()
                 if entry.isOfficial { PixelTag(text: "OFFICIAL") }
-                if entry.beta { PixelTag(text: "BETA", inverted: false) }
-                if !entry.isHardwareTested { PixelTag(text: "IN TESTING", inverted: false) }
+                // Not known to work on an FM-1 says more than a test release, so only that shows.
+                if !entry.isHardwareTested {
+                    PixelTag(text: "IN TESTING", inverted: false)
+                } else if entry.beta {
+                    PixelTag(text: "BETA", inverted: false)
+                }
+                starButton
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(entry.name.uppercased())
@@ -88,6 +93,15 @@ struct FirmwareDetailView: View {
                 MonoText(byline, size: 15, dim: true)
             }
         }
+    }
+
+    /// Stars it to come back to under SAVED, without saving it.
+    private var starButton: some View {
+        let isStarred = model.starred.contains(listed.id)
+        return Button(isStarred ? "★ STARRED" : "☆ STAR") { model.starred.toggle(listed.id) }
+            .buttonStyle(.pixelCompact)
+            .accessibilityLabel(isStarred ? "Remove star" : "Star")
+            .sensoryFeedback(.selection, trigger: isStarred)
     }
 
     /// The version and author, e.g. "1.3.7  ·  by Melodee".

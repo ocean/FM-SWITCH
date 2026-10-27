@@ -65,7 +65,7 @@ struct InstallProblemView: View {
             Text(
                 canResume
                     ? "Your FM-1 is waiting to finish installing \(job.current.name), so nothing is lost."
-                    : "Check that your FM-1 is plugged in and switched on, then try again."
+                    : job.needsAMac ? message : Self.tryAgain(mightBeRefused: job.mightBeRefused)
             )
             .foregroundStyle(Palette.secondaryInk)
         }
@@ -79,13 +79,33 @@ struct InstallProblemView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardBackground()
         }
-        Button(canResume ? "Carry on installing" : "Try again") { model.device.resume() }
-            .buttonStyle(.prominent)
+        if job.needsAMac {
+            // Trying again would only be refused again.
+            Button("What can I do?") { openHelp() }
+                .buttonStyle(.prominent)
+        } else {
+            Button(canResume ? "Carry on installing" : "Try again") { model.device.resume() }
+                .buttonStyle(.prominent)
+        }
+        if job.mightBeRefused {
+            Button("What can I do?") { openHelp() }
+                .buttonStyle(.secondary)
+        }
         if !canResume {
             Button("Close") { model.device.dismissFlash() }
                 .buttonStyle(.secondary)
         }
         details
+    }
+
+    private static func tryAgain(mightBeRefused: Bool) -> String {
+        let check = "Check that your FM-1 is plugged in and switched on, then try again."
+        return mightBeRefused ? check + " If it stops again, the firmware on it may not accept this one." : check
+    }
+
+    private func openHelp() {
+        model.device.dismissFlash()
+        model.requestedPage = .help(.wontInstall)
     }
 
     private func step(_ number: Int, _ text: String) -> some View {

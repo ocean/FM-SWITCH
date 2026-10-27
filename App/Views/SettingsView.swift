@@ -28,15 +28,12 @@ struct SettingsView: View {
                         if AlternateIcon.isAvailable { RetroIconButton() }
                     }
                     PixelPanel(title: "COLOUR + SCREEN") { lookSettings }
-                    PixelPanel(title: "FIRMWARES + BACKUPS") {
-                        MonoText(SharedStorage.whereFilesAre(inICloud: model.isUsingICloud), size: 14)
-                        Button("OPEN IN \(SavedFiles.folderAppName.uppercased())") {
-                            SavedFiles.open(model.filesFolder)
-                        }
-                        .buttonStyle(.pixelCompact)
-                    }
+                    filesPanel
                     PixelPanel(title: "CONNECTION") { connectionSettings }
                     PixelPanel(title: "FLASHING") { flashingSettings }
+                    #if os(macOS)
+                        PixelPanel(title: "UPDATES") { updateSettings }
+                    #endif
                 }
             }
             .padding(16)
@@ -45,6 +42,17 @@ struct SettingsView: View {
     }
 
     // MARK: - Panels.
+
+    /// Where firmwares and backups are kept.
+    private var filesPanel: some View {
+        PixelPanel(title: "FIRMWARES + BACKUPS") {
+            MonoText(SharedStorage.whereFilesAre(inICloud: model.isUsingICloud), size: 14)
+            Button("OPEN IN \(SavedFiles.folderAppName.uppercased())") {
+                SavedFiles.open(model.filesFolder)
+            }
+            .buttonStyle(.pixelCompact)
+        }
+    }
 
     @ViewBuilder private var romRecovery: some View {
         MonoText(SafetyNotice.romRecovery, size: 14)
@@ -111,6 +119,14 @@ struct SettingsView: View {
                 .disabled(model.device.isWriting)
         }
     }
+
+    #if os(macOS)
+        @ViewBuilder private var updateSettings: some View {
+            @Bindable var updates = model.updates
+            PixelToggle("CHECK FOR NEW VERSIONS AUTOMATICALLY", isOn: $updates.checksAutomatically)
+            NoteText("Once a day, FM-SWITCH asks GitHub for its newest version. Nothing about you is sent.")
+        }
+    #endif
 
     @ViewBuilder private var flashingSettings: some View {
         @Bindable var settings = model.settings

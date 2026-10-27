@@ -104,12 +104,27 @@ struct FlashView: View {
         case .failed(let message, let canResume):
             PixelPanel(title: "STOPPED") {
                 MonoText(message, size: 15)
-                if canResume {
+                if job.needsAMac {
+                    // Trying again would only be refused again.
+                    Button("WHAT CAN I DO?") {
+                        model.device.dismissFlash()
+                        model.requestedPage = .help(.wontInstall)
+                    }
+                    .buttonStyle(.pixelProminent)
+                } else if canResume {
                     Button("RESUME") { model.device.resume() }
                         .buttonStyle(.pixelProminent)
                 } else {
                     Button("TRY AGAIN") { model.device.resume() }
                         .buttonStyle(.pixel)
+                }
+                if job.mightBeRefused {
+                    MonoText("If it stops again, the firmware on it may not accept this one.", size: 15)
+                    Button("WHAT CAN I DO?") {
+                        model.device.dismissFlash()
+                        model.requestedPage = .help(.wontInstall)
+                    }
+                    .buttonStyle(.pixel)
                 }
                 Button("CLOSE") { model.device.dismissFlash() }
                     .buttonStyle(.pixel)

@@ -136,8 +136,10 @@ one registration for it.
 2. In the Organiser: Distribute App ▸ **Direct Distribution**. Xcode signs the app and its
    helper with Developer ID (making the certificate the first time) and sends it to Apple to be
    notarised.
-3. Once it's notarised, Export, then zip the app for the website:
-   `ditto -c -k --keepParent FMSwitch.app FM-SWITCH.zip`.
+3. Once it's notarised, Export, then check and zip it for the GitHub release:
+   `scripts/package-mac.sh path/to/FM-SWITCH.app`. It checks the app and helper are signed with
+   Developer ID by the same team, notarised and stapled, then writes
+   `.artifacts/release/FM-SWITCH-<version>.zip` and its SHA-256.
 
 ## Phase 0 with real hardware
 

@@ -22,6 +22,10 @@ struct DeviceView: View {
                     .disabled(device.isScanning)
                 }
 
+                #if os(macOS)
+                    RetroUpdateBanner()
+                #endif
+
                 AdaptiveColumns {
                     identityPanel
 

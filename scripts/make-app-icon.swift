@@ -7,8 +7,8 @@
 // stay arrows on the Home Screen.
 //
 // It writes the light, dark and tinted iPhone and iPad icons, the Mac's sizes in the Mac's
-// rounded-square shape, and the launch screen: the icon on a deep violet glow that suits both looks,
-// light or dark. Retro's pixel icon is drawn by `make-icon.py`.
+// rounded-square shape, and the launch screen: the FM-1 on its own, on a deep violet glow that suits
+// both looks, light or dark. Retro's pixel icon is drawn by `make-icon.py`.
 //
 // Run it after changing the drawing: `scripts/make-app-icon.swift`. Pass `symmetrical` to draw the
 // other layout considered, with a smaller screen and evenly spaced arrows.
@@ -265,18 +265,26 @@ struct IconDrawing {
 
 /// Renders `pixels` square, flipped so y runs down and scaled so the icon's 1024 pixels fill it.
 func render(pixels: Int, opaque: Bool, draw: (CGContext, CGFloat) -> Void) -> CGImage {
+    render(showing: CGRect(x: 0, y: 0, width: iconSize, height: iconSize), width: pixels, opaque: opaque, draw: draw)
+}
+
+/// Renders the part of the icon's 1024-pixel square in `area`, `width` pixels wide, flipped so y runs
+/// down.
+func render(showing area: CGRect, width: Int, opaque: Bool, draw: (CGContext, CGFloat) -> Void) -> CGImage {
     let alpha: CGImageAlphaInfo = opaque ? .noneSkipLast : .premultipliedLast
+    let scale = CGFloat(width) / area.width
+    let height = Int((area.height * scale).rounded())
     guard
         let space = CGColorSpace(name: CGColorSpace.sRGB),
         let context = CGContext(
-            data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: space,
             bitmapInfo: alpha.rawValue)
-    else { fatalError("Couldn't make a \(pixels)-pixel drawing context.") }
-    let scale = CGFloat(pixels) / iconSize
-    context.translateBy(x: 0, y: CGFloat(pixels))
+    else { fatalError("Couldn't make a \(width)-pixel drawing context.") }
+    context.translateBy(x: 0, y: CGFloat(height))
     context.scaleBy(x: scale, y: -scale)
+    context.translateBy(x: -area.minX, y: -area.minY)
     draw(context, scale)
-    guard let image = context.makeImage() else { fatalError("Couldn't render the \(pixels)-pixel icon.") }
+    guard let image = context.makeImage() else { fatalError("Couldn't render the \(width)-pixel image.") }
     return image
 }
 
@@ -314,16 +322,19 @@ func macIcon(_ layout: Layout, pixels: Int) -> CGImage {
     }
 }
 
-/// The launch screen's icon: the light icon with the Home Screen's rounded corners, 120 points.
+/// The launch screen's FM-1: the icon's FM-1 without its tile, on a clear background, with room
+/// around it for its shadow.
+///
+/// Its panel is 240 points wide, as wide as the Home screen's FM-1, in an image of 280 by 200
+/// points with the panel in the middle, so the storyboard can centre it.
 func launchIcon(_ layout: Layout, pixels: Int) -> CGImage {
-    render(pixels: pixels, opaque: false) { context, scale in
-        let radius = iconSize * 0.2237
-        context.addPath(
-            CGPath(
-                roundedRect: CGRect(x: 0, y: 0, width: iconSize, height: iconSize), cornerWidth: radius,
-                cornerHeight: radius, transform: nil))
-        context.clip()
-        IconDrawing(context: context, layout: layout, palette: .light, pixelScale: scale).draw()
+    let panelHeight = layout.bodyWidth * 534 / 880
+    let panelMiddle = iconSize / 2 + 2
+    let width = layout.bodyWidth * 280 / 240
+    let area = CGRect(x: iconSize / 2 - width / 2, y: panelMiddle - width * 100 / 280, width: width, height: width * 200 / 280)
+    precondition(area.height > panelHeight + 160, "The shadow needs room under the panel.")
+    return render(showing: area, width: pixels, opaque: false) { context, scale in
+        IconDrawing(context: context, layout: layout, palette: Palette(background: nil), pixelScale: scale).draw()
     }
 }
 
@@ -388,11 +399,11 @@ func writeJSON(_ value: some Encodable, in folder: URL) throws {
 
 try writeJSON(Contents(images: phone + mac), in: catalogue)
 
-// The launch screen: the icon, over its violet background.
+// The launch screen: the FM-1, over its violet background.
 let launchImages = assets.appendingPathComponent("LaunchIcon.imageset")
 try FileManager.default.createDirectory(at: launchImages, withIntermediateDirectories: true)
 for scale in [1, 2, 3] {
-    write(launchIcon(layout, pixels: 120 * scale), to: "LaunchIcon@\(scale)x.png", in: launchImages)
+    write(launchIcon(layout, pixels: 280 * scale), to: "LaunchIcon@\(scale)x.png", in: launchImages)
 }
 try writeJSON(
     Contents(images: [1, 2, 3].map { scale in

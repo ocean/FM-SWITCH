@@ -22,7 +22,8 @@ struct StartUpTests {
 
     @Test func onlyKnownFirmwaresAreFlagged() {
         #expect(FeluccaUpdateCode.isKnown("amb"))
-        #expect(FeluccaUpdateCode.isKnown("fm1-editor-estampie"))
+        #expect(FeluccaUpdateCode.isKnown("melodee"))
+        #expect(!FeluccaUpdateCode.isKnown("fm1-editor-estampie"))
         #expect(!FeluccaUpdateCode.isKnown("mvave-official"))
         #expect(!FeluccaUpdateCode.isKnown("zp12"))
         #expect(!FeluccaUpdateCode.isKnown(nil))
@@ -38,11 +39,15 @@ struct StartUpTests {
     @Test func theWarningNamesTheOthersAndHedgesWhenUnsure() {
         let sure = FeluccaUpdateCode.Warning(installing: "amb", named: "AMB-1", startUp: .mBootloader)
         #expect(sure.body.hasPrefix("Once AMB-1 is on your FM-1"))
-        #expect(sure.body.contains("(DUB-1, Estampie, Felucca, HYP-1 and LOF-1)"))
-        #expect(sure.body.contains("you'll need FM-SWITCH on a Mac"))
+        #expect(sure.body.contains("(DUB-1, Felucca, HYP-1, LOF-1 and Melodee)"))
+        #if os(macOS)
+            #expect(sure.body.hasSuffix("you'll need Backup & rescue."))
+        #else
+            #expect(sure.body.hasSuffix("you'll need FM-SWITCH on a Mac."))
+        #endif
 
         let unsure = FeluccaUpdateCode.Warning(installing: "dub", named: "DUB-1", startUp: .notSure)
-        #expect(unsure.body.hasPrefix("If your FM-1 has m-bootloader, once DUB-1 is on your FM-1"))
+        #expect(unsure.body.hasPrefix("If your FM-1's bootloader has been changed, once DUB-1 is on your FM-1"))
         #expect(unsure.body.contains("AMB-1"))
         #expect(!unsure.body.contains("DUB-1,"))
     }
@@ -59,8 +64,25 @@ struct StartUpTests {
             return
         }
         #expect(message.hasPrefix("Your FM-1 is fine. It's still running the firmware it had"))
-        #expect(message.hasSuffix("use FM-SWITCH on a Mac."))
+        #if os(macOS)
+            #expect(message.hasSuffix("use Backup & rescue."))
+        #else
+            #expect(message.hasSuffix("use FM-SWITCH on a Mac."))
+        #endif
+        #expect(setup.controller.job?.needsAMac == true)
         #expect(setup.controller.identity?.text == "FM-1_900")
+    }
+
+    @Test func aStallBeforeTheInstallStartsMightBeARefusal() {
+        #expect(DeviceController.FlashJob.mightBeRefused(after: FM1UpdateError.stalled(phase: .staging, requests: 2)))
+        #expect(!DeviceController.FlashJob.mightBeRefused(after: FM1UpdateError.stalled(phase: .writing, requests: 9)))
+        #expect(!DeviceController.FlashJob.mightBeRefused(after: FM1UpdateError.bootloaderMismatch(requests: 3)))
+    }
+
+    @Test func bothRefusalsAreRecognised() {
+        #expect(DeviceController.FlashJob.isRefusal(FM1UpdateError.bootloaderMismatch(requests: 3)))
+        #expect(DeviceController.FlashJob.isRefusal(FM1UpdateError.packageRefused(requests: 2)))
+        #expect(!DeviceController.FlashJob.isRefusal(FM1UpdateError.stalled(phase: .staging, requests: 2)))
     }
 
     @Test func aRefusalWithMVavesStartUpSuggestsV15First() async throws {
@@ -79,5 +101,6 @@ struct StartUpTests {
         }
         #expect(message.contains("from here. Install V15 first, then"))
         #expect(!message.contains("m-bootloader"))
+        #expect(setup.controller.job?.needsAMac == false)
     }
 }

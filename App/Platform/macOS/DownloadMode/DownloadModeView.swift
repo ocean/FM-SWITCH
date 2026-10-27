@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Backup & rescue: the Mac's download-mode tools.
 ///
@@ -21,7 +20,7 @@ struct DownloadModeView: View {
                     .padding(.top, 8)
                 if model.settings.transportKind == .simulated {
                     Notice(
-                        "This is the simulated FM-1: nothing real is read or written.",
+                        DownloadModeWords.simulated,
                         systemImage: "info.circle",
                         isWarning: false)
                 }
@@ -50,9 +49,16 @@ struct DownloadModeView: View {
         .navigationTitle("Backup & rescue")
         .task { await tools.watch() }
         .onAppear { tools.backups.reload() }
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [Self.backupType], onCompletion: importBackup)
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [DownloadModeController.backupType],
+            onCompletion: importBackup
+        )
         .confirmationDialog(
-            "Delete this backup?", isPresented: isConfirmingDelete, titleVisibility: .visible, presenting: deleting
+            DownloadModeWords.deleteTitle,
+            isPresented: isConfirmingDelete,
+            titleVisibility: .visible,
+            presenting: deleting
         ) { backup in
             Button("Delete", role: .destructive) {
                 try? tools.backups.delete(backup)
@@ -60,12 +66,9 @@ struct DownloadModeView: View {
             }
             Button("Cancel", role: .cancel) { deleting = nil }
         } message: { backup in
-            Text("The backup from \(backup.date.formatted(date: .abbreviated, time: .shortened)) goes for good.")
+            Text(DownloadModeWords.deleteDetail(backup))
         }
     }
-
-    /// A backup's `.bin` file, as FM1Kit and M-Flasher save it.
-    private static let backupType = UTType(filenameExtension: "bin") ?? .data
 
     private var isConfirmingDelete: Binding<Bool> {
         Binding {
@@ -101,14 +104,9 @@ struct DownloadModeView: View {
 
     private var steps: some View {
         VStack(spacing: 14) {
-            Text(
-                """
-                Download mode reads and writes the FM-1's whole flash: its bootloader, firmware, settings and \
-                sounds. It works even when the firmware won't start.
-                """
-            )
-            .foregroundStyle(Palette.secondaryInk)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(DownloadModeWords.intro)
+                .foregroundStyle(Palette.secondaryInk)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if tools.needsHelper { DownloadModeHelperCard() }
             DownloadModeConnectCard()
             DownloadModeJobsCard(chooseFile: { isImporting = true })
@@ -120,18 +118,15 @@ struct DownloadModeView: View {
         }
     }
 
-    /// Copies a chosen `.bin`, and its `.json` if it's beside it, in with the other backups, then
-    /// restores it.
+    /// Restores a chosen `.bin`.
     private func importBackup(_ result: Result<URL, any Error>) {
         importProblem = nil
-        do {
-            let url = try result.get()
-            let isScoped = url.startAccessingSecurityScopedResource()
-            defer { if isScoped { url.stopAccessingSecurityScopedResource() } }
-            let saved = try tools.backups.save(FlashFiles(contentsOf: url))
-            Task { await tools.start(.restore(saved)) }
-        } catch {
-            importProblem = error.localizedDescription
+        Task {
+            do {
+                try await tools.restoreImported(result.get())
+            } catch {
+                importProblem = error.localizedDescription
+            }
         }
     }
 
@@ -139,16 +134,16 @@ struct DownloadModeView: View {
 
     @ViewBuilder private func reading(_ fraction: Double) -> some View {
         progress(
-            "Reading your FM-1",
-            "It reads everything twice and checks both reads. Nothing is written.",
+            DownloadModeWords.readingTitle,
+            DownloadModeWords.readingDetail,
             fraction,
             colour: Palette.save)
     }
 
     @ViewBuilder private func writing(_ fraction: Double) -> some View {
         progress(
-            "Writing to your FM-1",
-            "Keep it plugged in and switched on until this finishes.",
+            DownloadModeWords.writingTitle,
+            DownloadModeWords.writingDetail,
             fraction,
             colour: Palette.accent)
     }
@@ -171,11 +166,11 @@ struct DownloadModeView: View {
 
     private func backedUp(_ saved: SavedFlashBackup) -> some View {
         DownloadModeCard {
-            Label("Backed up", systemImage: "checkmark.circle.fill")
+            Label(DownloadModeWords.backedUp, systemImage: "checkmark.circle.fill")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Palette.goodInk)
             Text("\(saved.contentsLine).")
-            Text("It's saved as \(saved.file.lastPathComponent), which M-Flasher can restore too.")
+            Text(DownloadModeWords.savedAs(saved))
                 .foregroundStyle(Palette.secondaryInk)
             stillInDownloadMode
             doneButtons(showing: saved)
@@ -184,11 +179,11 @@ struct DownloadModeView: View {
 
     private func nothingToWrite(_ saved: SavedFlashBackup) -> some View {
         DownloadModeCard {
-            Label("Nothing to write", systemImage: "checkmark.circle.fill")
+            Label(DownloadModeWords.nothingToWrite, systemImage: "checkmark.circle.fill")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Palette.goodInk)
-            Text("Your FM-1 already holds this, so nothing was written.")
-            Text("Its flash is saved as \(saved.file.lastPathComponent).")
+            Text(DownloadModeWords.alreadyHoldsThis)
+            Text(DownloadModeWords.flashSavedAs(saved))
                 .foregroundStyle(Palette.secondaryInk)
             stillInDownloadMode
             doneButtons(showing: saved)
@@ -197,20 +192,15 @@ struct DownloadModeView: View {
 
     private func written(_ saved: SavedFlashBackup) -> some View {
         DownloadModeCard {
-            Label("Written and checked", systemImage: "checkmark.circle.fill")
+            Label(DownloadModeWords.written, systemImage: "checkmark.circle.fill")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Palette.goodInk)
-            Text("Every change matches the FM-1's own check. Switch it off and on to start it.")
+            Text(DownloadModeWords.writtenDetail)
             if tools.job == .mBootloader {
-                Text(
-                    """
-                    From now on, holding PLAY while switching it on opens m-bootloader's menu, and holding REC \
-                    starts download mode.
-                    """
-                )
-                .foregroundStyle(Palette.secondaryInk)
+                Text(DownloadModeWords.mBootloaderKeys)
+                    .foregroundStyle(Palette.secondaryInk)
             }
-            Text("Its flash from before is saved as \(saved.file.lastPathComponent).")
+            Text(DownloadModeWords.flashFromBefore(saved))
                 .font(.footnote)
                 .foregroundStyle(Palette.secondaryInk)
             doneButtons(showing: saved)
@@ -220,21 +210,16 @@ struct DownloadModeView: View {
     private func failed(_ failure: FlashFailure, saved: SavedFlashBackup?) -> some View {
         DownloadModeCard {
             Label(
-                failure.kind == .writeFailed ? "The write didn't finish" : "It stopped",
+                failure.kind == .writeFailed ? DownloadModeWords.writeFailed : DownloadModeWords.stopped,
                 systemImage: "exclamationmark.triangle.fill"
             )
             .font(.headline)
             .foregroundStyle(Palette.warningInk)
             Text(failure.message)
             if failure.kind == .writeFailed, saved != nil {
-                Text(
-                    """
-                    Keep your FM-1 plugged in and switched on: it's still in download mode. Put back the backup \
-                    saved before writing, then try again.
-                    """
-                )
-                .font(.callout.weight(.semibold))
-                Button("Restore the backup") { Task { await tools.restoreAfterFailure() } }
+                Text(DownloadModeWords.putBackBackup)
+                    .font(.callout.weight(.semibold))
+                Button(DownloadModeWords.restoreBackup) { Task { await tools.restoreAfterFailure() } }
                     .buttonStyle(.prominent(Palette.accent))
             } else {
                 HStack(spacing: 10) {
@@ -250,14 +235,14 @@ struct DownloadModeView: View {
     }
 
     private var stillInDownloadMode: some View {
-        Text("Your FM-1 is still in download mode. Switch it off and on to start it.")
+        Text(DownloadModeWords.stillInDownloadMode)
             .font(.footnote)
             .foregroundStyle(Palette.secondaryInk)
     }
 
     private func doneButtons(showing saved: SavedFlashBackup) -> some View {
         HStack(spacing: 10) {
-            Button("Show in Finder") { SavedFiles.reveal(saved.file) }
+            Button(DownloadModeWords.showInFinder) { SavedFiles.reveal(saved.file) }
                 .buttonStyle(.secondary)
             Button("Done") { Task { await tools.finish() } }
                 .buttonStyle(.prominent(Palette.accent))
@@ -268,7 +253,7 @@ struct DownloadModeView: View {
 
     private var savedBackups: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Whole-flash backups")
+            Text(DownloadModeWords.backupsTitle)
                 .font(.headline)
                 .foregroundStyle(Palette.ink)
                 .padding(.leading, 4)
@@ -321,9 +306,9 @@ private struct FlashBackupRow: View {
             .accessibilityElement(children: .combine)
             Spacer(minLength: 0)
             Menu {
-                Button("Restore to my FM-1", systemImage: "arrow.counterclockwise", action: restore)
+                Button(DownloadModeWords.restoreToFM1, systemImage: "arrow.counterclockwise", action: restore)
                     .disabled(!canRestore)
-                Button("Show in Finder", systemImage: "folder") { SavedFiles.reveal(backup.file) }
+                Button(DownloadModeWords.showInFinder, systemImage: "folder") { SavedFiles.reveal(backup.file) }
                 Button("Delete", systemImage: "trash", role: .destructive, action: delete)
             } label: {
                 Image(systemName: "ellipsis.circle")

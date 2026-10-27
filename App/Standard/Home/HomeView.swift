@@ -11,8 +11,12 @@ struct HomeView: View {
     @State private var showsRetroNote = false
     @Environment(\.accessibilityReduceMotion) private var reducesMotion
     var openFirmwares: () -> Void
+    /// Opens My firmwares, on iPhone; the sidebar has it elsewhere.
+    var openMine: (() -> Void)?
     var openSave: () -> Void
     var openSettings: () -> Void
+    /// Opens Help, on iPhone; the sidebar has it elsewhere.
+    var openHelp: (() -> Void)?
 
     private var device: DeviceController { model.device }
     private var summary: DeviceSummary { DeviceSummary(model: model) }
@@ -20,6 +24,9 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                #if os(macOS)
+                    UpdateBanner()
+                #endif
                 VStack(spacing: 12) {
                     FM1Drawing(
                         line1: summary.screenTitle,
@@ -30,10 +37,12 @@ struct HomeView: View {
                 }
                 .padding(.top, 8)
                 firmwaresCard
+                if let openMine { mineCard(openMine) }
                 if model.offersSaveMyFM1 { saveCard }
                 if case .waiting(let loader) = summary.state { finishCard(loader) }
                 if device.identity == .officialV15 { factorySoundsCard }
                 if summary.state == .notConnected { connectCard }
+                if let openHelp { helpCard(openHelp) }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
@@ -70,6 +79,27 @@ struct HomeView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: screenTaps.count) { _, count in count >= 3 }
         .sensoryFeedback(.success, trigger: showsRetroNote) { _, shows in shows }
+    }
+
+    private func mineCard(_ open: @escaping () -> Void) -> some View {
+        Button(action: open) {
+            TaskRow(title: "My firmwares", detail: mineLine, systemImage: "star", tint: Palette.accent)
+        }
+        .buttonStyle(.pressable)
+    }
+
+    /// How many firmwares are saved and starred, e.g. "3 saved · 2 starred".
+    private var mineLine: String {
+        let saved = model.catalogue.entries.filter { FirmwareFilter.isSaved($0, in: model) }.count
+        let starred = model.starred.ids.count
+        return "\(saved) saved · \(starred) starred"
+    }
+
+    private func helpCard(_ open: @escaping () -> Void) -> some View {
+        Button(action: open) {
+            TaskRow(title: "Help", detail: HelpTopic.intro, systemImage: "lifepreserver", tint: Palette.good)
+        }
+        .buttonStyle(.pressable)
     }
 
     private var firmwaresCard: some View {

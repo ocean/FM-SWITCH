@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The launch screen: LaunchGradient stretched to fill, with LaunchIcon in the middle, both drawn by scripts/make-app-icon.swift. LaunchHandOff draws the same, then fades into the app. -->
+<!-- The launch screen: LaunchGradient stretched to fill, with LaunchIcon, the FM-1 on its own, in the middle, both drawn by scripts/make-app-icon.swift. LaunchHandOff draws the same, then fades into the app. -->
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="launch-vc">
     <device id="retina6_12" orientation="portrait" appearance="light"/>
     <dependencies>
@@ -19,7 +19,7 @@
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                             </imageView>
                             <imageView userInteractionEnabled="NO" contentMode="center" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="launch-icon">
-                                <rect key="frame" x="136.5" y="366" width="120" height="120"/>
+                                <rect key="frame" x="56.5" y="326" width="280" height="200"/>
                             </imageView>
                         </subviews>
                         <constraints>
@@ -38,6 +38,6 @@
     </scenes>
     <resources>
         <image name="LaunchGradient" width="600" height="1300"/>
-        <image name="LaunchIcon" width="120" height="120"/>
+        <image name="LaunchIcon" width="280" height="200"/>
     </resources>
 </document>

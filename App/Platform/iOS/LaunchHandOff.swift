@@ -4,7 +4,7 @@ import SwiftUI
 /// look is on.
 ///
 /// iOS shows the launch screen before the app knows which look is on, so it's the same violet for
-/// both, and this takes over from it seamlessly. The icon lifts a little as it goes, unless the
+/// both, and this takes over from it seamlessly. The FM-1 lifts a little as it goes, unless the
 /// person has asked for less motion.
 struct LaunchHandOff: View {
     @Environment(\.accessibilityReduceMotion) private var reducesMotion

@@ -95,7 +95,10 @@ struct BeforeYouStartView: View {
             StartUpQuestion(startUp: $settings.startUp.animation(Motion.fade))
         }
         if let warning = readiness.macWarning {
-            MacWarningCard(warning: warning)
+            MacWarningCard(warning: warning) {
+                model.requestedPage = .help(.wontInstall)
+                dismiss()
+            }
         }
     }
 

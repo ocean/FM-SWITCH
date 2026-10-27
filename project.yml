@@ -10,7 +10,7 @@ packages:
   # against a local checkout at ../FM1Kit instead, generate from project.local.yml.
   FM1Kit:
     url: https://github.com/ocean/FM1Kit.git
-    minorVersion: 0.4.3
+    minorVersion: 0.4.4
 # Each developer's signing team, from the git-ignored Signing.local.xcconfig.
 configFiles:
   Debug: Signing.xcconfig
@@ -83,7 +83,7 @@ targets:
         # is off, in the Files app.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
-        # The app icon on a violet glow, from App/Platform/iOS/LaunchScreen.storyboard. A storyboard,
+        # The FM-1 on a violet glow, from App/Platform/iOS/LaunchScreen.storyboard. A storyboard,
         # because UILaunchScreen can't stretch an image to fill the screen.
         UILaunchStoryboardName: LaunchScreen
         UISupportedInterfaceOrientations:
@@ -97,6 +97,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch
+        # The Mac app's file is FM-SWITCH.app, as the app is named everywhere else. The module
+        # keeps the target's name, which tests import.
+        PRODUCT_NAME[sdk=macosx*]: FM-SWITCH
+        PRODUCT_MODULE_NAME: FMSwitch
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Retro's pixel-art icon, which iPhone and iPad offer in Settings once Retro's been found.
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES[sdk=iphone*]: RetroIcon
@@ -156,7 +160,7 @@ targets:
         # warnings as errors. Every other warning is still an error.
         OTHER_SWIFT_FLAGS: $(inherited) -Xcc -Wno-error=deprecated-declarations
         # A Mac app's executable is inside Contents/MacOS, which XcodeGen's default misses.
-        TEST_HOST[sdk=macosx*]: $(BUILT_PRODUCTS_DIR)/FMSwitch.app/Contents/MacOS/FMSwitch
+        TEST_HOST[sdk=macosx*]: $(BUILT_PRODUCTS_DIR)/FM-SWITCH.app/Contents/MacOS/FM-SWITCH
   # Apple's accessibility audit on the main screens, on iPhone. scripts/check.sh skips it on the Mac.
   FMSwitchUITests:
     type: bundle.ui-testing

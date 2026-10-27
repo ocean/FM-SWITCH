@@ -86,8 +86,9 @@ import XCTest
                 XCTAssertTrue(app.buttons["Not now"].waitForExistence(timeout: 10), "\(setting)")
                 // It waits, then slides up.
                 _ = XCTWaiter.wait(for: [XCTestExpectation(description: "The card settles.")], timeout: 1.5)
-                let card = app.otherElements["tipNudge"].frame
-                try app.auditStandardLook(floating: [card])
+                let card = app.otherElements["tipNudge"]
+                // Its shadow shades the page around it too.
+                try app.auditStandardLook(floating: [card.frame.insetBy(dx: -24, dy: -24)], floatingCard: card)
                 app.buttons["Not now"].tap()
                 XCTAssertTrue(app.buttons["Not now"].waitForNonExistence(timeout: 5), "\(setting)")
             }

@@ -4,15 +4,29 @@ enum AppTab: String, CaseIterable, Identifiable {
     case device
     case firmware
     case library
+    /// The Mac's download-mode tools.
+    case rescue
+    case help
     case settings
 
     var id: String { rawValue }
+
+    /// RESCUE only on the Mac, which has download mode.
+    static var allCases: [Self] {
+        #if os(macOS)
+            [.device, .firmware, .library, .rescue, .help, .settings]
+        #else
+            [.device, .firmware, .library, .help, .settings]
+        #endif
+    }
 
     var title: String {
         switch self {
         case .device: "DEVICE"
         case .firmware: "FIRMWARE"
         case .library: "SAVED"
+        case .rescue: "RESCUE"
+        case .help: "HELP"
         case .settings: "SETUP"
         }
     }
@@ -23,6 +37,8 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .device: "▣"
         case .firmware: "≡"
         case .library: "▼"
+        case .rescue: "✚"
+        case .help: "?"
         case .settings: "◆"
         }
     }
@@ -33,6 +49,8 @@ struct RetroRootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.phosphor) private var theme
     @State private var tab = Self.initialTab
+    /// The topic HELP opens at, when a warning or an error asked for one.
+    @State private var helpTopic: HelpTopic?
 
     /// Debug builds accept `-initialTab firmware` (etc.) as a launch argument, for screenshots, and
     /// open FIRMWARE for `-openFirmware <id>`.
@@ -42,6 +60,15 @@ struct RetroRootView: View {
             return UserDefaults.standard.string(forKey: "initialTab").flatMap(AppTab.init(rawValue:)) ?? .device
         #else
             .device
+        #endif
+    }
+
+    /// Whether the FM-1's flash is being read or written in download mode, so the tabs wait.
+    private var isUsingDownloadMode: Bool {
+        #if os(macOS)
+            model.downloadMode.phase.isRunning
+        #else
+            false
         #endif
     }
 
@@ -58,11 +85,13 @@ struct RetroRootView: View {
                 if isWide {
                     HStack(spacing: 0) {
                         PixelSidebar(selection: $tab)
+                            .disabled(isUsingDownloadMode)
                         screen
                     }
                 } else {
                     screen
                     PixelTabBar(selection: $tab)
+                        .disabled(isUsingDownloadMode)
                 }
             }
             .environment(\.isWideLayout, isWide)
@@ -97,6 +126,22 @@ struct RetroRootView: View {
         }
         .animation(.easeOut(duration: 0.2), value: model.settings.needsSafetyNotice)
         .overlay { CRTOverlay() }
+        // Initially too, for Settings… chosen while the window was closed, which opens a new one.
+        .onChange(of: model.requestedPage, initial: true) { _, page in
+            guard let page else { return }
+            switch page {
+            case .help(let topic):
+                helpTopic = topic
+                tab = .help
+            case .settings:
+                tab = .settings
+            }
+            model.requestedPage = nil
+        }
+        // HELP opens at the asked-for topic once; chosen later, it opens at none.
+        .onChange(of: tab) { _, tab in
+            if tab != .help { helpTopic = nil }
+        }
     }
 }
 
@@ -107,6 +152,13 @@ extension RetroRootView {
             case .device: DeviceView(tab: $tab)
             case .firmware: CatalogueView()
             case .library: LibraryView()
+            case .rescue:
+                #if os(macOS)
+                    RetroDownloadModeView()
+                #else
+                    EmptyView()
+                #endif
+            case .help: RetroHelpView(opening: helpTopic, openRescue: { tab = .rescue }).id(helpTopic)
             case .settings: SettingsView()
             }
         }

@@ -78,6 +78,11 @@ struct FlashConfirmView: View {
             MonoText(warning.body, size: 14)
             PixelToggle("WHY?", isOn: $showsWhy)
             if showsWhy { NoteText(warning.why) }
+            Button("WHAT CAN I DO?") {
+                model.requestedPage = .help(.wontInstall)
+                dismiss()
+            }
+            .buttonStyle(.pixelCompact)
         }
     }
 

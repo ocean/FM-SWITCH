@@ -3,6 +3,8 @@ import FM1Rescue
 import Foundation
 import Observation
 import ServiceManagement
+import UniformTypeIdentifiers
+import os
 
 /// What to do with an FM-1 in the chip's download mode.
 enum DownloadModeJob: Hashable {
@@ -48,7 +50,7 @@ final class DownloadModeController {
         /// Registered, and waiting for the person to allow it in System Settings.
         case needsApproval
         case ready
-        /// macOS can't find it in the app: a build problem.
+        /// Registering it failed, so macOS couldn't use the one in the app.
         case missing
     }
 
@@ -76,6 +78,11 @@ final class DownloadModeController {
         }
     }
 
+    /// A backup's `.bin` file, as FM1Kit and M-Flasher save it.
+    static let backupType = UTType(filenameExtension: "bin") ?? .data
+
+    private static let log = Logger(subsystem: "dev.drewr.fmswitch", category: "helper")
+
     private(set) var job: DownloadModeJob?
     private(set) var phase = Phase.idle
     private(set) var helperStatus = HelperStatus.notInstalled
@@ -94,6 +101,8 @@ final class DownloadModeController {
     private let device: DeviceController
     private let isSimulated: @MainActor () -> Bool
     private let helper = SMAppService.daemon(plistName: FlashHelper.plistName)
+    /// Whether registering the helper failed for a reason other than waiting to be allowed.
+    private var registeringFailed = false
     private var service: (any FlashService)?
     /// The simulated FM-1's flash, kept so what's written to it stays.
     private var simulatedFlash: SimulatedFlash?
@@ -129,8 +138,8 @@ final class DownloadModeController {
             switch helper.status {
             case .enabled: .ready
             case .requiresApproval: .needsApproval
-            case .notFound: .missing
-            default: .notInstalled
+            // macOS reports a helper that's never been registered as not found, too.
+            default: registeringFailed ? .missing : .notInstalled
             }
     }
 
@@ -138,8 +147,13 @@ final class DownloadModeController {
     func installHelper() {
         do {
             try helper.register()
+            registeringFailed = false
         } catch {
             // Registering a helper that needs approval reports that as an error; the status says.
+            registeringFailed = helper.status != .requiresApproval && helper.status != .enabled
+            if registeringFailed {
+                Self.log.error("Registering the helper failed: \(error, privacy: .public)")
+            }
         }
         refreshHelperStatus()
         if helperStatus == .needsApproval { SMAppService.openSystemSettingsLoginItems() }
@@ -246,6 +260,15 @@ final class DownloadModeController {
         } catch {
             await fail(error, saved: saved)
         }
+    }
+
+    /// Copies a backup from elsewhere, such as M-Flasher, and its `.json` if it's beside it, in
+    /// with the other backups, then restores it.
+    func restoreImported(_ url: URL) async throws {
+        let isScoped = url.startAccessingSecurityScopedResource()
+        defer { if isScoped { url.stopAccessingSecurityScopedResource() } }
+        let saved = try backups.save(FlashFiles(contentsOf: url))
+        await start(.restore(saved))
     }
 
     /// Puts the backup made before a failed write back.

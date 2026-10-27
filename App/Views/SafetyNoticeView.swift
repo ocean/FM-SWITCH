@@ -10,31 +10,56 @@ enum SafetyNotice {
         safely flash your device, flashing custom firmware is at your own risk.
         """
 
-    static let recovery = """
-        If your FM-1 won't start, some firmwares can start it in USB recovery mode if you hold down \
-        the "OCT−" key while switching it on. Then connect it and install a firmware you've saved. Not \
-        every firmware does this, and if yours doesn't, recovery needs a computer: the app's settings \
-        say more.
-        """
+    #if os(macOS)
+        static let recovery = """
+            If your FM-1 won't start, some firmwares can start it in USB recovery mode if you hold \
+            down the "OCT−" key while switching it on. Then connect it and install a firmware you've \
+            saved. Not every firmware does this, and if yours doesn't, Backup & rescue can usually \
+            still reach it: the app's settings say more.
+            """
+    #else
+        static let recovery = """
+            If your FM-1 won't start, some firmwares can start it in USB recovery mode if you hold \
+            down the "OCT−" key while switching it on. Then connect it and install a firmware you've \
+            saved. Not every firmware does this, and if yours doesn't, recovery needs a computer: the \
+            app's settings say more.
+            """
+    #endif
 
     /// What's left when the FM-1 won't start at all.
     ///
-    /// The tools are other people's, and haven't been tried with FM-SWITCH.
-    static let romRecovery = """
-        If the FM-1 won't start at all, not even in USB recovery mode, FM-SWITCH can't help, but a \
-        computer usually can. M-Flasher, for Mac, Windows and Linux, backs up and reinstalls the FM-1 \
-        through its chip's own download mode, which works even when the firmware is broken: an FM-1 \
-        whose firmware is damaged often starts in that mode by itself. The firmware hub keeps a list of \
-        rescue tools, M-Flasher among them, with others for an FM-1 that doesn't get that far. \
-        FM-SWITCH hasn't tried any of these.
-        """
+    /// The other tools are other people's, and haven't been tried with FM-SWITCH.
+    #if os(macOS)
+        static let romRecovery = """
+            If the FM-1 won't start at all, not even in USB recovery mode, Backup & rescue can usually \
+            still reach it through its chip's own download mode, which works even when the firmware \
+            is broken: an FM-1 whose firmware is damaged often starts in that mode by itself. From \
+            there it can back up the whole flash, put a backup back or write a firmware, and install \
+            m-bootloader, so holding REC always gets you back there. M-Flasher, for Mac, Windows and \
+            Linux, uses download mode too. The firmware hub keeps a list of rescue tools, with others \
+            for an FM-1 that doesn't get that far. FM-SWITCH hasn't tried those.
+            """
+    #else
+        static let romRecovery = """
+            If the FM-1 won't start at all, not even in USB recovery mode, FM-SWITCH can't help, but a \
+            computer usually can. M-Flasher, for Mac, Windows and Linux, backs up and reinstalls the \
+            FM-1 through its chip's own download mode, which works even when the firmware is broken: \
+            an FM-1 whose firmware is damaged often starts in that mode by itself. The firmware hub \
+            keeps a list of rescue tools, M-Flasher among them, with others for an FM-1 that doesn't \
+            get that far. FM-SWITCH hasn't tried any of these.
+            """
+    #endif
 
-    /// Where to find the computer recovery tools.
+    /// Where to find the computer recovery tools, and why some firmwares need them.
     static let romRecoveryLinks = [
         CatalogueLink(label: "M-Flasher", url: URL(literal: "https://github.com/jvitkauskas/m-flasher")),
         CatalogueLink(
             label: "Rescue tools on the firmware hub",
             url: URL(literal: "https://thefirmwarehub.com/tools/#rescue")
+        ),
+        CatalogueLink(
+            label: "Why some firmwares won't install others",
+            url: URL(literal: "https://fm-1.drewr.dev/bootloader-check/")
         ),
     ]
 }

@@ -1,3 +1,5 @@
+import FM1Kit
+
 /// What ``DeviceController`` is doing: a flash, a voice restore or a backup, and how far each has got.
 extension DeviceController {
     enum FlashPhase: Equatable {
@@ -59,8 +61,41 @@ extension DeviceController {
         var confirmsSameIdentity = false
         var index = 0
         var phase = FlashPhase.preparing
+        /// Whether it stopped because, with the FM-1's bootloader changed, its firmware only lets a
+        /// Mac install this.
+        var needsAMac = false
+        /// Whether it stopped before the install started, which might be the FM-1's firmware
+        /// refusing it, so trying again might not help.
+        var mightBeRefused = false
 
         var current: StoredFirmware { steps[index] }
+
+        /// Whether the FM-1 is left waiting in its loader after `error`, so the install can carry on.
+        static func canResume(after error: any Error) -> Bool {
+            switch error as? FM1UpdateError {
+            case .disconnected(.writing, _), .stalled(.writing, _), .loaderNotFound:
+                true
+            default:
+                false
+            }
+        }
+
+        /// Whether the installed firmware refused the package: one built on Felucca's earlier
+        /// update code, once the FM-1's bootloader has been changed, or one on Felucca 1.6.1
+        /// refusing Open.
+        static func isRefusal(_ error: any Error) -> Bool {
+            switch error as? FM1UpdateError {
+            case .bootloaderMismatch, .packageRefused: true
+            default: false
+            }
+        }
+
+        /// Whether `error` might be the installed firmware refusing the package before it checks
+        /// the bootloader, which FM1Kit can't tell apart from the install not starting.
+        static func mightBeRefused(after error: any Error) -> Bool {
+            guard case .stalled(.staging, _) = error as? FM1UpdateError else { return false }
+            return true
+        }
 
         var isRunning: Bool {
             switch phase {

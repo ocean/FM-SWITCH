@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Asks what starts the FM-1: M-VAVE's bootloader, m-bootloader, or not sure.
+/// Asks what starts the FM-1: M-VAVE's bootloader, m-bootloader, the one Open leaves, or not sure.
 struct StartUpQuestion: View {
     @Binding var startUp: StartUp?
 
@@ -53,6 +53,8 @@ struct StartUpQuestion: View {
 /// Says that getting back to M-VAVE's firmwares will take a Mac, with why tucked away.
 struct MacWarningCard: View {
     var warning: FeluccaUpdateCode.Warning
+    /// Opens Help at what to do, closing the sheet the card is on.
+    var openHelp: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -67,6 +69,10 @@ struct MacWarningCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.callout.weight(.semibold))
+            Button("What can I do?", action: openHelp)
+                .font(.callout.weight(.semibold))
+                .buttonStyle(.plain)
+                .underline()
         }
         .foregroundStyle(Palette.warningInk)
         .tint(Palette.warningInk)

@@ -237,8 +237,12 @@ private struct CatalogueRow: View {
                 PixelTag(text: "UPDATE")
             }
             if !entry.isDownloadable { PixelTag(text: "LINKS ONLY", inverted: false) }
-            if entry.beta { PixelTag(text: "BETA", inverted: false) }
-            if !entry.isHardwareTested { PixelTag(text: "IN TESTING", inverted: false) }
+            // Not known to work on an FM-1 says more than a test release, so only that shows.
+            if !entry.isHardwareTested {
+                PixelTag(text: "IN TESTING", inverted: false)
+            } else if entry.beta {
+                PixelTag(text: "BETA", inverted: false)
+            }
             if entry.requiresOfficialFirmware { PixelTag(text: "VIA OFFICIAL", inverted: false) }
             if model.device.identity?.text == entry.product { PixelTag(text: "ID MATCH", inverted: false) }
             Spacer()

@@ -19,12 +19,15 @@ import XCUIAutomation
         ///   - skipped: Checks to leave out, on top of Dynamic Type's.
         ///   - floating: Where something floats over the page, with its shadow. Text it overlaps is
         ///     partly hidden or shaded on purpose, so its contrast isn't checked.
+        ///   - floatingCard: What floats there, when it's one element. Page text wholly under it is
+        ///     hidden, so its contrast isn't checked either, while the card's own text still is.
         ///   - isClearOfSearchField: Whether nothing on the firmware list is under its search field,
         ///     so contrast issues the audit can't place are failures there too.
         /// - Throws: If the audit can't run; the issues it finds are recorded as test failures.
         func auditStandardLook(
             skipping skipped: XCUIAccessibilityAuditType = [],
             floating: [CGRect] = [],
+            floatingCard: XCUIElement? = nil,
             isClearOfSearchField: Bool = false
         ) throws {
             // Illustrations are one image to VoiceOver, but XCUITest still lists the text inside them.
@@ -34,6 +37,9 @@ import XCUIAutomation
             // On the firmware list, the search field floats over the bottom of the screen.
             let searchFieldArea =
                 navigationBars["Firmwares"].exists ? screen.maxY - 108 : .infinity
+            let cardsOwn = Set(
+                (floatingCard.map { [$0] + $0.descendants(matching: .any).allElementsBoundByIndex } ?? [])
+                    .map { "\($0.frame)" })
             let types = Self.auditTypes.subtracting(skipped)
             // Whether an issue is one of those above, which isn't a failure.
             let isExpected = { (issue: XCUIAccessibilityAuditIssue) -> Bool in
@@ -50,8 +56,16 @@ import XCUIAutomation
                 // A filter in a row that scrolls sideways can be cut off by the screen's edge, and
                 // reads in full once scrolled to.
                 if issue.auditType == .contrast, frame.minX < screen.minX || frame.maxX > screen.maxX { return true }
-                if issue.auditType == .contrast, floating.contains(where: { $0.intersects(frame) }),
-                    !floating.contains(where: { $0.contains(frame) })
+                // The card's own text is still checked: known by its elements when the card is
+                // given, otherwise by lying wholly inside it.
+                if issue.auditType == .contrast, floating.contains(where: { $0.intersects(frame) }) {
+                    let isCardsOwn =
+                        floatingCard == nil
+                        ? floating.contains(where: { $0.contains(frame) }) : cardsOwn.contains("\(frame)")
+                    if !isCardsOwn { return true }
+                }
+                if issue.auditType == .contrast, let floatingCard, floatingCard.frame.contains(frame),
+                    !cardsOwn.contains("\(frame)")
                 {
                     return true
                 }

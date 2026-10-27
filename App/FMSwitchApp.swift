@@ -13,11 +13,11 @@ struct FMSwitchApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: Self.mainWindow) {
             RootView()
                 .environment(model)
                 .environment(\.phosphor, model.settings.theme)
-                .preferredColorScheme(colorScheme)
+                .windowAppearance(colorScheme)
                 .tint(model.settings.look == .retro ? model.settings.theme.bright : Palette.accent)
                 .opensLinksInApp()
                 .onChange(of: model.settings.look) { _, look in SystemAppearance.apply(for: look) }
@@ -31,28 +31,37 @@ struct FMSwitchApp: App {
                 #endif
                 #if os(macOS)
                     .frame(minWidth: 420, minHeight: 560)
+                    .task { await model.updates.keepChecking() }
                 #endif
         }
         #if os(macOS)
             // Opens wide enough for the sidebar layout.
             .defaultSize(width: 1180, height: 820)
-        #endif
-
-        #if os(macOS)
-            // FM-SWITCH ▸ Settings… (⌘,), the Mac's home for settings, in the standard look.
-            Settings {
-                NavigationStack { StandardSettingsView() }
-                    .environment(model)
-                    .preferredColorScheme(model.settings.appearance.colorScheme)
-                    .frame(width: 520, height: 620)
+            .commands {
+                CommandGroup(after: .appInfo) {
+                    Button("Check for Updates…") { Task { await model.updates.checkAndReport() } }
+                }
+                // Settings are a page in the window, in both looks, rather than a window of their own.
+                CommandGroup(replacing: .appSettings) {
+                    SettingsCommand(model: model)
+                }
             }
         #endif
     }
+
+    static let mainWindow = "main"
 
     /// Retro is always dark; the standard look follows the Appearance setting.
     private var colorScheme: ColorScheme? {
         model.settings.look == .retro ? .dark : model.settings.appearance.colorScheme
     }
+}
+
+/// A page asked for from outside the look's own navigation.
+enum RequestedPage: Equatable {
+    case help(HelpTopic)
+    /// From FM-SWITCH ▸ Settings… on the Mac.
+    case settings
 }
 
 /// Everything the screens share.
@@ -64,12 +73,17 @@ final class AppModel {
     let library = FirmwareLibrary()
     let history = FlashHistory()
     let backups = BackupStore()
+    let starred = StarredFirmwares()
     let tipJar = TipJar()
     let device: DeviceController
     #if os(macOS)
         /// Whole-flash backups, restores and installs in the chip's download mode.
         let downloadMode: DownloadModeController
+        /// Whether a newer FM-SWITCH is out on GitHub.
+        let updates = UpdateChecker()
     #endif
+    /// A page a warning, an error or the menu bar asked to open, until the look's frame opens it.
+    var requestedPage: RequestedPage?
     /// Whether firmwares and backups are in iCloud Drive, shared with the person's other devices,
     /// rather than only on this one.
     private(set) var isUsingICloud = false
@@ -93,16 +107,18 @@ final class AppModel {
         Task { await useICloudIfOn() }
     }
 
-    /// Moves firmwares and backups into iCloud Drive, if it's on, and watches it for other devices'.
+    /// Moves firmwares, backups and stars into iCloud Drive, if it's on, and watches it for other devices'.
     private func useICloudIfOn() async {
         guard let folders = await SharedStorage.iCloudFolders() else { return }
         await library.move(to: folders.firmwares)
         await backups.move(to: folders.backups)
+        await starred.move(to: folders.root)
         isUsingICloud = true
         filesFolder = folders.root
         iCloudWatcher = ICloudWatcher { [weak self] in
             self?.library.reload()
             self?.backups.reload()
+            self?.starred.reload()
             #if os(macOS)
                 self?.downloadMode.backups.reload()
             #endif

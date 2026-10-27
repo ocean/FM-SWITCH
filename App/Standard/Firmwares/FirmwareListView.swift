@@ -163,7 +163,7 @@ struct FirmwareListView: View {
 }
 
 /// One firmware in the list.
-private struct FirmwareCard: View {
+struct FirmwareCard: View {
     @Environment(AppModel.self) private var model
     var entry: CatalogueEntry
     var isSelected: Bool
@@ -207,6 +207,12 @@ private struct FirmwareCard: View {
             .font(.headline)
             .foregroundStyle(Palette.ink)
             .multilineTextAlignment(.leading)
+        if model.starred.contains(entry.id) {
+            Image(systemName: "star.fill")
+                .font(.footnote)
+                .foregroundStyle(Palette.accent)
+                .accessibilityLabel("Starred")
+        }
         if let version = entry.version {
             Text(version)
                 .font(.footnote)
@@ -224,8 +230,12 @@ private struct FirmwareCard: View {
         } else if FirmwareFilter.isSaved(entry, in: model) {
             Tag(text: "Saved", ink: Palette.ink, fill: Palette.control)
         }
-        if entry.beta { Tag(text: "Test version", ink: Palette.warningInk, fill: Palette.warningBackground) }
-        if !entry.isHardwareTested { Tag(text: "In testing", ink: Palette.warningInk, fill: Palette.warningBackground) }
+        // Not known to work on an FM-1 says more than a test release, so only that shows.
+        if !entry.isHardwareTested {
+            Tag(text: "In testing", ink: Palette.warningInk, fill: Palette.warningBackground)
+        } else if entry.beta {
+            Tag(text: "Test version", ink: Palette.warningInk, fill: Palette.warningBackground)
+        }
     }
 
     /// Whether the FM-1 is running this, as far as anyone can tell: it reports this firmware's

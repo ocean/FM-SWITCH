@@ -9,6 +9,8 @@ struct LibraryView: View {
     @State private var importing = false
     /// The saved firmware showing beside the list, in the wide layout.
     @State private var selectedID: String?
+    /// The starred firmware showing beside the list, or opened on a page of its own.
+    @State private var openedStar: CatalogueEntry?
     @State private var officialLink = ""
     @FocusState private var isLinkFocused: Bool
     @State private var message: String?
@@ -28,19 +30,39 @@ struct LibraryView: View {
         library.items.first { $0.id == selectedID } ?? library.official
     }
 
+    /// Starred firmwares that aren't saved: a saved one is with the saved ones.
+    private var starred: [CatalogueEntry] {
+        model.catalogue.entries.filter { model.starred.contains($0.id) && !FirmwareFilter.isSaved($0, in: model) }
+    }
+
     var body: some View {
         Group {
             if isWide {
-                ListAndDetail(placeholder: "Pick a saved firmware from the list.", hasSelection: selected != nil) {
+                ListAndDetail(
+                    placeholder: "Pick a saved firmware from the list.",
+                    hasSelection: openedStar != nil || selected != nil
+                ) {
                     listColumn
                 } detail: {
-                    if let selected {
+                    if let openedStar {
+                        FirmwareDetailView(entry: openedStar, isInPane: true)
+                            .id(openedStar.id)
+                    } else if let selected {
                         detail(of: selected)
                             .id(selected.id)
                     }
                 }
             } else {
-                listColumn
+                // A page of its own for a starred firmware, so swiping from the left edge goes back.
+                NavigationStack {
+                    listColumn
+                        .background(theme.background.ignoresSafeArea())
+                        .hidesNavigationBar()
+                        .navigationDestination(item: $openedStar) { entry in
+                            FirmwareDetailView(entry: entry)
+                                .hidesNavigationBar()
+                        }
+                }
             }
         }
         .fileImporter(
@@ -92,6 +114,7 @@ struct LibraryView: View {
                 ScreenHeader(title: "SAVED")
                 officialPanel
                 savedPanel
+                RetroStarredPanel(starred: starred, openedStar: $openedStar)
                 storagePanel
                 if let message {
                     MonoText(message, size: 14)
@@ -117,18 +140,18 @@ struct LibraryView: View {
                 .font(.pixel(12, bold: true, relativeTo: .headline))
                 .foregroundStyle(theme.bright)
                 .phosphorGlow(0.7)
-            MonoText(summary(of: item), size: 17, dim: true)
+            MonoText(summary(of: item), size: 14, dim: true)
             MonoText("Saved \(item.savedAt.formatted(date: .abbreviated, time: .omitted))", size: 13, dim: true)
         }
         if isWide {
             Button {
+                openedStar = nil
                 selectedID = item.id
             } label: {
-                HStack(spacing: 6) {
-                    Text(selected?.id == item.id ? "▸" : " ").font(.mono(15)).foregroundStyle(theme.bright)
-                    title
-                }
-                .contentShape(Rectangle())
+                // As wide as the row allows, so a click anywhere beside the buttons picks it.
+                title
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityAddTraits(selected?.id == item.id ? .isSelected : [])
@@ -147,17 +170,14 @@ struct LibraryView: View {
     private var officialPanel: some View {
         PixelPanel(title: "OFFICIAL FIRMWARE") {
             if let official = library.official {
-                HStack {
-                    if isWide {
-                        Button("✓ \(official.name)") { selectedID = official.id }
-                            .buttonStyle(.plain)
-                            .font(.mono(17))
-                            .foregroundStyle(selected?.id == official.id ? theme.bright : theme.ink)
-                    } else {
+                if isWide {
+                    officialRow(official)
+                } else {
+                    HStack {
                         MonoText("✓ \(official.name)", size: 17)
+                        Spacer()
+                        PixelTag(text: official.product)
                     }
-                    Spacer()
-                    PixelTag(text: official.product)
                 }
                 NoteText("Comes with the app, checked against the known checksum. Kept when you clear the cache.")
                 Button("FLASH OFFICIAL") { flashing = official }
@@ -166,6 +186,26 @@ struct LibraryView: View {
                 officialMissing
             }
         }
+    }
+
+    /// The official firmware, which picks it in the wide layout.
+    private func officialRow(_ official: StoredFirmware) -> some View {
+        HStack {
+            Button {
+                openedStar = nil
+                selectedID = official.id
+            } label: {
+                Text("✓ \(official.name)")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .font(.mono(17))
+            .foregroundStyle(theme.ink)
+            .accessibilityAddTraits(selected?.id == official.id ? .isSelected : [])
+            PixelTag(text: official.product)
+        }
+        .rowBox(isPicked: openedStar == nil && selected?.id == official.id, theme: theme)
     }
 
     @ViewBuilder private var officialMissing: some View {
@@ -209,6 +249,7 @@ struct LibraryView: View {
                     "Nothing saved. Save firmwares from the FIRMWARE list to flash them offline.", size: 14, dim: true)
             }
             ForEach(items) { item in
+                let isPicked = isWide && openedStar == nil && selected?.id == item.id
                 HStack(alignment: .center, spacing: 10) {
                     itemTitle(item)
                     Spacer()
@@ -220,7 +261,7 @@ struct LibraryView: View {
                             .accessibilityLabel("Remove \(item.name)")
                     }
                 }
-                .padding(.vertical, 4)
+                .rowBox(isPicked: isPicked, theme: theme)
             }
             Button("IMPORT .FWSC FROM FILES") { importing = true }
                 .buttonStyle(.pixel)
@@ -284,51 +325,5 @@ struct LibraryView: View {
             failures == 0
             ? "Saved firmwares are up to date."
             : "\(failures) update\(failures == 1 ? "" : "s") failed. Refresh the list and try again."
-    }
-}
-
-/// What's known about a saved firmware that isn't in the catalogue (an import, or the official
-/// firmware), shown beside the list in the wide layout.
-private struct SavedFirmwareDetail: View {
-    @Environment(\.phosphor) private var theme
-    let item: StoredFirmware
-    let onFlash: () -> Void
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.name.uppercased())
-                        .font(.pixel(24, bold: true, relativeTo: .largeTitle))
-                        .foregroundStyle(theme.bright)
-                        .phosphorGlow()
-                    if let author = item.author {
-                        MonoText("by \(author)", size: 15, dim: true)
-                    }
-                }
-                Button("FLASH") { onFlash() }
-                    .buttonStyle(.pixelProminent)
-                PixelPanel(title: "DETAILS") {
-                    row("REPORTS", item.product)
-                    row("VERSION", item.version)
-                    row("SIZE", formattedBytes(item.size))
-                    row("SAVED", item.savedAt.formatted(date: .abbreviated, time: .shortened))
-                    row("SHA-256", String(item.sha256.prefix(16)) + "…")
-                }
-                if item.source == .imported {
-                    NoteText("Imported from Files, and not in the catalogue, so check where it came from.")
-                }
-            }
-            .padding(16)
-        }
-        .scrollIndicators(.hidden)
-    }
-
-    private func row(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            MonoText(label, size: 13, dim: true)
-                .frame(width: 90, alignment: .leading)
-            MonoText(value, size: 15)
-        }
     }
 }

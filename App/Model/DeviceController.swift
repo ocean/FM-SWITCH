@@ -84,6 +84,12 @@ final class DeviceController {
         let changes = transport.changes()
         watchTask = Task { [weak self] in
             await self?.scan()
+            // On the Mac, CoreMIDI can take a few seconds after launch to list an FM-1 that was
+            // already plugged in, and doesn't announce it as a change.
+            for _ in 0..<5 where self?.identity == nil && !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                await self?.scan()
+            }
             for await _ in changes {
                 // Let a burst of add/remove notifications settle before probing.
                 try? await Task.sleep(for: .milliseconds(400))
@@ -164,6 +170,8 @@ final class DeviceController {
     func resume() {
         guard let index = job?.index, job?.isRunning == false else { return }
         job?.phase = .preparing
+        job?.needsAMac = false
+        job?.mightBeRefused = false
         Task { await run(from: index) }
     }
 
@@ -216,7 +224,10 @@ final class DeviceController {
                 history.record(item)
             } catch {
                 appendLog("✕ \(error.localizedDescription)")
-                job?.phase = .failed(failureMessage(for: error, installing: item), canResume: Self.isResumable(error))
+                let message = failureMessage(for: error, installing: item)
+                job?.phase = .failed(message, canResume: FlashJob.canResume(after: error))
+                job?.needsAMac = needsAMac(after: error, installing: item)
+                job?.mightBeRefused = FlashJob.mightBeRefused(after: error)
                 return
             }
         }
@@ -339,31 +350,34 @@ final class DeviceController {
         backupRun = .idle
     }
 
-    /// What went wrong, in words: FM1Kit's, apart from a refusal that only a Mac gets past, which
-    /// is said plainly.
+    /// What went wrong, in words: FM1Kit's, apart from the installed firmware refusing the
+    /// package, which is said plainly.
     private func failureMessage(for error: any Error, installing item: StoredFirmware) -> String {
-        guard case .bootloaderMismatch = error as? FM1UpdateError else { return error.localizedDescription }
+        guard FlashJob.isRefusal(error) else { return error.localizedDescription }
         let running = identity.flatMap { history.lastInstall(matching: $0.text)?.name } ?? "the firmware it had"
         // With M-VAVE's start-up these firmwares still take V15, so going through it gets past them.
-        if settings?.startUp == .mVave, item.source != .official {
+        if !needsAMac(after: error, installing: item) {
             return """
                 Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
                 Install V15 first, then \(item.name).
                 """
         }
+        #if os(macOS)
+            let wayRound = "To install \(item.name), use Backup & rescue."
+        #else
+            let wayRound = "To install \(item.name), use FM-SWITCH on a Mac."
+        #endif
         return """
-            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) while \
-            m-bootloader is on it. To put \(item.name) back, use FM-SWITCH on a Mac.
+            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) with its \
+            changed bootloader. \(wayRound)
             """
     }
 
-    private static func isResumable(_ error: any Error) -> Bool {
-        switch error as? FM1UpdateError {
-        case .disconnected(.writing, _), .stalled(.writing, _), .loaderNotFound:
-            true
-        default:
-            false
-        }
+    /// Whether `error` is a refusal that only a Mac gets past, as ``failureMessage(for:installing:)``
+    /// says.
+    private func needsAMac(after error: any Error, installing item: StoredFirmware) -> Bool {
+        guard FlashJob.isRefusal(error) else { return false }
+        return settings?.startUp != .mVave || item.source == .official
     }
 
     private func appendLog(_ line: String) {
@@ -381,18 +395,5 @@ final class DeviceController {
     /// Passes on scene changes, so a write that's under way can ask for time to finish.
     func scenePhaseChanged(to phase: ScenePhase) {
         wakeKeeper.scenePhaseChanged(to: phase, isWriting: isWriting)
-    }
-}
-
-/// Stands in when CoreMIDI could not start; it never finds anything.
-final class UnavailableTransport: MIDITransport {
-    func ports() async -> [MIDIPortDescriptor] { [] }
-
-    func open(_: MIDIPortDescriptor) async throws -> any MIDIConnection {
-        throw MIDITransportError.portGone
-    }
-
-    func changes() -> AsyncStream<Void> {
-        AsyncStream { _ in }
     }
 }

@@ -16,6 +16,9 @@ struct StandardSettingsView: View {
             connection
             safety
             TipJarSection(tipJar: model.tipJar)
+            #if os(macOS)
+                updates
+            #endif
             about
         }
         .formStyle(.grouped)
@@ -104,6 +107,18 @@ struct StandardSettingsView: View {
         }
         .font(.callout)
     }
+
+    #if os(macOS)
+        /// Whether to check GitHub for a newer FM-SWITCH, which the Mac app is downloaded from.
+        private var updates: some View {
+            @Bindable var updates = model.updates
+            return Section {
+                Toggle("Check for new versions automatically", isOn: $updates.checksAutomatically)
+            } footer: {
+                caption("Once a day, FM-SWITCH asks GitHub for its newest version. Nothing about you is sent.")
+            }
+        }
+    #endif
 
     private var about: some View {
         Section {

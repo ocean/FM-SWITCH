@@ -38,12 +38,26 @@ struct FirmwarePageView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem { starButton }
+        }
         .task { await model.catalogue.checkSource(of: listed.id) }
         .task { await model.catalogue.findScreenshots(of: listed.id) }
         .sheet(item: $installing) { item in
             BeforeYouStartView(target: item, requiresOfficial: entry.requiresOfficialFirmware)
                 .environment(model)
         }
+    }
+
+    /// Stars it to come back to, without saving it.
+    private var starButton: some View {
+        let isStarred = model.starred.contains(listed.id)
+        return Button {
+            model.starred.toggle(listed.id)
+        } label: {
+            Label(isStarred ? "Remove star" : "Star", systemImage: isStarred ? "star.fill" : "star")
+        }
+        .sensoryFeedback(.selection, trigger: isStarred)
     }
 
     private var header: some View {

@@ -8,31 +8,20 @@ struct DownloadModeHelperCard: View {
 
     var body: some View {
         DownloadModeCard {
-            Text("Allow FM-SWITCH's helper").font(.headline)
+            Text(DownloadModeWords.helperTitle).font(.headline)
             switch tools.helperStatus {
             case .needsApproval:
-                Text(
-                    """
-                    Turn on FM-SWITCH in System Settings › General › Login Items & Extensions, under "Allow \
-                    in the Background". This page carries on once it's on.
-                    """
-                )
-                .foregroundStyle(Palette.secondaryInk)
-                Button("Open System Settings") { tools.openLoginItems() }
+                Text(DownloadModeWords.helperNeedsApproval)
+                    .foregroundStyle(Palette.secondaryInk)
+                Button(DownloadModeWords.openLoginItems) { tools.openLoginItems() }
                     .buttonStyle(.prominent(Palette.accent))
             case .missing:
-                Text("The helper is missing from this copy of FM-SWITCH. Download the app again.")
+                Text(DownloadModeWords.helperMissing)
                     .foregroundStyle(Palette.warningInk)
             case .notInstalled, .ready:
-                Text(
-                    """
-                    Reading and writing the flash needs administrator rights, so FM-SWITCH has a small helper \
-                    that macOS runs for it. You allow it once. It only runs while FM-SWITCH is using it, and \
-                    only answers FM-SWITCH.
-                    """
-                )
-                .foregroundStyle(Palette.secondaryInk)
-                Button("Allow the helper…") { tools.installHelper() }
+                Text(DownloadModeWords.helperExplained)
+                    .foregroundStyle(Palette.secondaryInk)
+                Button(DownloadModeWords.allowHelper) { tools.installHelper() }
                     .buttonStyle(.prominent(Palette.accent))
             }
         }
@@ -52,33 +41,28 @@ struct DownloadModeConnectCard: View {
     }
 
     @ViewBuilder private var inDownloadMode: some View {
-        Label("Your FM-1 is in download mode", systemImage: "checkmark.circle.fill")
+        Label(DownloadModeWords.inDownloadMode, systemImage: "checkmark.circle.fill")
             .font(.headline)
             .foregroundStyle(Palette.goodInk)
-        Text("Nothing is written until you confirm it. Switch the FM-1 off and on to leave download mode.")
+        Text(DownloadModeWords.inDownloadModeDetail)
             .foregroundStyle(Palette.secondaryInk)
         if model.settings.transportKind == .simulated {
-            Button("Switch the simulated FM-1 off and on") { tools.leaveSimulatedDownloadMode() }
+            Button(DownloadModeWords.leaveSimulated) { tools.leaveSimulatedDownloadMode() }
                 .buttonStyle(.secondary)
         }
     }
 
     @ViewBuilder private var howToEnter: some View {
-        Text("Put your FM-1 in download mode").font(.headline)
+        Text(DownloadModeWords.enterTitle).font(.headline)
         if tools.canAskToEnter || model.settings.transportKind == .simulated {
             askToEnter
         }
         VStack(alignment: .leading, spacing: 8) {
-            Text("With m-bootloader on it: switch it off, then hold REC while you switch it on.")
-            Text(
-                """
-                With M-VAVE's bootloader, download mode is reached through V15 or Felucca, so plug it in \
-                running one of those and use the button above.
-                """
-            )
+            Text(DownloadModeWords.enterWithMBootloader)
+            Text(DownloadModeWords.enterWithMVave)
         }
         .foregroundStyle(Palette.secondaryInk)
-        Text("It shows up here once it's in download mode.")
+        Text(DownloadModeWords.showsUpHere)
             .font(.footnote)
             .foregroundStyle(Palette.secondaryInk)
         if let problem = tools.enteringProblem {
@@ -94,15 +78,15 @@ struct DownloadModeConnectCard: View {
                 if tools.isEntering {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Restarting…")
+                        Text(DownloadModeWords.askingToEnter)
                     }
                 } else {
-                    Text("Restart it in download mode")
+                    Text(DownloadModeWords.askToEnter)
                 }
             }
             .buttonStyle(.prominent(Palette.accent))
             .disabled(tools.isEntering)
-            Text("Works with V15 and Felucca. Nothing is written.")
+            Text(DownloadModeWords.askToEnterDetail)
                 .font(.footnote)
                 .foregroundStyle(Palette.secondaryInk)
         }
@@ -122,10 +106,10 @@ struct DownloadModeJobsCard: View {
 
     var body: some View {
         DownloadModeCard {
-            Text("What would you like to do?").font(.headline)
+            Text(DownloadModeWords.jobsTitle).font(.headline)
             backUpJob
             Divider().overlay(Palette.line)
-            job("Restore a backup", "Puts a whole-flash backup back, writing only what's changed.") {
+            job(DownloadModeWords.restoreTitle, DownloadModeWords.restoreDetail) {
                 restoreControls
             }
             Divider().overlay(Palette.line)
@@ -136,39 +120,24 @@ struct DownloadModeJobsCard: View {
     }
 
     private var backUpJob: some View {
-        job(
-            "Back up the whole FM-1",
-            "Saves everything on it, in a file M-Flasher can restore too. Nothing is written."
-        ) {
-            Button("Back up") { start(.backUp) }
+        job(DownloadModeWords.backUpTitle, DownloadModeWords.backUpDetail) {
+            Button(DownloadModeWords.backUp) { start(.backUp) }
                 .buttonStyle(.prominent(Palette.save))
         }
     }
 
     private var installJob: some View {
-        job(
-            "Install a firmware",
-            """
-            Writes a saved firmware straight to the flash, keeping the bootloader: for an FM-1 whose \
-            firmware won't start. To swap firmware the usual way, use Firmwares.
-            """
-        ) {
+        job(DownloadModeWords.installTitle, DownloadModeWords.installDetail) {
             installControls
         }
     }
 
     private var bootloaderJob: some View {
-        job(
-            "Bootloader",
-            """
-            m-bootloader adds a recovery menu (hold PLAY) and download mode (hold REC), so a firmware \
-            that won't start can always be fixed from a Mac. Installing V15 later puts M-VAVE's back.
-            """
-        ) {
+        job(DownloadModeWords.bootloaderTitle, DownloadModeWords.bootloaderDetail) {
             HStack(spacing: 10) {
-                Button("Install m-bootloader 1.2") { start(.mBootloader) }
+                Button(DownloadModeWords.installMBootloader) { start(.mBootloader) }
                     .buttonStyle(.prominent(Palette.accent))
-                Button("Put back M-VAVE's") { start(.mvaveBootloader) }
+                Button(DownloadModeWords.putBackMVave) { start(.mvaveBootloader) }
                     .buttonStyle(.secondary)
             }
         }
@@ -178,14 +147,14 @@ struct DownloadModeJobsCard: View {
         HStack(spacing: 10) {
             if !tools.backups.backups.isEmpty {
                 Picker("Backup", selection: $backupID) {
-                    Text("Choose a backup").tag(SavedFlashBackup.ID?.none)
+                    Text(DownloadModeWords.chooseBackup).tag(SavedFlashBackup.ID?.none)
                     ForEach(tools.backups.backups) { backup in
                         Text(backup.date.formatted(date: .abbreviated, time: .shortened)).tag(Optional(backup.id))
                     }
                 }
                 .labelsHidden()
                 .frame(maxWidth: 220)
-                Button("Restore") {
+                Button(DownloadModeWords.restore) {
                     if let backup = tools.backups.backups.first(where: { $0.id == backupID }) {
                         start(.restore(backup))
                     }
@@ -193,7 +162,7 @@ struct DownloadModeJobsCard: View {
                 .buttonStyle(.prominent(Palette.accent))
                 .disabled(backupID == nil)
             }
-            Button("Choose a file…", action: chooseFile)
+            Button(DownloadModeWords.chooseFile, action: chooseFile)
                 .buttonStyle(.secondary)
         }
     }
@@ -201,14 +170,14 @@ struct DownloadModeJobsCard: View {
     @ViewBuilder private var installControls: some View {
         HStack(spacing: 10) {
             Picker("Firmware", selection: $firmwareID) {
-                Text("Choose a firmware").tag(StoredFirmware.ID?.none)
+                Text(DownloadModeWords.chooseFirmware).tag(StoredFirmware.ID?.none)
                 ForEach(model.library.items) { firmware in
                     Text("\(firmware.name) \(firmware.version)").tag(Optional(firmware.id))
                 }
             }
             .labelsHidden()
             .frame(maxWidth: 220)
-            Button("Install") {
+            Button(DownloadModeWords.install) {
                 if let firmware = model.library.items.first(where: { $0.id == firmwareID }) {
                     start(.install(firmware, erasingSettings: erasesSettings))
                 }
@@ -216,7 +185,7 @@ struct DownloadModeJobsCard: View {
             .buttonStyle(.prominent(Palette.accent))
             .disabled(firmwareID == nil)
         }
-        Toggle("Erase the firmware's settings too", isOn: $erasesSettings)
+        Toggle(DownloadModeWords.erasesSettings, isOn: $erasesSettings)
             .font(.callout)
     }
 
@@ -254,21 +223,10 @@ struct DownloadModeConfirmView: View {
     /// What choosing m-bootloader means for switching firmware from an iPhone.
     private var mBootloaderChoice: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("m-bootloader: easier rescue, but less switching from your iPhone")
+            Text(DownloadModeWords.mBootloaderChoiceTitle)
                 .font(.headline)
-            Text(
-                """
-                With m-bootloader, you can always rescue your FM-1 from this Mac by holding REC while \
-                switching it on.
-                """
-            )
-            Text(
-                """
-                But if you install AMB-1, Felucca or a firmware like them from your iPhone, getting back to \
-                V15 or Open V12 will need this Mac.
-                """
-            )
-            Text("If you mostly switch firmware on your iPhone, keeping M-VAVE's start-up is simpler.")
+            ForEach(DownloadModeWords.mBootloaderChoice, id: \.self) { Text($0) }
+            Text(DownloadModeWords.mBootloaderChoiceNote)
                 .foregroundStyle(Palette.secondaryInk)
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -279,54 +237,36 @@ struct DownloadModeConfirmView: View {
 
     var body: some View {
         DownloadModeCard {
-            Text(tools.job?.title ?? "Write to your FM-1").font(.title3.weight(.bold))
+            Text(tools.job?.title ?? DownloadModeWords.writeTitle).font(.title3.weight(.bold))
             Label(
-                "Your FM-1 as it is now is saved: \(saved.file.lastPathComponent).",
+                DownloadModeWords.saved(saved),
                 systemImage: "checkmark.circle.fill"
             )
             .foregroundStyle(Palette.goodInk)
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.notes, id: \.self) { Text($0) }
-                Text("It changes \(plan.sectorCount) of the flash's 256 parts of 4 KB.")
+                Text(DownloadModeWords.changes(plan))
                     .foregroundStyle(Palette.secondaryInk)
             }
             ForEach(plan.warnings, id: \.self) { warning in
                 Notice(warning, systemImage: "exclamationmark.triangle", isWarning: true)
             }
-            Notice(recovery, systemImage: "lifepreserver", isWarning: plan.writesBootArea || !plan.keepsMBootloader)
+            Notice(
+                DownloadModeWords.recovery(plan),
+                systemImage: "lifepreserver",
+                isWarning: plan.writesBootArea || !plan.keepsMBootloader)
             if isFirstMBootloader { mBootloaderChoice }
-            Toggle("I'll keep my FM-1 plugged in and switched on until it's done", isOn: $understands)
+            Toggle(DownloadModeWords.keepsPluggedIn, isOn: $understands)
             HStack(spacing: 10) {
                 // Keeping M-VAVE's is as easy to pick as installing m-bootloader.
-                Button(isFirstMBootloader ? "Keep M-VAVE's" : "Cancel") { Task { await tools.finish() } }
+                Button(isFirstMBootloader ? DownloadModeWords.keepMVave : "Cancel") { Task { await tools.finish() } }
                     .buttonStyle(.secondary)
-                Button(isFirstMBootloader ? "Install m-bootloader" : "Write to my FM-1") {
+                Button(isFirstMBootloader ? DownloadModeWords.installMBootloaderNow : DownloadModeWords.writeNow) {
                     Task { await tools.confirm() }
                 }
                 .buttonStyle(.prominent(Palette.accent))
                 .disabled(!understands)
             }
-        }
-    }
-
-    /// What recovering would take if the write were cut off part-way.
-    private var recovery: String {
-        if plan.writesBootArea {
-            """
-            This writes the boot area, where the bootloader is. If the FM-1 is switched off or unplugged \
-            while it's writing, it may not start, and recovering it could need a USB_KEY dongle.
-            """
-        } else if plan.keepsMBootloader {
-            """
-            The bootloader isn't touched, so if anything goes wrong, holding REC while switching it on \
-            still reaches download mode, to put back the backup just saved.
-            """
-        } else {
-            """
-            The bootloader isn't touched, but with M-VAVE's bootloader download mode is only reached \
-            through the firmware, so a firmware left unable to start could need a USB_KEY dongle to \
-            recover. Installing m-bootloader first avoids that.
-            """
         }
     }
 }
