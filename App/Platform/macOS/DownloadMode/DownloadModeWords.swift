@@ -24,13 +24,13 @@ enum DownloadModeWords {
     static let enterTitle = "Put your FM-1 in download mode"
     static let enterWithMBootloader = "With m-bootloader on it: switch it off, then hold REC while you switch it on."
     static let enterWithMVave = """
-        With M-VAVE's bootloader, download mode is reached through V15 or Felucca, so plug it in \
-        running one of those and use the button above.
+        With M-VAVE's bootloader, download mode is reached through the firmware it's running: plug \
+        it in and use the button above.
         """
     static let showsUpHere = "It shows up here once it's in download mode."
     static let askToEnter = "Restart it in download mode"
     static let askingToEnter = "Restarting…"
-    static let askToEnterDetail = "Works with V15 and Felucca. Nothing is written."
+    static let askToEnterDetail = "Nothing is written."
 
     // MARK: - Jobs.
 

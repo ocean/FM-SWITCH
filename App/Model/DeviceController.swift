@@ -300,8 +300,7 @@ final class DeviceController {
         /// Asks the connected FM-1 to restart into the chip's USB download mode, and waits for it
         /// to appear there.
         ///
-        /// V15 and Felucca restart on the request; other firmwares may ignore it. Nothing is
-        /// written: switching the FM-1 off and on starts its firmware again.
+        /// Nothing is written: switching the FM-1 off and on starts its firmware again.
         func enterDownloadMode() async throws {
             guard !isWriting else { return }
             try await updater.enterDownloadMode()

@@ -101,8 +101,8 @@ final class DownloadModeController {
         backups = FlashBackupStore(backupsFolder: backupsFolder)
     }
 
-    /// Whether the connected FM-1 can be asked to restart into download mode: V15 and Felucca
-    /// do; other firmwares may ignore it.
+    /// Whether the connected FM-1 can be asked to restart into download mode, which any firmware
+    /// running on it can do.
     var canAskToEnter: Bool {
         guard let identity = device.identity, !identity.isLoader else { return false }
         return !device.isWriting
