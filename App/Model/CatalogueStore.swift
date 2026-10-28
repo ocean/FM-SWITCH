@@ -25,6 +25,11 @@ final class CatalogueStore {
     private(set) var chosenBuilds: [String: String] {
         didSet { UserDefaults.standard.set(chosenBuilds, forKey: "chosenBuilds") }
     }
+    /// Whether the test release (true) or the stable one (false) was picked, for each firmware
+    /// that has both, by catalogue ID.
+    private(set) var chosenTracks: [String: Bool] {
+        didSet { UserDefaults.standard.set(chosenTracks, forKey: "chosenTracks") }
+    }
 
     /// The pictures in each firmware's README, by catalogue ID, once they've been looked for.
     private(set) var screenshots: [String: [URL]] = [:]
@@ -35,6 +40,7 @@ final class CatalogueStore {
     init(directory: URL = AppDirectories.support) {
         cacheURL = directory.appending(path: "catalogue.json")
         chosenBuilds = UserDefaults.standard.dictionary(forKey: "chosenBuilds") as? [String: String] ?? [:]
+        chosenTracks = UserDefaults.standard.dictionary(forKey: "chosenTracks") as? [String: Bool] ?? [:]
         // The first builds cached the hub's feed alone.
         try? FileManager.default.removeItem(at: directory.appending(path: "catalog.json"))
         loadCached()
@@ -66,7 +72,10 @@ final class CatalogueStore {
     }
 
     private func newestKnown(_ entry: CatalogueEntry) -> CatalogueEntry {
-        let known = defaultBuild(of: entry)
+        var known = defaultBuild(of: entry)
+        if let wantsTest = chosenTracks[entry.id], known.otherRelease?.beta == wantsTest {
+            known = known.choosingOtherRelease()
+        }
         return chosenBuilds[entry.id].map { known.choosing(build: $0) } ?? known
     }
 
@@ -76,6 +85,12 @@ final class CatalogueStore {
         case .newer(let newer), .current(let newer): newer
         case .failed, nil: entry
         }
+    }
+
+    /// Picks the test release or the stable one, for a firmware that has both; later releases keep
+    /// to it.
+    func choose(test: Bool, for id: String) {
+        chosenTracks[id] = test
     }
 
     /// Picks one of a release's builds; later releases keep to it.

@@ -85,6 +85,9 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var build: String?
     /// The release's page, with its notes.
     var releaseURL: URL?
+    /// The release on the other track, when the source has one to pick instead: the stable release
+    /// beside a test one, or a test release newer than the stable one.
+    var otherRelease: OtherRelease?
     /// The project's star count, as the firmware lists give it.
     var stars: Int?
     /// The licence, as aroum's FM1 Resource Hub gives it, e.g. "Open Source (GPL-3.0-only)".

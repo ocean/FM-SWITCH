@@ -84,6 +84,7 @@ struct ReleaseCheck: Sendable {
                 if let builds = newer.builds {
                     newer.build = builds.contains { $0.name == listed?.build } ? listed?.build : nil
                 }
+                newer.otherRelease = Self.otherRelease(beside: newer, in: releases, build: listed?.build)
                 return .newer(newer)
             }
             var current = entry
@@ -95,6 +96,7 @@ struct ReleaseCheck: Sendable {
                 }
                 current.releaseURL = release.pageURL ?? current.releaseURL
             }
+            current.otherRelease = Self.otherRelease(beside: current, in: releases, build: listed?.build)
             return .upToDate(current)
         }
         if let lastError { throw lastError }
@@ -108,6 +110,32 @@ struct ReleaseCheck: Sendable {
         let preRelease = entry.beta ? PackageDiscovery.newest(in: releases, track: .preReleaseOnly) : nil
         guard let full, let preRelease else { return full ?? preRelease }
         return ReleaseVersion.isNewer(preRelease.tagName, than: full.tagName) ? preRelease : full
+    }
+
+    /// The release on the other track from the entry's, for the person to pick instead.
+    ///
+    /// That's the newest stable release beside a test one, or a test release newer than the
+    /// stable one. An older test release isn't offered, as it led up to the stable one.
+    static func otherRelease(
+        beside entry: CatalogueEntry,
+        in releases: [GitHubRelease],
+        build: String?
+    ) -> CatalogueEntry.OtherRelease? {
+        let other =
+            entry.beta
+            ? PackageDiscovery.newest(in: releases, track: .fullOnly)
+            : PackageDiscovery.newest(in: releases, track: .preReleaseOnly).flatMap { release in
+                ReleaseVersion.isNewer(release.tagName, than: entry.version) ? release : nil
+            }
+        guard let other, let package = PackageDiscovery.package(from: other, build: build) else { return nil }
+        var found = CatalogueBuilder.apply(package, to: entry)
+        // As the lists give versions, without a tag's "v": "1.5.1", not "v1.5.1".
+        found.version = version(of: package).map { $0.replacing(#/^v(?=\d)/#, with: "") }
+        found.beta = other.prerelease
+        if let builds = found.builds {
+            found.build = builds.contains { $0.name == build } ? build : nil
+        }
+        return CatalogueEntry.OtherRelease(of: found)
     }
 
     /// The release the list points at, and which of its builds, found by the listed file's

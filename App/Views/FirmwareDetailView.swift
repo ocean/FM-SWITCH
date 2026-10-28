@@ -38,6 +38,8 @@ struct FirmwareDetailView: View {
                     RetroPictures(pictures: pictures, name: entry.name)
                 }
 
+                RetroReleaseChoice(entry: entry)
+
                 builds
 
                 actions

@@ -22,6 +22,7 @@ struct FirmwarePageView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     untested
                     newerRelease
+                    ReleaseChoice(entry: entry)
                     buildChoice
                     installSection
                     links
