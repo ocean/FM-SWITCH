@@ -7,3 +7,4 @@ xcuserdata/
 *.xcodeproj/
 Signing.local.xcconfig
 __pycache__/
+.kata.local.toml
