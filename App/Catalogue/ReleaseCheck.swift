@@ -71,8 +71,11 @@ struct ReleaseCheck: Sendable {
                 lastError = error
                 continue
             }
-            guard let newest = Self.newest(in: releases, for: entry) else { continue }
             let listed = Self.listedBuild(of: entry, in: releases)
+            // GitHub knows whether the listed release is a test one better than the lists do.
+            var entry = entry
+            if let release = listed?.release { entry.beta = release.prerelease }
+            guard let newest = Self.newest(in: releases, for: entry) else { continue }
             if let newestPackage = PackageDiscovery.package(from: newest, build: listed?.build),
                 let version = Self.version(of: newestPackage),
                 ReleaseVersion.isNewer(version, than: entry.version)
@@ -127,7 +130,9 @@ struct ReleaseCheck: Sendable {
             : PackageDiscovery.newest(in: releases, track: .preReleaseOnly).flatMap { release in
                 ReleaseVersion.isNewer(release.tagName, than: entry.version) ? release : nil
             }
-        guard let other, let package = PackageDiscovery.package(from: other, build: build) else { return nil }
+        guard let other, ReleaseVersion.differs(other.tagName, from: entry.version),
+            let package = PackageDiscovery.package(from: other, build: build)
+        else { return nil }
         var found = CatalogueBuilder.apply(package, to: entry)
         // As the lists give versions, without a tag's "v": "1.5.1", not "v1.5.1".
         found.version = version(of: package).map { $0.replacing(#/^v(?=\d)/#, with: "") }
@@ -202,6 +207,19 @@ enum ReleaseVersion {
             default: return false
             }
         }
+    }
+
+    /// True unless the two name the same release, as "v0.3.7" and "0.3.7" do.
+    static func differs(_ candidate: String, from listed: String?) -> Bool {
+        guard let listed else { return true }
+        return isNewer(candidate, than: listed) || isNewer(listed, than: candidate)
+    }
+
+    /// True when the version says it's a test release, as "1.6.0-rc.6", "1.0-test" and "Beta6" do.
+    ///
+    /// The firmware hub marks every version before 1.0 as a beta, so its flag alone doesn't say.
+    static func looksLikePreRelease(_ version: String) -> Bool {
+        version.firstMatch(of: #/(?i)alpha|beta|rc|pre|test|dev|-b\d/#) != nil
     }
 
     /// The version from its first digit, and any pre-release part after a hyphen and a letter.

@@ -332,7 +332,7 @@ struct HubFeed: Decodable, Sendable {
                 what: what,
                 version: version,
                 date: date,
-                beta: beta,
+                beta: beta && ReleaseVersion.looksLikePreRelease(version),
                 packageURL: URL(string: pkg, relativeTo: feedURL)?.absoluteURL,
                 packageOrigin: .hub,
                 product: product,
