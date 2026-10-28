@@ -43,11 +43,14 @@ final class FlashBackupStore {
             .sorted { $0.date > $1.date }
     }
 
-    /// Saves `files` beside the other backups, never replacing one.
+    /// Saves `files` beside the other backups, never replacing one, unless a backup already
+    /// holds the same flash.
     ///
-    /// - Returns: The saved backup.
+    /// - Returns: The saved backup, or the one that already holds the same flash.
     /// - Throws: Any error writing its files.
     func save(_ files: FlashFiles) throws -> SavedFlashBackup {
+        // Backups still only in iCloud Drive can't be read here, so they're never matched.
+        if let same = backups.first(where: { (try? Data(contentsOf: $0.file)) == files.flash }) { return same }
         let file = try files.write(to: directory)
         reload()
         return backups.first { $0.file.standardizedFileURL == file.standardizedFileURL } ?? Self.read(file)

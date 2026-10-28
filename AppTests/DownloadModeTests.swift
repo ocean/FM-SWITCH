@@ -83,6 +83,23 @@
             }
         }
 
+        @Test func keepsOneBackupOfTheSameFlash() async throws {
+            await tools.enterDownloadMode()
+            await tools.start(.backUp)
+            guard case .backedUp(let first) = tools.phase else {
+                Issue.record("Expected a backup, got \(tools.phase)")
+                return
+            }
+            await tools.finish()
+            await tools.start(.restore(first))
+            guard case .nothingToWrite(let saved) = tools.phase else {
+                Issue.record("Expected nothing to write, got \(tools.phase)")
+                return
+            }
+            #expect(saved == first)
+            #expect(tools.backups.backups == [first])
+        }
+
         @Test func waitsForDownloadModeBeforeReading() async {
             await tools.start(.backUp)
             guard case .failed(let failure, nil) = tools.phase else {
