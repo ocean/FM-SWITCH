@@ -100,6 +100,24 @@
             #expect(tools.backups.backups == [first])
         }
 
+        @Test func renamesABackupAndPutsItsNameBack() async throws {
+            await tools.enterDownloadMode()
+            await tools.start(.backUp)
+            guard case .backedUp(let saved) = tools.phase else {
+                Issue.record("Expected a backup, got \(tools.phase)")
+                return
+            }
+            #expect(saved.name == nil)
+            let renamed = try await tools.backups.rename(saved, to: " Before Felucca: V15/m-bootloader ")
+            #expect(renamed.name == "Before Felucca- V15-m-bootloader")
+            #expect(renamed.date == saved.date)
+            #expect(renamed.firmware == saved.firmware)
+            #expect(tools.backups.backups == [renamed])
+            let restored = try await tools.backups.rename(renamed, to: "")
+            #expect(restored.file.lastPathComponent == saved.file.lastPathComponent)
+            #expect(restored.name == nil)
+        }
+
         @Test func waitsForDownloadModeBeforeReading() async {
             await tools.start(.backUp)
             guard case .failed(let failure, nil) = tools.phase else {

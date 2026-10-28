@@ -8,6 +8,7 @@ import SwiftUI
 struct DownloadModeView: View {
     @Environment(AppModel.self) private var model
     @State private var deleting: SavedFlashBackup?
+    @State private var renaming: SavedFlashBackup?
     @State private var isImporting = false
     @State private var importProblem: String?
 
@@ -68,6 +69,7 @@ struct DownloadModeView: View {
         } message: { backup in
             Text(DownloadModeWords.deleteDetail(backup))
         }
+        .renamingBackup($renaming, in: tools.backups)
     }
 
     private var isConfirmingDelete: Binding<Bool> {
@@ -267,6 +269,7 @@ struct DownloadModeView: View {
                         backup: backup,
                         canRestore: tools.isInDownloadMode && tools.phase == .idle,
                         restore: { Task { await tools.start(.restore(backup)) } },
+                        rename: { renaming = backup },
                         delete: { deleting = backup })
                 }
             }
@@ -289,20 +292,21 @@ struct DownloadModeCard<Content: View>: View {
     }
 }
 
-/// A whole-flash backup: when it was made, what's on it, and what can be done with it.
+/// A whole-flash backup: its name or when it was made, what's on it, and what can be done with it.
 private struct FlashBackupRow: View {
     var backup: SavedFlashBackup
     var canRestore: Bool
     var restore: () -> Void
+    var rename: () -> Void
     var delete: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(backup.date.formatted(date: .abbreviated, time: .shortened))
+                Text(backup.title)
                     .font(.headline)
                     .foregroundStyle(Palette.ink)
-                Text(backup.contentsLine)
+                Text(backup.detailLine)
                     .font(.subheadline)
                     .foregroundStyle(Palette.secondaryInk)
             }
@@ -312,6 +316,7 @@ private struct FlashBackupRow: View {
                 Button(DownloadModeWords.restoreToFM1, systemImage: "arrow.counterclockwise", action: restore)
                     .disabled(!canRestore)
                 Button(DownloadModeWords.showInFinder, systemImage: "folder") { SavedFiles.reveal(backup.file) }
+                Button("\(DownloadModeWords.rename)…", systemImage: "pencil", action: rename)
                 Button("Delete", systemImage: "trash", role: .destructive, action: delete)
             } label: {
                 Image(systemName: "ellipsis.circle")

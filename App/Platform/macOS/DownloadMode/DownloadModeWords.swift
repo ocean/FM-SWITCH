@@ -159,7 +159,16 @@ enum DownloadModeWords {
     static let deleteTitle = "Delete this backup?"
 
     static func deleteDetail(_ backup: SavedFlashBackup) -> String {
-        "The backup from \(backup.date.formatted(date: .abbreviated, time: .shortened)) goes for good."
+        if let name = backup.name { return "\u{201C}\(name)\u{201D} goes for good." }
+        return "The backup from \(backup.title) goes for good."
     }
 
+    static let rename = "Rename"
+    static let renameTitle = "Rename this backup"
+    static let renameField = "Name"
+    static let renameDetail = """
+        Its files take the name too, so Finder and M-Flasher show it. Leave it blank to go back to \
+        the name it was saved with.
+        """
+    static let renameFailed = "Couldn't rename the backup"
 }

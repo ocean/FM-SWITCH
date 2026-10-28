@@ -5,6 +5,7 @@ import SwiftUI
 struct RetroDownloadModeView: View {
     @Environment(AppModel.self) private var model
     @State private var deleting: SavedFlashBackup?
+    @State private var renaming: SavedFlashBackup?
     @State private var isImporting = false
     @State private var importProblem: String?
 
@@ -58,6 +59,7 @@ struct RetroDownloadModeView: View {
         } message: { backup in
             Text(DownloadModeWords.deleteDetail(backup))
         }
+        .renamingBackup($renaming, in: tools.backups)
     }
 
     private var isConfirmingDelete: Binding<Bool> {
@@ -172,14 +174,15 @@ struct RetroDownloadModeView: View {
         return PixelPanel(title: DownloadModeWords.backupsTitle.uppercased()) {
             ForEach(tools.backups.backups) { backup in
                 VStack(alignment: .leading, spacing: 6) {
-                    MonoText(backup.date.formatted(date: .abbreviated, time: .shortened), size: 14)
-                    NoteText(backup.contentsLine)
+                    MonoText(backup.title, size: 14)
+                    NoteText(backup.detailLine)
                     HStack(spacing: 8) {
                         Button(DownloadModeWords.restore.uppercased()) {
                             Task { await tools.start(.restore(backup)) }
                         }
                         .disabled(!canRestore)
                         Button("FINDER") { SavedFiles.reveal(backup.file) }
+                        Button(DownloadModeWords.rename.uppercased()) { renaming = backup }
                         Button("DELETE") { deleting = backup }
                     }
                     .buttonStyle(.pixelCompact)

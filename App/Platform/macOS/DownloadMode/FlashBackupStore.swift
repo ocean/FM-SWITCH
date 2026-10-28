@@ -13,6 +13,21 @@ struct SavedFlashBackup: Identifiable, Hashable, Sendable {
 
     var id: URL { file }
 
+    /// The name the person gave it, or `nil` while it has the name it was saved with.
+    var name: String? {
+        let base = file.deletingPathExtension().lastPathComponent
+        return base.wholeMatch(of: /fm1-\d{8}-\d{6}/) == nil ? base : nil
+    }
+
+    /// Its name, or when it was made.
+    var title: String { name ?? date.formatted(date: .abbreviated, time: .shortened) }
+
+    /// What's on it, and when it was made if its title doesn't say.
+    var detailLine: String {
+        guard name != nil else { return contentsLine }
+        return "\(date.formatted(date: .abbreviated, time: .shortened)) · \(contentsLine)"
+    }
+
     /// The firmware and bootloader, in a few words.
     var contentsLine: String {
         let parts = [firmware.map { "Firmware: \($0)" }, bootloader.map { "bootloader: \($0)" }].compactMap(\.self)
@@ -62,6 +77,29 @@ final class FlashBackupStore {
         let description = backup.file.deletingPathExtension().appendingPathExtension("json")
         if SharedStorage.exists(description) { try await SharedStorage.download(description) }
         return try FlashFiles(contentsOf: backup.file)
+    }
+
+    /// Renames the backup's `.bin` and `.json`, fetching them from iCloud Drive first if they're
+    /// still on their way, or gives them back the name they were saved with when `name` is blank.
+    ///
+    /// - Returns: The renamed backup.
+    /// - Throws: Any error fetching or moving its files, as when another backup has the name.
+    func rename(_ backup: SavedFlashBackup, to name: String) async throws -> SavedFlashBackup {
+        let cleaned = name.replacing(/[\/:]/, with: "-").trimmingCharacters(in: .whitespacesAndNewlines.union(["."]))
+        let base = cleaned.isEmpty ? "fm1-\(Self.savedFormat.string(from: backup.date))" : cleaned
+        let file = directory.appending(path: base).appendingPathExtension("bin")
+        guard file.standardizedFileURL != backup.file.standardizedFileURL else { return backup }
+        let description = backup.file.deletingPathExtension().appendingPathExtension("json")
+        try await SharedStorage.download(backup.file)
+        let hasDescription = SharedStorage.exists(description)
+        if hasDescription { try await SharedStorage.download(description) }
+        try FileManager.default.moveItem(at: backup.file, to: file)
+        if hasDescription {
+            try FileManager.default.moveItem(
+                at: description, to: file.deletingPathExtension().appendingPathExtension("json"))
+        }
+        reload()
+        return backups.first { $0.file.standardizedFileURL == file.standardizedFileURL } ?? Self.read(file)
     }
 
     func delete(_ backup: SavedFlashBackup) throws {
