@@ -56,7 +56,7 @@ targets:
       properties:
         CFBundleDisplayName: FM-SWITCH
         CFBundleShortVersionString: "0.1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         UIAppFonts:
           - VT323-Regular.ttf
           - Silkscreen-Regular.ttf
