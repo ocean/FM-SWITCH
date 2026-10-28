@@ -2,7 +2,7 @@ import FM1Kit
 import FM1Rescue
 import Foundation
 
-/// Reads and writes an FM-1's flash in download mode: through the privileged helper for a real
+/// Reads and writes an FM-1's flash in download mode: through the flash tool for a real
 /// FM-1, or in the app for the simulated one.
 protocol FlashService: AnyObject, Sendable {
     /// Reads the whole flash, twice, checked against the chip's CRC-32. Nothing is written.
@@ -90,95 +90,94 @@ private struct UncheckedWork: @unchecked Sendable {
     var work: FlashWork
 }
 
-/// The privileged helper, over XPC.
-final class HelperFlashService: FlashService, @unchecked Sendable {
-    private let connection: NSXPCConnection
-    private let receiver = ProgressReceiver()
-
-    init() {
-        connection = NSXPCConnection(machServiceName: FlashHelper.serviceName, options: .privileged)
-        connection.remoteObjectInterface = NSXPCInterface(with: (any FlashHelperProtocol).self)
-        connection.exportedInterface = NSXPCInterface(with: (any FlashProgressProtocol).self)
-        connection.exportedObject = receiver
-        // Only FM-SWITCH's own helper, signed by the same team.
-        if let requirement = FlashHelper.requirement(forIdentifier: FlashHelper.serviceName) {
-            connection.setCodeSigningRequirement(requirement)
-        }
-        connection.resume()
-    }
-
-    deinit {
-        connection.invalidate()
-    }
+/// The flash tool, started as root with the person's administrator password, over its pipe.
+///
+/// It's started when first needed and quits when closed, so each job asks for the password,
+/// though macOS doesn't ask again within a few minutes.
+final class ToolFlashService: FlashService, @unchecked Sendable {
+    private let queue = DispatchQueue(label: "dev.drewr.fmswitch.flash-tool")
+    private let lock = NSLock()
+    private var storedLine: FlashLine?
 
     func read(progress: @escaping @Sendable (Double) -> Void) async throws -> FlashReading {
-        receiver.handler = progress
-        defer { receiver.handler = nil }
-        let (result, failure): (Data?, Data?) = try await call { helper, reply in helper.readFlash { reply(($0, $1)) } }
-        return try Self.decode(FlashReading.self, result, failure)
+        try await exchange(.read, progress: progress) { event in
+            if case .reading(let reading) = event { reading } else { nil }
+        }
     }
 
     func plan(_ request: FlashRequest) async throws -> FlashPlanSummary {
-        let message = try JSONEncoder().encode(request)
-        let (result, failure): (Data?, Data?) = try await call { helper, reply in
-            helper.plan(message) { reply(($0, $1)) }
+        try await exchange(.plan(request)) { event in
+            if case .summary(let summary) = event { summary } else { nil }
         }
-        return try Self.decode(FlashPlanSummary.self, result, failure)
     }
 
     func write(progress: @escaping @Sendable (Double) -> Void) async throws {
-        receiver.handler = progress
-        defer { receiver.handler = nil }
-        let failure: Data? = try await call { helper, reply in helper.write(reply: reply) }
-        if let failure { throw Self.failure(failure) }
-    }
-
-    func close() async {
-        let _: Void? = try? await call { helper, reply in helper.close { reply(()) } }
-    }
-
-    /// Calls the helper, waiting for its reply, or throws when it can't be reached.
-    private func call<Reply: Sendable>(
-        _ body: @escaping (any FlashHelperProtocol, @escaping @Sendable (Reply) -> Void) -> Void
-    ) async throws -> Reply {
-        try await withCheckedThrowingContinuation { continuation in
-            let proxy = connection.remoteObjectProxyWithErrorHandler { error in
-                continuation.resume(
-                    throwing: FlashFailure(
-                        .helperUnavailable,
-                        "FM-SWITCH's helper didn't answer (\(error.localizedDescription)). Nothing was written."))
+        do {
+            try await exchange(.write, progress: progress) { event in
+                if case .done = event { () } else { nil }
             }
-            guard let helper = proxy as? any FlashHelperProtocol else {
-                continuation.resume(throwing: FlashFailure(.helperUnavailable, "FM-SWITCH's helper can't be reached."))
-                return
-            }
-            body(helper) { continuation.resume(returning: $0) }
+        } catch let failure as FlashFailure {
+            throw failure
+        } catch {
+            // The tool went part-way through, so the flash may be half-written.
+            throw FlashFailure(
+                .writeFailed, "FM-SWITCH's flash tool stopped while writing (\(error.localizedDescription)).")
         }
     }
 
-    private static func decode<Value: Decodable>(_ type: Value.Type, _ result: Data?, _ failure: Data?) throws -> Value
-    {
-        if let result, let value = try? JSONDecoder().decode(type, from: result) { return value }
-        throw Self.failure(failure ?? Data())
+    func close() async {
+        guard line != nil else { return }
+        let _: Void? = try? await exchange(.close) { _ in () }
+        lock.withLock { storedLine = nil }
     }
 
-    private static func failure(_ data: Data) -> FlashFailure {
-        (try? JSONDecoder().decode(FlashFailure.self, from: data))
-            ?? FlashFailure(.other, "FM-SWITCH's helper sent a reply the app couldn't read. Nothing was written.")
-    }
-}
+    private var line: FlashLine? { lock.withLock { storedLine } }
 
-/// Passes the helper's progress to whoever's waiting for it.
-private final class ProgressReceiver: NSObject, FlashProgressProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedHandler: (@Sendable (Double) -> Void)?
-
-    var handler: (@Sendable (Double) -> Void)? {
-        get { lock.withLock { storedHandler } }
-        set { lock.withLock { storedHandler = newValue } }
+    /// Sends `command`, passing on progress, until the tool answers with what `answer` picks out.
+    private func exchange<Value: Sendable>(
+        _ command: FlashCommand,
+        progress: (@Sendable (Double) -> Void)? = nil,
+        _ answer: @escaping @Sendable (FlashEvent) -> Value?
+    ) async throws -> Value {
+        let line = try await connected()
+        return try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                continuation.resume(
+                    with: Result {
+                        try line.send(command)
+                        while true {
+                            let event = try line.receive(FlashEvent.self)
+                            if case .progress(let fraction) = event {
+                                progress?(fraction)
+                            } else if case .failure(let failure) = event {
+                                throw failure
+                            } else if let value = answer(event) {
+                                return value
+                            } else {
+                                throw FlashFailure(
+                                    .other, "FM-SWITCH's flash tool answered out of turn. Nothing was written.")
+                            }
+                        }
+                    })
+            }
+        }
     }
 
-    func progress(_ fraction: Double) {
-        handler?(fraction)
+    /// The pipe to the tool, starting it first if it isn't running.
+    private func connected() async throws -> FlashLine {
+        if let line { return line }
+        let line: FlashLine = try await withCheckedThrowingContinuation { continuation in
+            // Asking for the password waits for the person, so not on the main thread.
+            queue.async {
+                continuation.resume(with: Result { try ToolLauncher.start() })
+            }
+        }
+        lock.withLock { storedLine = line }
+        return line
     }
+
+    static let didntStart = "FM-SWITCH's flash tool didn't start. Nothing was written."
+
+    static let passwordPrompt = "FM-SWITCH needs your password to read and write the FM-1's flash."
+    static let cancelled = "Reading the FM-1 needs your administrator password. Nothing was read or written."
 }

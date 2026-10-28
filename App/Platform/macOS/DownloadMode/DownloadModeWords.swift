@@ -8,21 +8,11 @@ enum DownloadModeWords {
         """
     static let simulated = "This is the simulated FM-1: nothing real is read or written."
 
-    // MARK: - The helper.
-
-    static let helperTitle = "Allow FM-SWITCH's helper"
-    static let helperNeedsApproval = """
-        Turn on FM-SWITCH in System Settings › General › Login Items & Extensions, under "Allow \
-        in the Background". This page carries on once it's on.
+    static let password = """
+        macOS asks for your password each time, as reading and writing the flash needs \
+        administrator rights. The first time, it also asks to let FM-SWITCH use a removable \
+        volume, which is the FM-1 in download mode: allow it.
         """
-    static let openLoginItems = "Open System Settings"
-    static let helperMissing = "The helper is missing from this copy of FM-SWITCH. Download the app again."
-    static let helperExplained = """
-        Reading and writing the flash needs administrator rights, so FM-SWITCH has a small helper \
-        that macOS runs for it. You allow it once. It only runs while FM-SWITCH is using it, and \
-        only answers FM-SWITCH.
-        """
-    static let allowHelper = "Allow the helper…"
 
     // MARK: - Download mode.
 
@@ -171,4 +161,5 @@ enum DownloadModeWords {
     static func deleteDetail(_ backup: SavedFlashBackup) -> String {
         "The backup from \(backup.date.formatted(date: .abbreviated, time: .shortened)) goes for good."
     }
+
 }

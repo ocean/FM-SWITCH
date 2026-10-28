@@ -5,7 +5,7 @@ import Foundation
 /// A whole-flash backup's two files, as FM1Kit and M-Flasher save them: a 1 MB `.bin` and the
 /// `.json` describing it.
 ///
-/// It's how backups travel between the helper and the app, which saves them.
+/// It's how backups travel between the flash tool and the app, which saves them.
 struct FlashFiles: Codable, Sendable, Hashable {
     /// The `.bin` file's name, such as `fm1-20261025-161200.bin`.
     var name: String
@@ -146,7 +146,7 @@ struct FlashPlanSummary: Codable, Sendable, Hashable {
     var isEmpty: Bool { sectorCount == 0 }
 }
 
-/// Why reading or writing the flash failed, as it travels from the helper.
+/// Why reading or writing the flash failed, as it travels from the flash tool.
 struct FlashFailure: Error, Codable, Sendable, Hashable, LocalizedError {
     /// The kinds the app treats differently.
     enum Kind: String, Codable, Sendable {
@@ -154,8 +154,8 @@ struct FlashFailure: Error, Codable, Sendable, Hashable, LocalizedError {
         case notFound
         /// A write stopped part-way or didn't check out, so the flash may be half-written.
         case writeFailed
-        /// The helper couldn't be reached or isn't allowed to run.
-        case helperUnavailable
+        /// The flash tool didn't start, as when the password was cancelled.
+        case toolUnavailable
         case other
     }
 
@@ -187,8 +187,8 @@ struct FlashFailure: Error, Codable, Sendable, Hashable, LocalizedError {
 }
 
 extension JSONEncoder {
-    /// `value` as JSON for an XPC reply, or no bytes if it can't be encoded, which the other side
-    /// reads as a failure.
+    /// `value` as JSON, or no bytes if it can't be encoded, which the other side reads as a
+    /// failure.
     static func flashMessage(_ value: some Encodable) -> Data {
         (try? JSONEncoder().encode(value)) ?? Data()
     }

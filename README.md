@@ -24,9 +24,9 @@ App/                     SwiftUI app (iOS 17+)
   Resources/Fonts/       Departure Mono, Silkscreen, VT323 (SIL OFL)
   Resources/Firmware/    M-VAVE's FM-1 V15, unmodified, and its Apache-2.0 notice
   Assets.xcassets/       the app icons, made by scripts/make-app-icon.swift and make-icon.py
-Helper/                  the Mac's privileged helper, which reads and writes the FM-1's flash
-                         in download mode as root, for the app, over XPC
-Shared/                  the download-mode code the Mac app and its helper share
+Helper/                  the Mac's flash tool, which reads and writes the FM-1's flash in
+                         download mode as root, for the app, over a pipe
+Shared/                  the download-mode code the Mac app and its flash tool share
 AppTests/                firmware list and flashing tests (Swift Testing)
 Package.swift            fm1-catalogue, which builds the published firmware list from App/Catalogue
 Tools/fm1-catalogue/     its command line
@@ -94,7 +94,7 @@ Pick an iPhone or iPad simulator, or **My Mac**, and run. iPad (landscape, or a 
 either orientation) and the Mac get the wide layout: a sidebar, and lists with the picked item
 beside them. The Mac app is native SwiftUI and talks to the FM-1 over USB MIDI like the iPhone.
 It isn't sandboxed, as it's signed with Developer ID and downloaded from the website, and it
-registers the privileged helper that download mode needs. In the Simulator the app uses the simulated FM-1 (set under
+starts the root flash tool that download mode needs. In the Simulator the app uses the simulated FM-1 (set under
 **SETUP ▸ CONNECTION**). It runs the whole protocol: install, the reboot into the loader, and
 the identity check. It can also start in USB rescue mode or "pull the cable" at 45% to test
 **RESUME**.
@@ -121,23 +121,28 @@ The Mac's **Backup & rescue** page uses the FM-1's USB download mode, through FM
 job reads the whole flash and saves it first; a write is shown, then made only once confirmed,
 and every change is checked against the chip's CRC-32.
 
-Taking the FM-1 from macOS's disk driver needs root, so `Helper/` is a small privileged helper,
-which the app registers with `SMAppService` and the person allows once in System Settings ›
-General › Login Items & Extensions. launchd starts it when the app connects, it quits after a
-minute idle, and it only answers FM-SWITCH signed by the same team. With the simulated FM-1,
-the page runs FM1Rescue's software chip in the app instead, so it needs no helper.
+Taking the FM-1 from macOS's disk driver needs root, so `Helper/` is a small flash tool, which
+the app starts for each job with the person's administrator password, through
+`AuthorizationExecuteWithPrivileges`, as M-Flasher does. The two talk over the pipe that call
+returns, the tool's standard input and output, one JSON message a line, and the tool quits when
+the app closes it. With the simulated FM-1, the page runs FM1Rescue's software chip in the app
+instead, so it needs no tool.
 
-To try the helper from a debug build, copy the built app to /Applications first, so macOS keeps
-one registration for it.
+It isn't a launchd daemon (`SMAppService`), because macOS asks the person before a program
+opens a removable volume, which the FM-1 in download mode is, and it can't ask for a daemon:
+the request is refused with no prompt, and Full Disk Access doesn't change that. A root tool
+started from the app stays in the person's login, so macOS asks once to let FM-SWITCH use it.
+AppleScript's `with administrator privileges` doesn't do this: macOS runs what it starts outside
+the person's login, and refuses it without asking, as it does a daemon.
 
 ## Releasing the Mac app
 
 1. In Xcode, pick **Any Mac** and run Product ▸ Archive.
 2. In the Organiser: Distribute App ▸ **Direct Distribution**. Xcode signs the app and its
-   helper with Developer ID (making the certificate the first time) and sends it to Apple to be
+   flash tool with Developer ID (making the certificate the first time) and sends it to Apple to be
    notarised.
 3. Once it's notarised, Export, then check and zip it for the GitHub release:
-   `scripts/package-mac.sh path/to/FM-SWITCH.app`. It checks the app and helper are signed with
+   `scripts/package-mac.sh path/to/FM-SWITCH.app`. It checks the app and flash tool are signed with
    Developer ID by the same team, notarised and stapled, then writes
    `.artifacts/release/FM-SWITCH-<version>.zip` and its SHA-256.
 

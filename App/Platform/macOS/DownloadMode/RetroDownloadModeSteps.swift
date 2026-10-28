@@ -1,29 +1,5 @@
 import SwiftUI
 
-/// Asks the person to allow the privileged helper, in Retro.
-struct RetroDownloadModeHelper: View {
-    @Environment(AppModel.self) private var model
-
-    private var tools: DownloadModeController { model.downloadMode }
-
-    var body: some View {
-        PixelPanel(title: DownloadModeWords.helperTitle.uppercased()) {
-            switch tools.helperStatus {
-            case .needsApproval:
-                MonoText(DownloadModeWords.helperNeedsApproval, size: 14)
-                Button(DownloadModeWords.openLoginItems.uppercased()) { tools.openLoginItems() }
-                    .buttonStyle(.pixelProminent)
-            case .missing:
-                MonoText("! \(DownloadModeWords.helperMissing)", size: 14)
-            case .notInstalled, .ready:
-                MonoText(DownloadModeWords.helperExplained, size: 14)
-                Button(DownloadModeWords.allowHelper.uppercased()) { tools.installHelper() }
-                    .buttonStyle(.pixelProminent)
-            }
-        }
-    }
-}
-
 /// Says whether the FM-1 is in download mode, and how to get it there, in Retro.
 struct RetroDownloadModeConnect: View {
     @Environment(AppModel.self) private var model

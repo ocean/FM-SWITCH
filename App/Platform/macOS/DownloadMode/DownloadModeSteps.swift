@@ -1,33 +1,5 @@
 import SwiftUI
 
-/// Asks the person to allow the privileged helper, which download mode needs.
-struct DownloadModeHelperCard: View {
-    @Environment(AppModel.self) private var model
-
-    private var tools: DownloadModeController { model.downloadMode }
-
-    var body: some View {
-        DownloadModeCard {
-            Text(DownloadModeWords.helperTitle).font(.headline)
-            switch tools.helperStatus {
-            case .needsApproval:
-                Text(DownloadModeWords.helperNeedsApproval)
-                    .foregroundStyle(Palette.secondaryInk)
-                Button(DownloadModeWords.openLoginItems) { tools.openLoginItems() }
-                    .buttonStyle(.prominent(Palette.accent))
-            case .missing:
-                Text(DownloadModeWords.helperMissing)
-                    .foregroundStyle(Palette.warningInk)
-            case .notInstalled, .ready:
-                Text(DownloadModeWords.helperExplained)
-                    .foregroundStyle(Palette.secondaryInk)
-                Button(DownloadModeWords.allowHelper) { tools.installHelper() }
-                    .buttonStyle(.prominent(Palette.accent))
-            }
-        }
-    }
-}
-
 /// Says whether the FM-1 is in download mode, and how to get it there.
 struct DownloadModeConnectCard: View {
     @Environment(AppModel.self) private var model

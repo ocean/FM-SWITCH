@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Backup & rescue: the Mac's download-mode tools.
 ///
-/// It walks through allowing the helper and getting the FM-1 into download mode, then backs up,
+/// It walks through getting the FM-1 into download mode, then backs up,
 /// restores, or installs a firmware or a bootloader, saving the whole flash before anything's
 /// written.
 struct DownloadModeView: View {
@@ -107,11 +107,14 @@ struct DownloadModeView: View {
             Text(DownloadModeWords.intro)
                 .foregroundStyle(Palette.secondaryInk)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if tools.needsHelper { DownloadModeHelperCard() }
+            Text(DownloadModeWords.password)
+                .font(.callout)
+                .foregroundStyle(Palette.secondaryInk)
+                .frame(maxWidth: .infinity, alignment: .leading)
             DownloadModeConnectCard()
             DownloadModeJobsCard(chooseFile: { isImporting = true })
-                .disabled(!tools.isInDownloadMode || tools.needsHelper)
-                .opacity(!tools.isInDownloadMode || tools.needsHelper ? 0.6 : 1)
+                .disabled(!tools.isInDownloadMode)
+                .opacity(tools.isInDownloadMode ? 1 : 0.6)
             if let importProblem {
                 Notice(importProblem, systemImage: "exclamationmark.triangle", isWarning: true)
             }
@@ -262,7 +265,7 @@ struct DownloadModeView: View {
                     if index > 0 { Divider().overlay(Palette.line) }
                     FlashBackupRow(
                         backup: backup,
-                        canRestore: tools.isInDownloadMode && !tools.needsHelper && tools.phase == .idle,
+                        canRestore: tools.isInDownloadMode && tools.phase == .idle,
                         restore: { Task { await tools.start(.restore(backup)) } },
                         delete: { deleting = backup })
                 }

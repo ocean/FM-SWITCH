@@ -6,7 +6,7 @@
 #
 #     scripts/package-mac.sh ~/Desktop/FM-SWITCH/FM-SWITCH.app
 #
-# It checks that the app and its helper are signed with the same Developer ID team, that
+# It checks that the app and its flash tool are signed with the same Developer ID team, that
 # Gatekeeper accepts it as notarised, and that the ticket is stapled. Then it writes
 # .artifacts/release/FM-SWITCH-<version>.zip and the zip's SHA-256 next to it.
 #
@@ -19,7 +19,6 @@ cd "$(dirname "$0")/.."
 app=${1:?Give the path to the exported FM-SWITCH.app.}
 app=${app%/}
 helper="$app/Contents/MacOS/FMSwitchHelper"
-daemon="$app/Contents/Library/LaunchDaemons/dev.drewr.fmswitch.helper.plist"
 
 step() { printf '\n== %s\n' "$1"; }
 fail() { printf 'error: %s\n' "$1" >&2; exit 1; }
@@ -35,8 +34,7 @@ authority_of() {
 }
 
 [[ -d $app ]] || fail "$app isn't there."
-[[ -x $helper ]] || fail "The helper isn't in Contents/MacOS."
-[[ -f $daemon ]] || fail "The helper's launchd property list isn't in Contents/Library/LaunchDaemons."
+[[ -x $helper ]] || fail "The flash tool isn't in Contents/MacOS."
 
 step "Signatures"
 codesign --verify --deep --strict --verbose=2 "$app"
@@ -44,14 +42,14 @@ codesign --verify --strict --verbose=2 "$helper"
 app_team=$(team_of "$app")
 helper_team=$(team_of "$helper")
 [[ -n $app_team ]] || fail "The app isn't signed by a team."
-[[ $app_team == "$helper_team" ]] || fail "The app ($app_team) and helper ($helper_team) have different teams."
+[[ $app_team == "$helper_team" ]] || fail "The app ($app_team) and flash tool ($helper_team) have different teams."
 for file in "$app" "$helper"; do
     authority=$(authority_of "$file")
     [[ $authority == "Developer ID Application:"* ]] || fail "$file is signed by \"$authority\", not Developer ID."
 done
 codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime' || fail "The app doesn't have the hardened runtime."
-codesign -dv "$helper" 2>&1 | grep -q 'flags=.*runtime' || fail "The helper doesn't have the hardened runtime."
-echo "App and helper: Developer ID, team $app_team, hardened runtime."
+codesign -dv "$helper" 2>&1 | grep -q 'flags=.*runtime' || fail "The flash tool doesn't have the hardened runtime."
+echo "App and flash tool: Developer ID, team $app_team, hardened runtime."
 
 step "Notarisation"
 spctl --assess --type execute --verbose=2 "$app" 2>&1 | tee /dev/stderr | grep -q 'source=Notarized Developer ID' ||

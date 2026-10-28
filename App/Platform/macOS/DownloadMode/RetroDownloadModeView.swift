@@ -83,11 +83,11 @@ struct RetroDownloadModeView: View {
 
     @ViewBuilder private var steps: some View {
         MonoText(DownloadModeWords.intro, size: 14)
-        if tools.needsHelper { RetroDownloadModeHelper() }
+        MonoText(DownloadModeWords.password, size: 13, dim: true)
         RetroDownloadModeConnect()
         RetroDownloadModeJobs(chooseFile: { isImporting = true })
-            .disabled(!tools.isInDownloadMode || tools.needsHelper)
-            .opacity(!tools.isInDownloadMode || tools.needsHelper ? 0.5 : 1)
+            .disabled(!tools.isInDownloadMode)
+            .opacity(tools.isInDownloadMode ? 1 : 0.5)
         if let importProblem {
             MonoText("! \(importProblem)", size: 14)
         }
@@ -168,7 +168,7 @@ struct RetroDownloadModeView: View {
     // MARK: - Saved backups.
 
     private var savedBackups: some View {
-        let canRestore = tools.isInDownloadMode && !tools.needsHelper && tools.phase == .idle
+        let canRestore = tools.isInDownloadMode && tools.phase == .idle
         return PixelPanel(title: DownloadModeWords.backupsTitle.uppercased()) {
             ForEach(tools.backups.backups) { backup in
                 VStack(alignment: .leading, spacing: 6) {

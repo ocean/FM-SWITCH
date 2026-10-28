@@ -2,9 +2,7 @@ import FM1Kit
 import FM1Rescue
 import Foundation
 import Observation
-import ServiceManagement
 import UniformTypeIdentifiers
-import os
 
 /// What to do with an FM-1 in the chip's download mode.
 enum DownloadModeJob: Hashable {
@@ -39,21 +37,10 @@ enum DownloadModeJob: Hashable {
 ///
 /// Every job reads the whole flash and saves it first. A write is planned against that read,
 /// shown, and only made once the person confirms it. A real FM-1 is read and written by the
-/// privileged helper, which needs root; the simulated one, by FM1Rescue's software chip in the app.
+/// flash tool, which needs root; the simulated one, by FM1Rescue's software chip in the app.
 @MainActor
 @Observable
 final class DownloadModeController {
-    /// Whether the privileged helper can run.
-    enum HelperStatus: Equatable {
-        /// Not registered yet.
-        case notInstalled
-        /// Registered, and waiting for the person to allow it in System Settings.
-        case needsApproval
-        case ready
-        /// Registering it failed, so macOS couldn't use the one in the app.
-        case missing
-    }
-
     /// Where the job is up to.
     enum Phase: Equatable {
         case idle
@@ -81,11 +68,8 @@ final class DownloadModeController {
     /// A backup's `.bin` file, as FM1Kit and M-Flasher save it.
     static let backupType = UTType(filenameExtension: "bin") ?? .data
 
-    private static let log = Logger(subsystem: "dev.drewr.fmswitch", category: "helper")
-
     private(set) var job: DownloadModeJob?
     private(set) var phase = Phase.idle
-    private(set) var helperStatus = HelperStatus.notInstalled
     /// Whether an FM-1 is in download mode now.
     private(set) var isInDownloadMode = false
     /// Whether the app is asking the FM-1 to restart into download mode.
@@ -100,9 +84,6 @@ final class DownloadModeController {
     private let library: FirmwareLibrary
     private let device: DeviceController
     private let isSimulated: @MainActor () -> Bool
-    private let helper = SMAppService.daemon(plistName: FlashHelper.plistName)
-    /// Whether registering the helper failed for a reason other than waiting to be allowed.
-    private var registeringFailed = false
     private var service: (any FlashService)?
     /// The simulated FM-1's flash, kept so what's written to it stays.
     private var simulatedFlash: SimulatedFlash?
@@ -118,11 +99,7 @@ final class DownloadModeController {
         self.device = device
         self.isSimulated = isSimulated
         backups = FlashBackupStore(backupsFolder: backupsFolder)
-        refreshHelperStatus()
     }
-
-    /// Whether the helper's needed: only for a real FM-1.
-    var needsHelper: Bool { !isSimulated() && helperStatus != .ready }
 
     /// Whether the connected FM-1 can be asked to restart into download mode: V15 and Felucca
     /// do; other firmwares may ignore it.
@@ -131,44 +108,11 @@ final class DownloadModeController {
         return !device.isWriting
     }
 
-    // MARK: - The helper.
-
-    func refreshHelperStatus() {
-        helperStatus =
-            switch helper.status {
-            case .enabled: .ready
-            case .requiresApproval: .needsApproval
-            // macOS reports a helper that's never been registered as not found, too.
-            default: registeringFailed ? .missing : .notInstalled
-            }
-    }
-
-    /// Registers the helper, then opens System Settings for the person to allow it.
-    func installHelper() {
-        do {
-            try helper.register()
-            registeringFailed = false
-        } catch {
-            // Registering a helper that needs approval reports that as an error; the status says.
-            registeringFailed = helper.status != .requiresApproval && helper.status != .enabled
-            if registeringFailed {
-                Self.log.error("Registering the helper failed: \(error, privacy: .public)")
-            }
-        }
-        refreshHelperStatus()
-        if helperStatus == .needsApproval { SMAppService.openSystemSettingsLoginItems() }
-    }
-
-    func openLoginItems() {
-        SMAppService.openSystemSettingsLoginItems()
-    }
-
     // MARK: - Download mode.
 
-    /// Checks for an FM-1 in download mode, and the helper's status, every second until cancelled.
+    /// Checks for an FM-1 in download mode every second until cancelled.
     func watch() async {
         while !Task.isCancelled {
-            refreshHelperStatus()
             isInDownloadMode =
                 isSimulated() ? simulatedInDownloadMode : USBDownloadModeConnection.deviceCount() > 0
             try? await Task.sleep(for: .seconds(1))
@@ -282,16 +226,15 @@ final class DownloadModeController {
     /// The FM-1 stays in download mode until it's switched off and on.
     func finish() async {
         guard !phase.isRunning else { return }
-        await closeService()
         job = nil
         phase = .idle
+        await closeService()
     }
 
     private func fail(_ error: any Error, saved: SavedFlashBackup?) async {
         let failure = FlashFailure(error)
         phase = .failed(failure, saved: saved)
         await closeService()
-        if failure.kind == .helperUnavailable { refreshHelperStatus() }
     }
 
     private func closeService() async {
@@ -300,12 +243,7 @@ final class DownloadModeController {
     }
 
     private func makeService() async throws -> any FlashService {
-        guard isSimulated() else {
-            guard helperStatus == .ready else {
-                throw FlashFailure(.helperUnavailable, "Allow FM-SWITCH's helper first. Nothing was written.")
-            }
-            return HelperFlashService()
-        }
+        guard isSimulated() else { return ToolFlashService() }
         if simulatedFlash == nil, let official = library.official {
             simulatedFlash = SimulatedFlash(holding: try await library.loadPackage(official))
         }

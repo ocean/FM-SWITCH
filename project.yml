@@ -37,23 +37,16 @@ targets:
         destinationFilters: [iOS]
       - path: App/Platform/macOS
         destinationFilters: [macOS]
-      # Shared with the Mac's privileged helper.
+      # Shared with the Mac's flash tool.
       - path: Shared
         destinationFilters: [macOS]
-      # The helper's launchd property list, which SMAppService reads from the app's bundle.
-      - path: Helper/dev.drewr.fmswitch.helper.plist
-        destinationFilters: [macOS]
-        buildPhase:
-          copyFiles:
-            destination: wrapper
-            subpath: Contents/Library/LaunchDaemons
     dependencies:
       - package: FM1Kit
         product: FM1Kit
       # Download mode, on the Mac. On iPhone and iPad the library is empty.
       - package: FM1Kit
         product: FM1Rescue
-      # The helper runs from the app's Contents/MacOS, as its launchd property list says.
+      # The flash tool runs from the app's Contents/MacOS, started with the person's password.
       - target: FMSwitchHelper
         destinationFilters: [macOS]
         copy:
@@ -114,15 +107,13 @@ targets:
         CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/FMSwitch-macOS.entitlements
         ENABLE_HARDENED_RUNTIME[sdk=macosx*]: YES
         ENABLE_PREVIEWS: YES
-  # The Mac's privileged helper: reads and writes an FM-1's flash in download mode, which needs
-  # root. The app registers it with SMAppService, and it only answers FM-SWITCH.
+  # The Mac's flash tool: reads and writes an FM-1's flash in download mode, which needs root.
+  # The app starts it with the person's administrator password, and it only answers FM-SWITCH.
   FMSwitchHelper:
     type: tool
     platform: macOS
     sources:
       - path: Helper
-        excludes:
-          - "*.plist"
       - path: Shared
     dependencies:
       - package: FM1Kit
