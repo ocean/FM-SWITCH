@@ -60,6 +60,8 @@ struct FMSwitchApp: App {
 /// A page asked for from outside the look's own navigation.
 enum RequestedPage: Equatable {
     case help(HelpTopic)
+    /// A firmware's page, by catalogue ID.
+    case firmware(String)
     /// From FM-SWITCH ▸ Settings… on the Mac.
     case settings
 }

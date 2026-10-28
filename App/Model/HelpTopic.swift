@@ -26,6 +26,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
         }
     }
 
+    @MainActor
     var paragraphs: [String] {
         switch self {
         case .wontInstall:
@@ -42,9 +43,9 @@ enum HelpTopic: String, CaseIterable, Identifiable {
                 M-VAVE's original bootloader is the only one.
                 """,
                 """
-                You can still switch between firmwares built on Felucca from here. Some newer ones, \
-                such as LOOM-8 0.8, have an updated check and can install V15, so going through one of \
-                them is another way back.
+                There's a way round it, and it works from this \(ThisDevice.name) too. First install \
+                MIDIMON 0.4 or LOOM-8 0.8. They're built on Felucca, so your firmware lets them in, but \
+                their check is updated, so either can then install V15, Open or the firmware you wanted.
                 """,
                 """
                 If you installed Open V12 or V14 before, some of these firmwares (DUB-1, for one) can \
@@ -82,7 +83,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
                 Check it's switched on, and that the cable carries data: some only charge. Then unplug \
                 it and plug it in again.
                 """
-            ]
+            ] + Self.adapters
         }
     }
 
@@ -112,21 +113,30 @@ enum HelpTopic: String, CaseIterable, Identifiable {
 
     #if os(macOS)
         private static let wayBack = """
-            Otherwise, open Backup & rescue. It writes the firmware in the chip's download mode, which \
+            If that doesn't work, open Backup & rescue. It writes the firmware in the chip's download mode, which \
             works whatever is installed and keeps your bootloader.
             """
         private static let downloadModeTools = """
             Backup & rescue can back it up, put a backup back or write a firmware, and install \
             m-bootloader, so holding REC always gets you back there.
             """
+        private static let adapters: [String] = []
     #else
         private static let wayBack = """
-            Otherwise, you'll need a computer. FM-SWITCH on a Mac writes the firmware in the chip's \
+            If that doesn't work, you'll need a computer. FM-SWITCH on a Mac writes the firmware in the chip's \
             download mode, which works whatever is installed and keeps your bootloader. M-Flasher, \
             for Mac, Windows and Linux, uses download mode too.
             """
         private static let downloadModeTools =
             "FM-SWITCH on a Mac, or M-Flasher, can back it up and reinstall it from there."
+        /// Testers found a Lightning to USB-C cable doesn't work, but Apple's camera adapters do.
+        private static let adapters = [
+            """
+            If your iPhone or iPad has a Lightning port, plug the FM-1 in through Apple's Lightning to \
+            USB Camera Adapter or Lightning to USB 3 Camera Adapter. A Lightning to USB-C cable won't \
+            work. Other Lightning adapters haven't been tested yet.
+            """
+        ]
     #endif
 
     private static let macApp = CatalogueLink(

@@ -4,8 +4,8 @@ import Testing
 
 @testable import FMSwitch
 
-/// What the app says before, and after, installing a firmware that only a Mac can come back from
-/// once m-bootloader is on the FM-1.
+/// What the app says before, and after, installing a firmware that takes two installs to come back
+/// from once the FM-1's bootloader has been changed.
 @MainActor
 @Suite(.serialized)
 struct StartUpTests {
@@ -40,11 +40,8 @@ struct StartUpTests {
         let sure = FeluccaUpdateCode.Warning(installing: "amb", named: "AMB-1", startUp: .mBootloader)
         #expect(sure.body.hasPrefix("Once AMB-1 is on your FM-1"))
         #expect(sure.body.contains("(DUB-1, Felucca, HYP-1, LOF-1 and Melodee)"))
-        #if os(macOS)
-            #expect(sure.body.hasSuffix("you'll need Backup & rescue."))
-        #else
-            #expect(sure.body.hasSuffix("you'll need FM-SWITCH on a Mac."))
-        #endif
+        #expect(sure.body.hasSuffix("install MIDIMON 0.4 or LOOM-8 0.8 first, then the one you want."))
+        #expect(sure.title == "Coming back from this takes two installs")
 
         let unsure = FeluccaUpdateCode.Warning(installing: "dub", named: "DUB-1", startUp: .notSure)
         #expect(unsure.body.hasPrefix("If your FM-1's bootloader has been changed, once DUB-1 is on your FM-1"))
@@ -64,12 +61,8 @@ struct StartUpTests {
             return
         }
         #expect(message.hasPrefix("Your FM-1 is fine. It's still running the firmware it had"))
-        #if os(macOS)
-            #expect(message.hasSuffix("use Backup & rescue."))
-        #else
-            #expect(message.hasSuffix("use FM-SWITCH on a Mac."))
-        #endif
-        #expect(setup.controller.job?.needsAMac == true)
+        #expect(message.hasSuffix("Install MIDIMON 0.4 or LOOM-8 first, then \(item.name)."))
+        #expect(setup.controller.job?.needsAStepFirst == true)
         #expect(setup.controller.identity?.text == "FM-1_900")
     }
 
@@ -101,6 +94,6 @@ struct StartUpTests {
         }
         #expect(message.contains("from here. Install V15 first, then"))
         #expect(!message.contains("m-bootloader"))
-        #expect(setup.controller.job?.needsAMac == false)
+        #expect(setup.controller.job?.needsAStepFirst == false)
     }
 }

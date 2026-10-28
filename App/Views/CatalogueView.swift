@@ -10,6 +10,8 @@ struct CatalogueView: View {
     @State private var scope = FirmwareScope.all
     @State private var selected: CatalogueEntry?
     @FocusState private var isSearchFocused: Bool
+    /// The firmware to open at, by catalogue ID.
+    var opening: String?
 
     private var filter: FirmwareFilter { FirmwareFilter(search: search) }
 
@@ -40,6 +42,9 @@ struct CatalogueView: View {
                         }
                 }
             }
+        }
+        .task(id: opening) {
+            if let opening, let entry = model.catalogue.entry(id: opening) { selected = entry }
         }
         #if DEBUG
             // `-openFirmware <id>` opens a firmware's page at launch, for screenshots, once the list

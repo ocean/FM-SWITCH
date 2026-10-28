@@ -170,7 +170,7 @@ final class DeviceController {
     func resume() {
         guard let index = job?.index, job?.isRunning == false else { return }
         job?.phase = .preparing
-        job?.needsAMac = false
+        job?.needsAStepFirst = false
         job?.mightBeRefused = false
         Task { await run(from: index) }
     }
@@ -226,7 +226,7 @@ final class DeviceController {
                 appendLog("✕ \(error.localizedDescription)")
                 let message = failureMessage(for: error, installing: item)
                 job?.phase = .failed(message, canResume: FlashJob.canResume(after: error))
-                job?.needsAMac = needsAMac(after: error, installing: item)
+                job?.needsAStepFirst = needsAStepFirst(after: error, installing: item)
                 job?.mightBeRefused = FlashJob.mightBeRefused(after: error)
                 return
             }
@@ -356,26 +356,22 @@ final class DeviceController {
         guard FlashJob.isRefusal(error) else { return error.localizedDescription }
         let running = identity.flatMap { history.lastInstall(matching: $0.text)?.name } ?? "the firmware it had"
         // With M-VAVE's start-up these firmwares still take V15, so going through it gets past them.
-        if !needsAMac(after: error, installing: item) {
+        if !needsAStepFirst(after: error, installing: item) {
             return """
                 Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
                 Install V15 first, then \(item.name).
                 """
         }
-        #if os(macOS)
-            let wayRound = "To install \(item.name), use Backup & rescue."
-        #else
-            let wayRound = "To install \(item.name), use FM-SWITCH on a Mac."
-        #endif
+        // MIDIMON and LOOM-8 are let in, and their updated check takes the rest (FM1Kit's stage P).
         return """
-            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) with its \
-            changed bootloader. \(wayRound)
+            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
+            Install MIDIMON 0.4 or LOOM-8 first, then \(item.name).
             """
     }
 
-    /// Whether `error` is a refusal that only a Mac gets past, as ``failureMessage(for:installing:)``
-    /// says.
-    private func needsAMac(after error: any Error, installing item: StoredFirmware) -> Bool {
+    /// Whether `error` is a refusal that only MIDIMON or LOOM-8 gets past, as
+    /// ``failureMessage(for:installing:)`` says.
+    private func needsAStepFirst(after error: any Error, installing item: StoredFirmware) -> Bool {
         guard FlashJob.isRefusal(error) else { return false }
         return settings?.startUp != .mVave || item.source == .official
     }

@@ -61,9 +61,9 @@ extension DeviceController {
         var confirmsSameIdentity = false
         var index = 0
         var phase = FlashPhase.preparing
-        /// Whether it stopped because, with the FM-1's bootloader changed, its firmware only lets a
-        /// Mac install this.
-        var needsAMac = false
+        /// Whether it stopped because, with the FM-1's bootloader changed, its firmware won't take
+        /// this until MIDIMON or LOOM-8 is installed first.
+        var needsAStepFirst = false
         /// Whether it stopped before the install started, which might be the FM-1's firmware
         /// refusing it, so trying again might not help.
         var mightBeRefused = false

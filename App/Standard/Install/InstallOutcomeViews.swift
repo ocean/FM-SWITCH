@@ -65,7 +65,7 @@ struct InstallProblemView: View {
             Text(
                 canResume
                     ? "Your FM-1 is waiting to finish installing \(job.current.name), so nothing is lost."
-                    : job.needsAMac ? message : Self.tryAgain(mightBeRefused: job.mightBeRefused)
+                    : job.needsAStepFirst ? message : Self.tryAgain(mightBeRefused: job.mightBeRefused)
             )
             .foregroundStyle(Palette.secondaryInk)
         }
@@ -79,10 +79,17 @@ struct InstallProblemView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardBackground()
         }
-        if job.needsAMac {
+        if job.needsAStepFirst {
             // Trying again would only be refused again.
-            Button("What can I do?") { openHelp() }
-                .buttonStyle(.prominent)
+            if let wayRound {
+                Button("Install \(wayRound.name)") { open(wayRound) }
+                    .buttonStyle(.prominent)
+                Button("What can I do?") { openHelp() }
+                    .buttonStyle(.secondary)
+            } else {
+                Button("What can I do?") { openHelp() }
+                    .buttonStyle(.prominent)
+            }
         } else {
             Button(canResume ? "Carry on installing" : "Try again") { model.device.resume() }
                 .buttonStyle(.prominent)
@@ -101,6 +108,14 @@ struct InstallProblemView: View {
     private static func tryAgain(mightBeRefused: Bool) -> String {
         let check = "Check that your FM-1 is plugged in and switched on, then try again."
         return mightBeRefused ? check + " If it stops again, the firmware on it may not accept this one." : check
+    }
+
+    /// MIDIMON, to install first, when the list has it.
+    private var wayRound: CatalogueEntry? { model.catalogue.entry(id: FeluccaUpdateCode.wayRound) }
+
+    private func open(_ entry: CatalogueEntry) {
+        model.device.dismissFlash()
+        model.requestedPage = .firmware(entry.id)
     }
 
     private func openHelp() {

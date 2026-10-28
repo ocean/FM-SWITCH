@@ -51,6 +51,8 @@ struct RetroRootView: View {
     @State private var tab = Self.initialTab
     /// The topic HELP opens at, when a warning or an error asked for one.
     @State private var helpTopic: HelpTopic?
+    /// The firmware FIRMWARE opens at, when an install that stopped asked for one.
+    @State private var firmwareID: String?
 
     /// Debug builds accept `-initialTab firmware` (etc.) as a launch argument, for screenshots, and
     /// open FIRMWARE for `-openFirmware <id>`.
@@ -135,12 +137,16 @@ struct RetroRootView: View {
                 tab = .help
             case .settings:
                 tab = .settings
+            case .firmware(let id):
+                firmwareID = id
+                tab = .firmware
             }
             model.requestedPage = nil
         }
-        // HELP opens at the asked-for topic once; chosen later, it opens at none.
+        // HELP and FIRMWARE open at the asked-for page once; chosen later, they open at none.
         .onChange(of: tab) { _, tab in
             if tab != .help { helpTopic = nil }
+            if tab != .firmware { firmwareID = nil }
         }
     }
 }
@@ -150,7 +156,7 @@ extension RetroRootView {
         Group {
             switch tab {
             case .device: DeviceView(tab: $tab)
-            case .firmware: CatalogueView()
+            case .firmware: CatalogueView(opening: firmwareID)
             case .library: LibraryView()
             case .rescue:
                 #if os(macOS)

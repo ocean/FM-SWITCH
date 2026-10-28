@@ -45,8 +45,9 @@ enum StartUp: String, CaseIterable, Identifiable, Sendable {
 ///
 /// Firmwares on the fixed code, such as LOOM-8 and Del Rio, accept V15 and aren't included.
 ///
-/// Installing one from an iPhone is fine; getting back to M-VAVE's firmwares then usually takes a
-/// Mac.
+/// Installing one is fine; getting back to M-VAVE's firmwares then takes two installs, through
+/// MIDIMON or LOOM-8, which are built on Felucca but have the updated check (FM1Kit's stage P,
+/// on an FM-1, 2026-10-28).
 enum FeluccaUpdateCode {
     /// The firmwares known to have it, by catalogue ID.
     ///
@@ -63,6 +64,9 @@ enum FeluccaUpdateCode {
         "resource-hub-lof-1": "LOF-1",
     ]
 
+    /// MIDIMON's catalogue ID: the firmware to install first, to get past one of these.
+    static let wayRound = "midimon"
+
     /// Whether the firmware with this catalogue ID is known to have it.
     static func isKnown(_ catalogueID: String?) -> Bool {
         catalogueID.map { known[$0] != nil } ?? false
@@ -71,13 +75,14 @@ enum FeluccaUpdateCode {
     /// The warning before installing `name`, for someone whose FM-1's bootloader has, or may have,
     /// been changed.
     struct Warning: Equatable {
-        var title = Self.wayBackTitle
+        var title = "Coming back from this takes two installs"
         var body: String
         var why = """
             Once the FM-1's bootloader has been changed, by m-bootloader or by Open V12 or V14, \
             these firmwares only accept an update that brings the same boot area the FM-1 already \
             has. V15 brings M-VAVE's, so it's refused, and so are most firmwares not built on \
-            Felucca. \(Self.wayBackExplained)
+            Felucca. MIDIMON and LOOM-8 are built on Felucca, so they're let in, and their updated \
+            check takes V15 and the others.
             """
         var decline = "Don't install"
 
@@ -89,24 +94,9 @@ enum FeluccaUpdateCode {
                 \(opening) \(name) is on your FM-1, you can still switch between firmwares built like \
                 it (\(list)) right here.
 
-                But to install V15, Open or most firmwares not built on Felucca, \(Self.wayBack).
+                But to install V15, Open or most firmwares not built on Felucca, install MIDIMON 0.4 or \
+                LOOM-8 0.8 first, then the one you want.
                 """
         }
-
-        #if os(macOS)
-            private static let wayBackTitle = "You'll need Backup & rescue to come back from this"
-            private static let wayBack = "you'll need Backup & rescue"
-            private static let wayBackExplained = """
-                Backup & rescue writes the firmware in the chip's download mode, which works whatever \
-                is installed and keeps the bootloader.
-                """
-        #else
-            private static let wayBackTitle = "You'll need a Mac to come back from this"
-            private static let wayBack = "you'll need FM-SWITCH on a Mac"
-            private static let wayBackExplained = """
-                On a Mac, FM-SWITCH writes the firmware in the chip's download mode, which works \
-                whatever is installed and keeps the bootloader.
-                """
-        #endif
     }
 }

@@ -109,6 +109,11 @@ struct StandardRootView: View {
             section = .settings
         case .settings:
             path = [.settings]
+        case .firmware(let id) where usesSidebar:
+            section = .firmwares
+            selectedFirmwareID = id
+        case .firmware(let id):
+            if let entry = model.catalogue.entry(id: id) { path = [.firmwares, .firmware(entry)] }
         }
     }
 

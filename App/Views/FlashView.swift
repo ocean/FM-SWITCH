@@ -104,13 +104,8 @@ struct FlashView: View {
         case .failed(let message, let canResume):
             PixelPanel(title: "STOPPED") {
                 MonoText(message, size: 15)
-                if job.needsAMac {
-                    // Trying again would only be refused again.
-                    Button("WHAT CAN I DO?") {
-                        model.device.dismissFlash()
-                        model.requestedPage = .help(.wontInstall)
-                    }
-                    .buttonStyle(.pixelProminent)
+                if job.needsAStepFirst {
+                    refusedActions
                 } else if canResume {
                     Button("RESUME") { model.device.resume() }
                         .buttonStyle(.pixelProminent)
@@ -143,6 +138,25 @@ struct FlashView: View {
                 )
             }
         }
+    }
+
+    /// What to do when the FM-1's firmware refused the install: MIDIMON first, or Help.
+    ///
+    /// Trying again would only be refused again, so it isn't offered.
+    @ViewBuilder private var refusedActions: some View {
+        let wayRound = model.catalogue.entry(id: FeluccaUpdateCode.wayRound)
+        if let wayRound {
+            Button("INSTALL \(wayRound.name.uppercased())") {
+                model.device.dismissFlash()
+                model.requestedPage = .firmware(wayRound.id)
+            }
+            .buttonStyle(.pixelProminent)
+        }
+        Button("WHAT CAN I DO?") {
+            model.device.dismissFlash()
+            model.requestedPage = .help(.wontInstall)
+        }
+        .buttonStyle(PixelButtonStyle(prominent: wayRound == nil))
     }
 
     private func headerTitle(_ job: DeviceController.FlashJob) -> String {
