@@ -174,9 +174,24 @@ struct FirmwareCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 ViewThatFits(in: .horizontal) {
                     // At its full width, or the name is cut short instead of the row wrapping.
-                    HStack(alignment: .firstTextBaseline, spacing: 8) { title }
-                        .fixedSize(horizontal: true, vertical: false)
-                    VStack(alignment: .leading, spacing: 4) { title }
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        name
+                        details
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    // The name and its star together, then the version and tags.
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) { name }
+                        HStack(alignment: .firstTextBaseline, spacing: 8) { details }
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                    // Narrower still, the tags get a line of their own, and only the version is cut short.
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) { name }
+                        version
+                        HStack(spacing: 8) { tags }
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
                 }
                 if let what = entry.what {
                     Text(what)
@@ -202,7 +217,7 @@ struct FirmwareCard: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    @ViewBuilder private var title: some View {
+    @ViewBuilder private var name: some View {
         Text(entry.name)
             .font(.headline)
             .foregroundStyle(Palette.ink)
@@ -213,13 +228,20 @@ struct FirmwareCard: View {
                 .foregroundStyle(Palette.accent)
                 .accessibilityLabel("Starred")
         }
+    }
+
+    @ViewBuilder private var details: some View {
+        version
+        tags
+    }
+
+    @ViewBuilder private var version: some View {
         if let version = entry.version {
             Text(version)
                 .font(.footnote)
                 .foregroundStyle(Palette.secondaryInk)
                 .lineLimit(1)
         }
-        tags
     }
 
     @ViewBuilder private var tags: some View {
