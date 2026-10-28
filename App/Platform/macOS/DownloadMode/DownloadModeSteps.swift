@@ -210,11 +210,7 @@ struct DownloadModeConfirmView: View {
     var body: some View {
         DownloadModeCard {
             Text(tools.job?.title ?? DownloadModeWords.writeTitle).font(.title3.weight(.bold))
-            Label(
-                DownloadModeWords.saved(saved),
-                systemImage: "checkmark.circle.fill"
-            )
-            .foregroundStyle(Palette.goodInk)
+            Text(DownloadModeWords.notWrittenYet).font(.headline)
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.notes, id: \.self) { Text($0) }
                 Text(DownloadModeWords.changes(plan))
@@ -228,6 +224,9 @@ struct DownloadModeConfirmView: View {
                 systemImage: "lifepreserver",
                 isWarning: plan.writesBootArea || !plan.keepsMBootloader)
             if isFirstMBootloader { mBootloaderChoice }
+            Text(DownloadModeWords.saved(saved))
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryInk)
             Toggle(DownloadModeWords.keepsPluggedIn, isOn: $understands)
             HStack(spacing: 10) {
                 // Keeping M-VAVE's is as easy to pick as installing m-bootloader.

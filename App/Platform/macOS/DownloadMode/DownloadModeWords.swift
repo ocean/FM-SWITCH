@@ -62,7 +62,7 @@ enum DownloadModeWords {
     // MARK: - Running.
 
     static let readingTitle = "Reading your FM-1"
-    static let readingDetail = "It reads everything twice and checks both reads. Nothing is written."
+    static let readingDetail = "It reads everything twice and checks both reads. Nothing is written unless you say so."
     static let writingTitle = "Writing to your FM-1"
     static let writingDetail = "Keep it plugged in and switched on until this finishes."
 
@@ -87,8 +87,10 @@ enum DownloadModeWords {
     static let installMBootloaderNow = "Install m-bootloader"
     static let writeNow = "Write to my FM-1"
 
+    static let notWrittenYet = "Nothing's written yet. Check what changes, then write it."
+
     static func saved(_ backup: SavedFlashBackup) -> String {
-        "Your FM-1 as it is now is saved: \(backup.file.lastPathComponent)."
+        "Your FM-1 as it was before is saved first, as \(backup.file.lastPathComponent), so it can go back."
     }
 
     static func changes(_ plan: FlashPlanSummary) -> String {

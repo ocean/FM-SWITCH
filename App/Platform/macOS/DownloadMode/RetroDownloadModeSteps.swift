@@ -142,7 +142,7 @@ struct RetroDownloadModeConfirm: View {
 
     var body: some View {
         PixelPanel(title: (tools.job?.title ?? DownloadModeWords.writeTitle).uppercased()) {
-            MonoText("✓ \(DownloadModeWords.saved(saved))", size: 14)
+            MonoText(DownloadModeWords.notWrittenYet, size: 14)
             ForEach(plan.notes, id: \.self) { MonoText($0, size: 14) }
             NoteText(DownloadModeWords.changes(plan))
             ForEach(plan.warnings, id: \.self) { MonoText("! \($0)", size: 14) }
@@ -154,6 +154,7 @@ struct RetroDownloadModeConfirm: View {
                     NoteText(DownloadModeWords.mBootloaderChoiceNote)
                 }
             }
+            NoteText(DownloadModeWords.saved(saved))
             PixelToggle(DownloadModeWords.keepsPluggedIn.uppercased(), isOn: $understands)
             HStack(spacing: 10) {
                 // Keeping M-VAVE's is as easy to pick as installing m-bootloader.

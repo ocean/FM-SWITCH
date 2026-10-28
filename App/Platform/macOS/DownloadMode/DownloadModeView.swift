@@ -93,7 +93,7 @@ struct DownloadModeView: View {
         case .idle where tools.isInDownloadMode: ScreenText(title: "DOWNLOAD", line: "Mode")
         case .idle: ScreenText(title: "RESCUE", line: "Hold REC", key: .rec)
         case .reading(let fraction): ScreenText(title: "READING", line: "\(Int(fraction * 100))%", progress: fraction)
-        case .confirming: ScreenText(title: "READY", line: "To write")
+        case .confirming: ScreenText(title: "CHECK", line: "Then write")
         case .writing(let fraction, _):
             ScreenText(title: "WRITING", line: "\(Int(fraction * 100))%", progress: fraction)
         case .backedUp, .nothingToWrite: ScreenText(title: "SAVED", line: "All done")
