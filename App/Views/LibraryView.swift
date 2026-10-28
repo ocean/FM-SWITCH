@@ -136,10 +136,15 @@ struct LibraryView: View {
     /// The name of a saved firmware, which picks it in the wide layout.
     @ViewBuilder private func itemTitle(_ item: StoredFirmware) -> some View {
         let title = VStack(alignment: .leading, spacing: 2) {
-            Text(item.name.uppercased())
-                .font(.pixel(12, bold: true, relativeTo: .headline))
-                .foregroundStyle(theme.bright)
-                .phosphorGlow(0.7)
+            HStack(spacing: 6) {
+                Text(item.name.uppercased())
+                if isStarred(item) {
+                    Text("★").accessibilityLabel("Starred")
+                }
+            }
+            .font(.pixel(12, bold: true, relativeTo: .headline))
+            .foregroundStyle(theme.bright)
+            .phosphorGlow(0.7)
             MonoText(summary(of: item), size: 14, dim: true)
             MonoText("Saved \(item.savedAt.formatted(date: .abbreviated, time: .omitted))", size: 13, dim: true)
         }
@@ -325,5 +330,15 @@ struct LibraryView: View {
             failures == 0
             ? "Saved firmwares are up to date."
             : "\(failures) update\(failures == 1 ? "" : "s") failed. Refresh the list and try again."
+    }
+}
+
+extension LibraryView {
+    /// Whether a saved firmware is starred, which leaves it here rather than under STARRED.
+    fileprivate func isStarred(_ item: StoredFirmware) -> Bool {
+        model.catalogue.entries.contains { entry in
+            model.starred.contains(entry.id)
+                && (library.stored(for: entry)?.id == item.id || library.otherBuild(for: entry)?.id == item.id)
+        }
     }
 }
