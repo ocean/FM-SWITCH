@@ -21,7 +21,7 @@ struct OtherReleaseTests {
         let picked = test.choosingOtherRelease()
         #expect(picked.version == "1.3.7")
         #expect(!picked.beta)
-        #expect(picked.otherRelease?.version == "v1.4.0-rc.4")
+        #expect(picked.otherRelease?.version == "1.4.0-rc.4")
         #expect(picked.otherRelease?.beta == true)
         #expect(picked.choosingOtherRelease() == test)
     }

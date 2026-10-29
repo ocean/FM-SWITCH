@@ -319,7 +319,7 @@ struct ReleaseCheckTests {
             Issue.record("Expected a newer release.")
             return
         }
-        #expect(newer.version == "v1.3.7")
+        #expect(newer.version == "1.3.7")
         #expect(newer.packageOrigin == .githubRelease)
         #expect(newer.product == nil)
         #expect(newer.date == "2026-10-16")
@@ -357,7 +357,7 @@ struct ReleaseCheckTests {
             Issue.record("Expected a newer pre-release.")
             return
         }
-        #expect(beta.version == "v1.4.0-rc.4")
+        #expect(beta.version == "1.4.0-rc.4")
         #expect(beta.beta)
         #expect(beta.builds == nil)
     }

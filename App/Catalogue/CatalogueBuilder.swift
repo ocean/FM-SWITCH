@@ -341,7 +341,7 @@ public struct CatalogueBuilder: Sendable {
         var entry = entry
         entry.packageURL = found.url
         entry.packageOrigin = found.origin
-        entry.version = found.version ?? entry.version
+        entry.version = found.version.map(ReleaseVersion.asListed) ?? entry.version
         entry.date = found.date ?? entry.date
         entry.beta = entry.beta || found.beta
         entry.product = found.product

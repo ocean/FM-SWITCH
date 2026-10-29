@@ -53,7 +53,7 @@ struct ReleaseCheck: Sendable {
                 return .upToDate(entry)
             }
             var newer = CatalogueBuilder.apply(found, to: entry)
-            newer.version = version
+            newer.version = ReleaseVersion.asListed(version)
             newer.beta = found.beta
             return .newer(newer)
         case nil:
@@ -81,7 +81,7 @@ struct ReleaseCheck: Sendable {
                 ReleaseVersion.isNewer(version, than: entry.version)
             {
                 var newer = CatalogueBuilder.apply(newestPackage, to: entry)
-                newer.version = version
+                newer.version = ReleaseVersion.asListed(version)
                 newer.beta = newest.prerelease
                 // Keep the build the list (or the person) had; with no match, they choose.
                 if let builds = newer.builds {
@@ -134,8 +134,7 @@ struct ReleaseCheck: Sendable {
             let package = PackageDiscovery.package(from: other, build: build)
         else { return nil }
         var found = CatalogueBuilder.apply(package, to: entry)
-        // As the lists give versions, without a tag's "v": "1.5.1", not "v1.5.1".
-        found.version = version(of: package).map { $0.replacing(#/^v(?=\d)/#, with: "") }
+        found.version = version(of: package).map(ReleaseVersion.asListed)
         found.beta = other.prerelease
         if let builds = found.builds {
             found.build = builds.contains { $0.name == build } ? build : nil
@@ -207,6 +206,11 @@ enum ReleaseVersion {
             default: return false
             }
         }
+    }
+
+    /// The version as the lists give it, without a tag's "v": "1.5.1", not "v1.5.1".
+    static func asListed(_ version: String) -> String {
+        version.replacing(#/^v(?=\d)/#, with: "")
     }
 
     /// True unless the two name the same release, as "v0.3.7" and "0.3.7" do.
