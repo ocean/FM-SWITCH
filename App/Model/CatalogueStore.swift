@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 
 /// The firmware list, loaded from the on-device copy at launch and refreshed on request.
 ///
@@ -143,6 +144,10 @@ final class CatalogueStore {
         entries.filter { $0.product == product }
     }
 
+    /// Downloads the published list, or builds it here if that list can't be used.
+    ///
+    /// A refresh that fails only says so when the saved list is more than a day old, as one that
+    /// fresh is as good as the published one, and a cancelled refresh says nothing.
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
@@ -150,9 +155,11 @@ final class CatalogueStore {
         defer { isRefreshing = false }
         do {
             let built: MergedCatalogue
-            if let published = await Self.published() {
-                built = published
-            } else {
+            do {
+                built = try await PublishedList(fetch: Network.fetch).load()
+            } catch PublishedList.Failure.unusable {
+                // Building it here makes about 90 GitHub requests, so only when the list is there but
+                // can't be used, not when the network's down.
                 built = try await CatalogueBuilder(fetch: Network.fetch).build(previous: catalogue?.entries ?? [])
             }
             catalogue = built
@@ -161,27 +168,21 @@ final class CatalogueStore {
             if let data = try? JSONEncoder().encode(built) {
                 try? data.write(to: cacheURL, options: .atomic)
             }
+        } catch is CancellationError {
+            return
         } catch {
-            errorMessage =
-                catalogue == nil
-                ? "Couldn't fetch the firmware list. Check your connection and try again."
-                : "Couldn't refresh; showing the list saved earlier."
+            Self.log.error("Refreshing the firmware list failed: \(String(describing: error), privacy: .public)")
+            if let catalogue {
+                if catalogue.builtAt < .now.addingTimeInterval(-24 * 60 * 60) {
+                    errorMessage = "Couldn't refresh; showing the list saved earlier."
+                }
+            } else {
+                errorMessage = "Couldn't fetch the firmware list. Check your connection and try again."
+            }
         }
     }
 
-    /// Where fm-1.drewr.dev publishes the list.
-    static let publishedURL = URL(literal: "https://fm-1.drewr.dev/firmwares.json")
-
-    /// The published list, or nil if it can't be read or is in a format this app doesn't know.
-    private static func published() async -> MergedCatalogue? {
-        guard let data = try? await Network.fetch(publishedURL) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        guard let catalogue = try? decoder.decode(MergedCatalogue.self, from: data), catalogue.isReadable,
-            !catalogue.entries.isEmpty
-        else { return nil }
-        return catalogue
-    }
+    private static let log = Logger(subsystem: "dev.drewr.fmswitch", category: "catalogue")
 
     private func loadCached() {
         guard let data = try? Data(contentsOf: cacheURL),

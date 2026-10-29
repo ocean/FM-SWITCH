@@ -119,7 +119,7 @@ check_docs() {
 check_unused() {
     require_build unused
     step "Unused code (SwiftLint analyze, Periphery)"
-    swiftlint analyze --strict --quiet --compiler-log-path .build/logs/xcodebuild.log
+    swiftlint analyze --config .swiftlint-analyze.yml --strict --quiet --compiler-log-path .build/logs/xcodebuild.log
     # FM1Kit is in the same index but has its own Periphery run, so only the app's files are reported.
     # App/Catalogue is also the FM1Catalogue library that fm1-catalogue uses, so the few declarations
     # that tool needs are public: Periphery keeps them, and doesn't call them redundant in the app.

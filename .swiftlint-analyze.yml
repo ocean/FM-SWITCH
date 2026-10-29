@@ -1,0 +1,7 @@
+# `swiftlint analyze` only: the lint settings, less the files SourceKit crashes on.
+parent_config: .swiftlint.yml
+
+# SourceKit segfaults expanding this file's Swift Testing macros (Xcode 27.1, SwiftLint 0.65.1),
+# though the file builds and its tests pass. Ordinary `swiftlint lint` still checks it.
+excluded:
+  - AppTests/PublishedListTests.swift
