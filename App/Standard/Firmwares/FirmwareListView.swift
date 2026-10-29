@@ -256,6 +256,8 @@ struct FirmwareCard: View {
             Tag(text: "On your FM-1", ink: Palette.goodInk, fill: Palette.goodBackground)
         } else if entry.isOfficial {
             Tag(text: "Official", ink: Palette.ink, fill: Palette.control)
+        } else if model.library.outdated(for: entry) != nil {
+            Tag(text: "Update", ink: Palette.goodInk, fill: Palette.goodBackground)
         } else if FirmwareFilter.isSaved(entry, in: model) {
             Tag(text: "Saved", ink: Palette.ink, fill: Palette.control)
         }

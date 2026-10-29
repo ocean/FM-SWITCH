@@ -174,6 +174,7 @@ struct FirmwarePageView: View {
                 installButton
                 if stored == nil { saveButton }
                 installNote
+                if let stored { UpdateNoticesOffer(stored: stored) }
             } else {
                 Text(
                     """

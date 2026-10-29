@@ -7,14 +7,20 @@ struct MyFirmwaresView: View {
     var selectedID: String?
     var onSelect: (CatalogueEntry) -> Void
 
-    /// The listed firmwares saved here, then the ones added from files that no list describes.
+    /// The listed firmwares saved here, an older release included, then the ones added from files
+    /// that no list describes.
     private var saved: [CatalogueEntry] {
-        model.catalogue.entries.filter { FirmwareFilter.isSaved($0, in: model) } + model.addedFromFiles
+        model.catalogue.entries.filter { entry in
+            FirmwareFilter.isSaved(entry, in: model) || model.library.outdated(for: entry) != nil
+        } + model.addedFromFiles
     }
 
     /// Starred and not saved: a saved one is listed with the saved ones, with its star.
     private var starred: [CatalogueEntry] {
-        model.catalogue.entries.filter { model.starred.contains($0.id) && !FirmwareFilter.isSaved($0, in: model) }
+        model.catalogue.entries.filter { entry in
+            model.starred.contains(entry.id) && !FirmwareFilter.isSaved(entry, in: model)
+                && model.library.outdated(for: entry) == nil
+        }
     }
 
     var body: some View {

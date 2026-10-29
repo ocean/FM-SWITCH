@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct FMSwitchApp: App {
@@ -32,8 +33,14 @@ struct FMSwitchApp: App {
                 #if os(macOS)
                     .frame(minWidth: 420, minHeight: 560)
                     .task { await model.updates.keepChecking() }
+                    .task { await model.keepCheckingForFirmwareUpdates() }
                 #endif
         }
+        #if os(iOS)
+            .backgroundTask(.appRefresh(FirmwareUpdateNotices.taskID)) {
+                await model.checkForFirmwareUpdatesInBackground()
+            }
+        #endif
         #if os(macOS)
             // Opens wide enough for the sidebar layout.
             .defaultSize(width: 1180, height: 820)
@@ -77,6 +84,8 @@ final class AppModel {
     let backups = BackupStore()
     let starred = StarredFirmwares()
     let tipJar = TipJar()
+    /// Tells the person when firmwares they've saved have newer releases, once they've asked.
+    let updateNotices = FirmwareUpdateNotices()
     let device: DeviceController
     #if os(macOS)
         /// Whole-flash backups, restores and installs in the chip's download mode.
@@ -107,7 +116,74 @@ final class AppModel {
         // kept in Firmwares now, so the old folder goes.
         try? FileManager.default.removeItem(at: AppDirectories.support.appending(path: "Firmware"))
         Task { await useICloudIfOn() }
+        UNUserNotificationCenter.current().delegate = updateNotices
+        updateNotices.open = { [weak self] id in self?.requestedPage = .firmware(id) }
     }
+
+    // MARK: - Firmware update notifications.
+
+    /// Whether turning update notifications on found notifications aren't allowed for the app.
+    private(set) var areNotificationsRefused = false
+
+    /// The Settings switch for update notifications.
+    var notifiesFirmwareUpdatesBinding: Binding<Bool> {
+        Binding {
+            self.settings.notifiesFirmwareUpdates
+        } set: { isOn in
+            Task { await self.setNotifiesFirmwareUpdates(isOn) }
+        }
+    }
+
+    /// Turns update notifications on, once the person allows notifications, or off.
+    ///
+    /// Updates there are already aren't announced, as the cards show them.
+    ///
+    /// - Returns: False when notifications aren't allowed, so they stay off.
+    @discardableResult
+    func setNotifiesFirmwareUpdates(_ isOn: Bool) async -> Bool {
+        settings.hasOfferedUpdateNotices = true
+        guard isOn else {
+            settings.notifiesFirmwareUpdates = false
+            return true
+        }
+        guard await updateNotices.requestPermission() else {
+            settings.notifiesFirmwareUpdates = false
+            areNotificationsRefused = true
+            return false
+        }
+        areNotificationsRefused = false
+        updateNotices.markAnnounced(updateNotices.unannounced(in: catalogue.entries, library: library))
+        settings.notifiesFirmwareUpdates = true
+        #if os(iOS)
+            FirmwareUpdateNotices.scheduleCheck()
+        #endif
+        return true
+    }
+
+    /// Refreshes the firmware list and announces new releases of saved firmwares, when that's on.
+    func checkForFirmwareUpdates() async {
+        guard settings.notifiesFirmwareUpdates else { return }
+        await catalogue.refresh()
+        library.reload()
+        await updateNotices.announce(updateNotices.unannounced(in: catalogue.entries, library: library))
+    }
+
+    #if os(iOS)
+        /// The background check iOS runs about once a day, which asks for the next one first.
+        func checkForFirmwareUpdatesInBackground() async {
+            if settings.notifiesFirmwareUpdates { FirmwareUpdateNotices.scheduleCheck() }
+            await checkForFirmwareUpdates()
+        }
+    #else
+        /// Checks once the launch refresh is done, then once a day while the app's open.
+        func keepCheckingForFirmwareUpdates() async {
+            var wait = Duration.seconds(60)
+            while (try? await Task.sleep(for: wait)) != nil {
+                await checkForFirmwareUpdates()
+                wait = .seconds(24 * 60 * 60)
+            }
+        }
+    #endif
 
     /// Moves firmwares, backups and stars into iCloud Drive, if it's on, and watches it for other devices'.
     private func useICloudIfOn() async {

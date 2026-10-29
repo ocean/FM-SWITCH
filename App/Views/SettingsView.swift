@@ -132,6 +132,8 @@ struct SettingsView: View {
         @Bindable var settings = model.settings
         PixelToggle("ALWAYS VIA OFFICIAL FIRMWARE", isOn: $settings.alwaysViaOfficial)
         NoteText("Off: the official firmware is only flashed first when a firmware needs it.")
+        PixelToggle(UpdateNoticeWords.toggle.uppercased(), isOn: model.notifiesFirmwareUpdatesBinding)
+        NoteText(model.areNotificationsRefused ? UpdateNoticeWords.refused : UpdateNoticeWords.explained)
         MonoText("YOUR FM-1'S START-UP", size: 14)
         ForEach(StartUp.allCases) { StartUpChoice(choice: $0, startUp: $settings.startUp) }
         NoteText("Asked before installing a firmware that can't go back to V15 from here with m-bootloader.")

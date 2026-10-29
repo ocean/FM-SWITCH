@@ -73,6 +73,16 @@ final class AppSettings {
     var showLinksOnly: Bool { didSet { defaults.set(showLinksOnly, forKey: Keys.showLinksOnly) } }
     /// Install the official firmware first on every swap, not only when a firmware requires it.
     var alwaysViaOfficial: Bool { didSet { defaults.set(alwaysViaOfficial, forKey: Keys.alwaysViaOfficial) } }
+    /// Tell the person when a firmware they've saved has a newer release, with a notification.
+    ///
+    /// Off until they turn it on, which asks for permission to send notifications.
+    var notifiesFirmwareUpdates: Bool {
+        didSet { defaults.set(notifiesFirmwareUpdates, forKey: Keys.notifiesFirmwareUpdates) }
+    }
+    /// Whether turning on update notifications has been offered, once, after the first save.
+    var hasOfferedUpdateNotices: Bool {
+        didSet { defaults.set(hasOfferedUpdateNotices, forKey: Keys.hasOfferedUpdateNotices) }
+    }
     /// What the person says starts their FM-1, or nil until they've been asked.
     var startUp: StartUp? { didSet { defaults.set(startUp?.rawValue, forKey: Keys.startUp) } }
     var simulatedRecoveryMode: Bool { didSet { defaults.set(simulatedRecoveryMode, forKey: Keys.simulatedRecovery) } }
@@ -133,6 +143,8 @@ final class AppSettings {
         showLinksOnly = defaults.object(forKey: Keys.showLinksOnly) as? Bool ?? false
         alwaysViaOfficial = defaults.object(forKey: Keys.alwaysViaOfficial) as? Bool ?? false
         startUp = defaults.string(forKey: Keys.startUp).flatMap(StartUp.init(rawValue:))
+        notifiesFirmwareUpdates = defaults.bool(forKey: Keys.notifiesFirmwareUpdates)
+        hasOfferedUpdateNotices = defaults.bool(forKey: Keys.hasOfferedUpdateNotices)
         simulatedRecoveryMode = defaults.object(forKey: Keys.simulatedRecovery) as? Bool ?? false
         simulatedCablePull = defaults.object(forKey: Keys.simulatedCablePull) as? Bool ?? false
         simulatedReadsBackwards = defaults.object(forKey: Keys.simulatedReadsBackwards) as? Bool ?? false
@@ -181,6 +193,8 @@ final class AppSettings {
         static let showLinksOnly = "showLinksOnly"
         static let alwaysViaOfficial = "alwaysViaOfficial"
         static let startUp = "startUp"
+        static let notifiesFirmwareUpdates = "notifiesFirmwareUpdates"
+        static let hasOfferedUpdateNotices = "hasOfferedUpdateNotices"
         static let simulatedRecovery = "simulatedRescueMode"  // The original key, so saved settings carry over.
         static let simulatedCablePull = "simulatedCablePull"
         static let simulatedReadsBackwards = "simulatedReadsBackwards"

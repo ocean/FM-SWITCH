@@ -20,6 +20,11 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             model.device.scenePhaseChanged(to: phase)
             if phase == .active { model.retryConnectionIfUnavailable() }
+            #if os(iOS)
+                if phase == .background && model.settings.notifiesFirmwareUpdates {
+                    FirmwareUpdateNotices.scheduleCheck()
+                }
+            #endif
         }
     }
 }

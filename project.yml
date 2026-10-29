@@ -87,6 +87,11 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        # The daily check for newer releases of saved firmwares, which iOS runs when it chooses.
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - dev.drewr.fmswitch.firmware-updates
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.drewr.fmswitch
