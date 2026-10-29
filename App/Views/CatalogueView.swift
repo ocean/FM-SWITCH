@@ -16,7 +16,7 @@ struct CatalogueView: View {
     private var filter: FirmwareFilter { FirmwareFilter(search: search) }
 
     private var visibleEntries: [CatalogueEntry] {
-        filter.visible(in: model).filter { scope.includes($0, in: model) }
+        model.settings.firmwareOrder.sorted(filter.visible(in: model).filter { scope.includes($0) })
     }
 
     var body: some View {
@@ -96,16 +96,39 @@ struct CatalogueView: View {
         .overlay(PixelBox().strokeBorder(isSearchFocused ? theme.bright : theme.dim, lineWidth: 2))
     }
 
-    /// ALL, a filter for each kind the lists give (the most common first), and BUILT FROM SOURCE.
+    /// The order, then ALL, a filter for each kind the lists give (the most common first), and BUILT
+    /// FROM SOURCE.
     private var kindFilter: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 6) {
-                let scopes = FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model), includingSaved: false)
+                orderButton
+                let scopes = FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
                 ForEach(scopes, id: \.self) { scopeButton($0) }
             }
             .padding(.vertical, 1)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// Switches between the orders, saying which it's in: "SORT: NAME".
+    private var orderButton: some View {
+        @Bindable var settings = model.settings
+        return Button {
+            withAnimation(.easeOut(duration: 0.15)) {
+                settings.firmwareOrder = settings.firmwareOrder == .name ? .updated : .name
+            }
+        } label: {
+            Text("SORT: \(settings.firmwareOrder.name.uppercased())")
+                .font(.pixel(9, bold: true, relativeTo: .caption2))
+                .padding(.horizontal, 10)
+                .frame(minHeight: 32)
+                .foregroundStyle(theme.ink)
+                .background(theme.surface)
+                .overlay(PixelBox().strokeBorder(theme.dim, lineWidth: 2))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Sort by \(settings.firmwareOrder.name)")
     }
 
     private func scopeButton(_ option: FirmwareScope) -> some View {

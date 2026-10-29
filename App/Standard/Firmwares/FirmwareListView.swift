@@ -15,7 +15,8 @@ struct FirmwareListView: View {
     var onSelect: (CatalogueEntry) -> Void
 
     private var entries: [CatalogueEntry] {
-        FirmwareFilter(search: search).visible(in: model).filter { scope.includes($0, in: model) }
+        model.settings.firmwareOrder.sorted(
+            FirmwareFilter(search: search).visible(in: model).filter { scope.includes($0) })
     }
 
     var body: some View {
@@ -38,6 +39,7 @@ struct FirmwareListView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
             .animation(Motion.standard, value: scope)
+            .animation(Motion.standard, value: model.settings.firmwareOrder)
         }
         .background(Palette.ground)
         .navigationTitle("Firmwares")
@@ -79,7 +81,7 @@ struct FirmwareListView: View {
     }
 
     private var scopes: [FirmwareScope] {
-        FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model), includingSaved: true)
+        FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
     }
 
     private var scopePicker: some View {
@@ -94,6 +96,7 @@ struct FirmwareListView: View {
 
     private var scopeButtons: some View {
         HStack(spacing: 8) {
+            orderMenu
             ForEach(scopes, id: \.self) { option in
                 let isPicked = option == scope
                 Button(option.name) {
@@ -109,6 +112,27 @@ struct FirmwareListView: View {
             }
         }
         .padding(.top, 4)
+    }
+
+    /// The order the list is in, Name or Updated, as a menu at the start of the filters.
+    private var orderMenu: some View {
+        @Bindable var settings = model.settings
+        return Menu {
+            Picker("Sort by", selection: $settings.firmwareOrder) {
+                ForEach(FirmwareOrder.allCases) { Text($0.name).tag($0) }
+            }
+        } label: {
+            Label(settings.firmwareOrder.name, systemImage: "arrow.up.arrow.down")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14)
+                .frame(minHeight: 32)
+                .foregroundStyle(Palette.ink)
+                .background(Capsule().strokeBorder(Palette.control, lineWidth: 2))
+        }
+        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel("Sort by \(settings.firmwareOrder.name)")
     }
 
     /// How many firmwares there are, and when the list was last checked.
@@ -137,11 +161,7 @@ struct FirmwareListView: View {
     }
 
     @ViewBuilder private var emptyMessage: some View {
-        let message =
-            switch scope {
-            case .saved: "Firmwares you download appear here, ready to install even when you're offline."
-            default: search.isEmpty ? "No firmwares to show yet." : "Nothing matches “\(search)”."
-            }
+        let message = search.isEmpty ? "No firmwares to show yet." : "Nothing matches “\(search)”."
         Text(message)
             .font(.callout)
             .foregroundStyle(Palette.secondaryInk)

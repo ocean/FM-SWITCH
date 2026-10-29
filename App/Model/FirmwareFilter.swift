@@ -57,10 +57,10 @@ struct FirmwareFilter {
         kindNames[kind.lowercased()] ?? kind.prefix(1).uppercased() + kind.dropFirst()
     }
 
-    /// The filters a list offers: All, Saved when asked for, a filter for each kind the lists give
-    /// (the most common first), and Built from source when any firmware is.
-    nonisolated static func scopes(for entries: [CatalogueEntry], includingSaved: Bool) -> [FirmwareScope] {
-        var scopes: [FirmwareScope] = includingSaved ? [.all, .saved] : [.all]
+    /// The filters a list offers: All, a filter for each kind the lists give (the most common
+    /// first), and Built from source when any firmware is.
+    nonisolated static func scopes(for entries: [CatalogueEntry]) -> [FirmwareScope] {
+        var scopes: [FirmwareScope] = [.all]
         scopes += kinds(of: entries).map(FirmwareScope.kind)
         if entries.contains(where: \.isBuiltFromSource) { scopes.append(.builtFromSource) }
         return scopes
@@ -78,8 +78,6 @@ struct FirmwareFilter {
 /// One of a firmware list's quick filters.
 enum FirmwareScope: Hashable {
     case all
-    /// Firmwares with a copy saved here.
-    case saved
     /// Firmwares the lists give this kind, such as "synth".
     case kind(String)
     /// Firmwares built from their source by GitHub Actions, as a signed record says.
@@ -88,19 +86,46 @@ enum FirmwareScope: Hashable {
     var name: String {
         switch self {
         case .all: "All"
-        case .saved: "Saved"
         case .kind(let kind): FirmwareFilter.name(of: kind)
         case .builtFromSource: "Built from source"
         }
     }
 
-    @MainActor
-    func includes(_ entry: CatalogueEntry, in model: AppModel) -> Bool {
+    func includes(_ entry: CatalogueEntry) -> Bool {
         switch self {
         case .all: true
-        case .saved: FirmwareFilter.isSaved(entry, in: model)
         case .kind(let kind): FirmwareFilter.isKind(kind, entry)
         case .builtFromSource: entry.isBuiltFromSource
+        }
+    }
+}
+
+/// The order a firmware list shows its firmwares in.
+enum FirmwareOrder: String, CaseIterable, Identifiable {
+    /// M-VAVE's firmware first, then by name.
+    case name
+    /// The newest release first, then by name; firmwares without a release date go last.
+    case updated
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .name: "Name"
+        case .updated: "Updated"
+        }
+    }
+
+    /// `entries`, as the catalogue gives them (by name), in this order.
+    func sorted(_ entries: [CatalogueEntry]) -> [CatalogueEntry] {
+        switch self {
+        case .name:
+            entries
+        case .updated:
+            // Dates are yyyy-mm-dd, so they sort as text; the index keeps the name order for a tie.
+            entries.enumerated()
+                .sorted { ($0.element.date ?? "", $1.offset) > ($1.element.date ?? "", $0.offset) }
+                .map(\.element)
         }
     }
 }

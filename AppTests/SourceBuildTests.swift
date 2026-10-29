@@ -54,7 +54,7 @@ struct SourceBuildTests {
         let built = try entry(
             provenance: #"{"sha256": "\#(Self.sha)", "repo": "a/b", "commit": "\#(Self.commit)", "verified": true}"#)
         let plain = CatalogueEntry(id: "x", name: "X", kinds: ["synth"], listing: .hub)
-        #expect(FirmwareFilter.scopes(for: [plain], includingSaved: false) == [.all, .kind("synth")])
-        #expect(FirmwareFilter.scopes(for: [plain, built], includingSaved: true).last == .builtFromSource)
+        #expect(FirmwareFilter.scopes(for: [plain]) == [.all, .kind("synth")])
+        #expect(FirmwareFilter.scopes(for: [plain, built]).last == .builtFromSource)
     }
 }
