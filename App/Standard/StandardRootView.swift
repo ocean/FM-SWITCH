@@ -113,7 +113,7 @@ struct StandardRootView: View {
             section = .firmwares
             selectedFirmwareID = id
         case .firmware(let id):
-            if let entry = model.catalogue.entry(id: id) { path = [.firmwares, .firmware(entry)] }
+            if let entry = model.firmware(id: id) { path = [.firmwares, .firmware(entry)] }
         }
     }
 
@@ -268,7 +268,7 @@ struct StandardRootView: View {
                 .frame(width: 380)
             Divider()
             Group {
-                if let id = selectedFirmwareID, let entry = model.catalogue.entry(id: id) {
+                if let id = selectedFirmwareID, let entry = model.firmware(id: id) {
                     FirmwarePageView(listed: entry)
                         .id(id)
                         .transition(.opacity)

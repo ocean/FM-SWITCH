@@ -153,9 +153,16 @@ struct FirmwareListView: View {
         do {
             let item = try model.library.importFile(at: result.get())
             importMessage =
-                item.source == .official
-                ? "Added M-VAVE's official firmware."
-                : "Added \(item.name). It isn't in the firmware list, so check where it came from before installing it."
+                if item.source == .official {
+                    "Added M-VAVE's official firmware."
+                } else if model.catalogue.entries.contains(where: { $0.sha256 == item.sha256 }) {
+                    "Added \(item.name) to My firmwares."
+                } else {
+                    """
+                    Added \(item.name) to My firmwares. It isn't in the firmware lists, so check where it came \
+                    from before installing it.
+                    """
+                }
         } catch {
             importMessage = error.localizedDescription
         }
@@ -253,7 +260,9 @@ struct FirmwareCard: View {
             Tag(text: "Saved", ink: Palette.ink, fill: Palette.control)
         }
         // Not known to work on an FM-1 says more than a test release, so only that shows.
-        if !entry.isHardwareTested {
+        if entry.isFromFile {
+            Tag(text: "From a file", ink: Palette.warningInk, fill: Palette.warningBackground)
+        } else if !entry.isHardwareTested {
             Tag(text: "In testing", ink: Palette.warningInk, fill: Palette.warningBackground)
         } else if entry.beta {
             Tag(text: "Test version", ink: Palette.warningInk, fill: Palette.warningBackground)

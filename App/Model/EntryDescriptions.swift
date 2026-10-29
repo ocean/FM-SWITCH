@@ -2,7 +2,8 @@
 extension CatalogueEntry {
     /// The lists the firmware is on, e.g. "Firmware hub + fm1-editor.com".
     var listedOn: String {
-        [
+        if isFromFile { return "None: added from a file" }
+        return [
             listing.contains(.hub) ? "Firmware hub" : nil,
             listing.contains(.editor) ? "fm1-editor.com" : nil,
             listing.contains(.resourceHub) ? "FM1 Resource Hub" : nil,
@@ -20,7 +21,8 @@ extension CatalogueEntry {
 
     /// Where the firmware's file comes from.
     var packageSource: String {
-        switch packageOrigin {
+        if isFromFile { return "A file you added" }
+        return switch packageOrigin {
         case .hub: "Firmware hub mirror"
         case .githubRelease: "GitHub release"
         case .publisherManifest: "The publisher's site"

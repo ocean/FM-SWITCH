@@ -8,7 +8,7 @@ struct FirmwarePageView: View {
     let listed: CatalogueEntry
 
     /// The listed release, or a newer one found at the firmware's source.
-    private var entry: CatalogueEntry { model.catalogue.entry(id: listed.id) ?? listed }
+    private var entry: CatalogueEntry { model.firmware(id: listed.id) ?? listed }
     private var stored: StoredFirmware? { model.library.stored(for: entry) }
     private var isDownloading: Bool { model.library.downloading.contains(entry.id) }
 
@@ -105,9 +105,15 @@ struct FirmwarePageView: View {
         .background(Color(rgb: design.strongerHalf))
     }
 
-    /// A warning for firmwares no one has tried on a real FM-1 yet.
+    /// A warning for firmwares no one has tried on a real FM-1 yet, or that no list describes.
     @ViewBuilder private var untested: some View {
-        if !entry.isHardwareTested {
+        if entry.isFromFile {
+            Notice(
+                "Added from a file, and not in the firmware lists, so check where it came from.",
+                systemImage: "exclamationmark.triangle",
+                isWarning: true
+            )
+        } else if !entry.isHardwareTested {
             Notice(
                 """
                 In testing: not yet known to work on a real FM-1. It's only listed in aroum's FM1 Resource \
@@ -268,7 +274,9 @@ struct FirmwarePageView: View {
                 if let stars = entry.stars { detailRow("GitHub stars", "\(stars)") }
                 detailRow("Recovery", entry.rescueMode?.summary ?? "Not known")
                 detailRow("Listed on", entry.listedOn)
-                detailRow("Tested on an FM-1", entry.isHardwareTested ? "Yes" : "In testing")
+                if !entry.isFromFile {
+                    detailRow("Tested on an FM-1", entry.isHardwareTested ? "Yes" : "In testing")
+                }
                 detailRow("Built from source", entry.sourceBuildSummary)
                 detailRow("File from", entry.packageSource)
                 detailRow("SHA-256", entry.sha256.map { String($0.prefix(16)) + "…" } ?? "Not published")

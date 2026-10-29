@@ -7,8 +7,9 @@ struct MyFirmwaresView: View {
     var selectedID: String?
     var onSelect: (CatalogueEntry) -> Void
 
+    /// The listed firmwares saved here, then the ones added from files that no list describes.
     private var saved: [CatalogueEntry] {
-        model.catalogue.entries.filter { FirmwareFilter.isSaved($0, in: model) }
+        model.catalogue.entries.filter { FirmwareFilter.isSaved($0, in: model) } + model.addedFromFiles
     }
 
     /// Starred and not saved: a saved one is listed with the saved ones, with its star.
@@ -57,6 +58,8 @@ struct MyFirmwaresView: View {
         }
     }
 
-    static let savedEmpty = "Firmwares you download appear here, ready to install even when you're offline."
+    static let savedEmpty = """
+        Firmwares you download or add with + appear here, ready to install even when you're offline.
+        """
     static let starredEmpty = "Star a firmware on its page to keep it here without downloading it."
 }
