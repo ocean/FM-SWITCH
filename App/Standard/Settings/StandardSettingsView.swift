@@ -40,21 +40,24 @@ struct StandardSettingsView: View {
         }
     }
 
-    /// Standard or Retro, once Retro's been found.
-    @ViewBuilder private var look: some View {
+    /// Standard or Retro, and the app's icon.
+    ///
+    /// The Easter egg on the home screen still finds Retro; this is the way in for everyone else.
+    private var look: some View {
         @Bindable var settings = model.settings
-        if settings.isRetroFound {
-            Section {
-                Picker("Look", selection: $settings.look.animation(Motion.fade)) {
-                    Text("Standard").tag(Look.standard)
-                    Text("Retro").tag(Look.retro)
-                }
-                if AlternateIcon.isAvailable {
-                    AppIconPicker()
-                }
-            } footer: {
-                caption("You found Retro, an 8-bit look for the app. Switch to it here any time.")
+        return Section {
+            Picker("Look", selection: $settings.look.animation(Motion.fade)) {
+                Text("Standard").tag(Look.standard)
+                Text("Retro").tag(Look.retro)
             }
+            if AlternateIcon.isAvailable {
+                AppIconPicker()
+            }
+        } footer: {
+            caption(
+                settings.isRetroFound
+                    ? "You found Retro, an 8-bit look for the app. Switch to it here any time."
+                    : "Retro is an 8-bit look for the app. There's another way to find it, if you look.")
         }
     }
 
