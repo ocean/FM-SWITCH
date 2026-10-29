@@ -162,7 +162,7 @@ final class CatalogueStore {
                 // can't be used, not when the network's down.
                 built = try await CatalogueBuilder(fetch: Network.fetch).build(previous: catalogue?.entries ?? [])
             }
-            catalogue = built
+            catalogue = Self.correctingTestFlags(of: built)
             // The lists may have caught up; pages check their sources again when opened.
             sourceChecks = [:]
             if let data = try? JSONEncoder().encode(built) {
@@ -191,7 +191,22 @@ final class CatalogueStore {
         // Lists saved before 17 October 2026 could hold an ID twice, which shows as a blank row.
         var seenIDs: Set<String> = []
         cached.entries = cached.entries.filter { seenIDs.insert($0.id).inserted }
-        catalogue = cached
+        catalogue = Self.correctingTestFlags(of: cached)
+    }
+
+    /// The list, with the firmware hub's test flag kept only for versions that look like tests.
+    ///
+    /// The hub marks every version before 1.0 as a beta, and lists built before the app knew that
+    /// still carry its flag, so a card would say Test version until the page checked GitHub.
+    static func correctingTestFlags(of catalogue: MergedCatalogue) -> MergedCatalogue {
+        var catalogue = catalogue
+        catalogue.entries = catalogue.entries.map { entry in
+            guard entry.beta, entry.packageOrigin == .hub || entry.packageOrigin == nil else { return entry }
+            var entry = entry
+            entry.beta = entry.version.map(ReleaseVersion.looksLikePreRelease) ?? false
+            return entry
+        }
+        return catalogue
     }
 }
 
