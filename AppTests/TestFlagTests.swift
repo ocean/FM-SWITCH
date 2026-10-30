@@ -30,4 +30,26 @@ struct TestFlagTests {
     @Test func keepsGitHubsPreReleaseFlag() {
         #expect(corrected([flagged("radio", "1.3", from: .githubRelease)]) == ["radio": true])
     }
+
+    @Test func marksAnUntaggedBuildAsATest() {
+        let commit = "047d21f6154ff6f86c7d3dc4b90f8d5e3320c300"
+        let entry = CatalogueEntry(id: "kawa", name: "KAWA", version: commit, packageOrigin: .hub, listing: .hub)
+        let list = MergedCatalogue(
+            formatVersion: MergedCatalogue.currentFormat,
+            builtAt: .now,
+            hubUpdated: nil,
+            entries: [entry],
+            problems: [])
+        let fixed = CatalogueStore.correctingTestFlags(of: list).entries
+        #expect(fixed.map(\.beta) == [true])
+        #expect(fixed.map(\.version) == ["047d21f"])
+    }
+
+    @Test(arguments: [
+        ("047d21f6154ff6f86c7d3dc4b90f8d5e3320c300", true), ("047d21f", true), ("20261020", false),
+        ("0.3.7", false), ("beef", false),
+    ])
+    func recognisesACommit(version: String, isCommit: Bool) {
+        #expect(ReleaseVersion.isCommit(version) == isCommit)
+    }
 }

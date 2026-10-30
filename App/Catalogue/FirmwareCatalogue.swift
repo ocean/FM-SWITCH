@@ -330,9 +330,10 @@ struct HubFeed: Decodable, Sendable {
                 author: author,
                 kinds: kinds,
                 what: what,
-                version: version,
+                version: ReleaseVersion.asListed(version),
                 date: date,
-                beta: beta && ReleaseVersion.looksLikePreRelease(version),
+                // An untagged build is a test, even when the hub doesn't flag it.
+                beta: ReleaseVersion.isCommit(version) || beta && ReleaseVersion.looksLikePreRelease(version),
                 packageURL: URL(string: pkg, relativeTo: feedURL)?.absoluteURL,
                 packageOrigin: .hub,
                 product: product,

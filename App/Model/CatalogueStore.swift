@@ -194,16 +194,23 @@ final class CatalogueStore {
         catalogue = Self.correctingTestFlags(of: cached)
     }
 
-    /// The list, with the firmware hub's test flag kept only for versions that look like tests.
+    /// The list, with the firmware hub's test flag kept only for versions that look like tests,
+    /// and untagged builds marked as tests and shortened to their commit's first seven characters.
     ///
     /// The hub marks every version before 1.0 as a beta, and lists built before the app knew that
-    /// still carry its flag, so a card would say Test version until the page checked GitHub.
+    /// still carry its flag, so a card would say Test version until the page checked GitHub. Lists
+    /// built before 30 October 2026 also give an untagged build's whole commit as a stable version.
     static func correctingTestFlags(of catalogue: MergedCatalogue) -> MergedCatalogue {
         var catalogue = catalogue
         catalogue.entries = catalogue.entries.map { entry in
-            guard entry.beta, entry.packageOrigin == .hub || entry.packageOrigin == nil else { return entry }
+            guard entry.packageOrigin == .hub || entry.packageOrigin == nil else { return entry }
             var entry = entry
-            entry.beta = entry.version.map(ReleaseVersion.looksLikePreRelease) ?? false
+            if let version = entry.version, ReleaseVersion.isCommit(version) {
+                entry.version = ReleaseVersion.asListed(version)
+                entry.beta = true
+            } else if entry.beta {
+                entry.beta = entry.version.map(ReleaseVersion.looksLikePreRelease) ?? false
+            }
             return entry
         }
         return catalogue

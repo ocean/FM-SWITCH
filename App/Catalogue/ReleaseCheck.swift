@@ -209,8 +209,17 @@ enum ReleaseVersion {
     }
 
     /// The version as the lists give it, without a tag's "v": "1.5.1", not "v1.5.1".
+    ///
+    /// A commit is shortened to its first seven characters, as Git shows it.
     static func asListed(_ version: String) -> String {
-        version.replacing(#/^v(?=\d)/#, with: "")
+        isCommit(version) ? String(version.prefix(7)) : version.replacing(#/^v(?=\d)/#, with: "")
+    }
+
+    /// True when the version is a commit, as when the firmware hub lists an untagged build.
+    ///
+    /// A commit has a letter somewhere, so a date such as "20261020" isn't taken for one.
+    static func isCommit(_ version: String) -> Bool {
+        version.wholeMatch(of: #/(?i)[0-9a-f]{7,40}/#) != nil && version.contains(where: \.isLetter)
     }
 
     /// True unless the two name the same release, as "v0.3.7" and "0.3.7" do.
