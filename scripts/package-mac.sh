@@ -8,7 +8,8 @@
 #
 # It checks that the app and its flash tool are signed with the same Developer ID team, that
 # Gatekeeper accepts it as notarised, and that the ticket is stapled. Then it makes a DMG of the
-# app and a link to Applications, signs it with that team's Developer ID, has Apple notarise it,
+# app and a link to Applications, set out over an arrow from one to the other (drawn by
+# make-dmg-background.swift), signs it with that team's Developer ID, has Apple notarise it,
 # staples the ticket and checks the result. It writes .artifacts/release/FM-SWITCH-<version>.dmg,
 # its SHA-256, and a copy named FM-SWITCH.dmg, which the site links to as the latest release's.
 #
@@ -89,14 +90,62 @@ latest="$out/FM-SWITCH.dmg"
 mkdir -p "$out"
 rm -f "$dmg" "$dmg.sha256" "$latest"
 
-# The DMG's window shows the app beside Applications, to drag it across.
+# The DMG's window shows the app beside Applications, with an arrow between them to drag it across.
+# Finder keeps the layout in the volume's .DS_Store, so it's set out in Finder on a writable copy,
+# which is then compressed. The icons' places match the arrow in scripts/dmg-background.tiff.
+volume="FM-SWITCH"
+[[ ! -e "/Volumes/$volume" ]] || fail "A disk called $volume is open. Eject it first."
 work=$(mktemp -d)
 mount="$work/mount"
-trap 'hdiutil detach -quiet "$mount" 2>/dev/null || true; rm -rf "$work"' EXIT
-mkdir "$work/contents"
+trap 'hdiutil detach -quiet "$mount" 2>/dev/null || hdiutil detach -quiet "/Volumes/$volume" 2>/dev/null || true; rm -rf "$work"' EXIT
+mkdir -p "$work/contents/.background"
 ditto "$app" "$work/contents/$(basename "$app")"
 ln -s /Applications "$work/contents/Applications"
-hdiutil create -quiet -volname "FM-SWITCH" -srcfolder "$work/contents" -fs HFS+ -format UDZO "$dmg"
+cp scripts/dmg-background.tiff "$work/contents/.background/background.tiff"
+hdiutil create -quiet -volname "$volume" -srcfolder "$work/contents" -fs HFS+ -format UDRW "$work/writable.dmg"
+hdiutil attach -quiet -noautoopen "$work/writable.dmg"
+# The first run asks for permission to control Finder.
+osascript - "$volume" "$(basename "$app")" <<'APPLESCRIPT'
+on run {volumeName, appName}
+    tell application "Finder"
+        tell disk volumeName
+            open
+            set current view of container window to icon view
+            set toolbar visible of container window to false
+            set statusbar visible of container window to false
+            -- The background is 640 by 330 points, under a 28-point title bar.
+            set the bounds of container window to {200, 120, 840, 478}
+            set viewOptions to the icon view options of container window
+            set arrangement of viewOptions to not arranged
+            set icon size of viewOptions to 128
+            set text size of viewOptions to 13
+            set background picture of viewOptions to file ".background:background.tiff"
+            set position of item appName of container window to {160, 100}
+            set position of item "Applications" of container window to {480, 100}
+            -- Out of sight for people whose Finder shows hidden files.
+            set position of item ".background" of container window to {160, 700}
+            -- Finder writes the layout when the window closes.
+            close
+            open
+            update without registering applications
+            delay 2
+            close
+        end tell
+    end tell
+end run
+APPLESCRIPT
+chflags hidden "/Volumes/$volume/.background"
+# Finder saves the layout in its own time, the background last, so the disk isn't ejected until
+# the background's there.
+for _ in {1..30}; do
+    grep -q backgroundImageAlias "/Volumes/$volume/.DS_Store" 2>/dev/null && break
+    sleep 1
+done
+grep -q backgroundImageAlias "/Volumes/$volume/.DS_Store" 2>/dev/null || fail "Finder didn't save the window's layout."
+sync
+rm -rf "/Volumes/$volume/.fseventsd"
+hdiutil detach -quiet "/Volumes/$volume"
+hdiutil convert -quiet "$work/writable.dmg" -format UDZO -imagekey zlib-level=9 -o "$dmg"
 codesign --sign "$identity" --timestamp "$dmg"
 codesign --verify --strict --verbose=2 "$dmg"
 
