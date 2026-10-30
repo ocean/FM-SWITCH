@@ -148,19 +148,12 @@ struct FirmwarePageView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("This release comes in \(builds.count) versions")
                     .font(.headline)
-                Picker(
-                    "Version",
-                    selection: Binding(
-                        get: { entry.build ?? "" },
-                        set: { model.catalogue.choose(build: $0, for: listed.id) }
-                    )
-                ) {
-                    if entry.build == nil { Text("Choose one").tag("") }
-                    ForEach(builds, id: \.name) { build in
-                        Text(build.name.capitalized).tag(build.name)
-                    }
+                // Segments can't shrink, so too many to fit would widen the window; then it's a menu.
+                ViewThatFits(in: .horizontal) {
+                    buildPicker(builds).pickerStyle(.segmented)
+                    buildPicker(builds).pickerStyle(.menu).fixedSize()
                 }
-                .pickerStyle(.segmented)
+                .labelsHidden()
                 Text("Pick another than the usual one only if its release notes say it suits you.")
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryInk)
@@ -322,6 +315,24 @@ struct FirmwarePageView: View {
             installing = try await model.library.download(entry)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+extension FirmwarePageView {
+    /// A picker of the release's builds, styled by whoever shows it.
+    fileprivate func buildPicker(_ builds: [CatalogueEntry.Build]) -> some View {
+        Picker(
+            "Version",
+            selection: Binding(
+                get: { entry.build ?? "" },
+                set: { model.catalogue.choose(build: $0, for: listed.id) }
+            )
+        ) {
+            if entry.build == nil { Text("Choose one").tag("") }
+            ForEach(builds, id: \.name) { build in
+                Text(build.name.capitalized).tag(build.name)
+            }
         }
     }
 }
