@@ -2,7 +2,7 @@ import Foundation
 
 /// Asks a firmware's own source whether there is a newer release than the one listed.
 ///
-/// The firmware hub and fm1-editor.com only rebuild their lists every so often, while some
+/// The Firmware Hub and fm1-editor.com only rebuild their lists every so often, while some
 /// projects release several times a day, so a listing can be a release or two behind. The
 /// check goes to the project's GitHub releases (or, for firmwares found on their publisher's
 /// site, that site again) and, if it finds a newer version on the same track, returns the
@@ -215,7 +215,7 @@ enum ReleaseVersion {
         isCommit(version) ? String(version.prefix(7)) : version.replacing(#/^v(?=\d)/#, with: "")
     }
 
-    /// True when the version is a commit, as when the firmware hub lists an untagged build.
+    /// True when the version is a commit, as when The Firmware Hub lists an untagged build.
     ///
     /// A commit has a letter somewhere, so a date such as "20261020" isn't taken for one.
     static func isCommit(_ version: String) -> Bool {
@@ -230,7 +230,7 @@ enum ReleaseVersion {
 
     /// True when the version says it's a test release, as "1.6.0-rc.6", "1.0-test" and "Beta6" do.
     ///
-    /// The firmware hub marks every version before 1.0 as a beta, so its flag alone doesn't say.
+    /// The Firmware Hub marks every version before 1.0 as a beta, so its flag alone doesn't say.
     static func looksLikePreRelease(_ version: String) -> Bool {
         version.firstMatch(of: #/(?i)alpha|beta|rc|pre|test|dev|-b\d/#) != nil
     }

@@ -1,7 +1,7 @@
 # FM-SWITCH
 
 An app for iPhone, iPad and Mac for swapping M-VAVE FM-1 firmwares over USB. Firmwares come
-from the firmware hub's catalogue merged with fm1-editor.com's list, and are saved on the device
+from The Firmware Hub's catalogue merged with fm1-editor.com's list, and are saved on the device
 for offline flashing. M-VAVE's official V15 comes with the app (from M-VAVE's open-source
 [fm1_open](https://github.com/m-vave/fm1_open), Apache-2.0), so it's always there to go back to.
 See `PLAN.md` for the research and the phased plan.
@@ -12,9 +12,10 @@ See `PLAN.md` for the research and the phased plan.
 project.yml              XcodeGen spec (the .xcodeproj is generated, not committed)
 App/                     SwiftUI app (iOS 17+)
   Theme/                 8-bit look: accent colour, pixel fonts, pixel boxes, optional CRT effects
-  Catalogue/             merged firmware list: thefirmwarehub.com feed, fm1-editor.com page and
-                         aroum's FM1 Resource Hub README; package discovery (GitHub releases,
-                         publisher manifests, project pages, M-VAVE's downloads); live checks
+  Catalogue/             merged firmware list: thefirmwarehub.com feed, fm1-editor.com page,
+                         aroum's FM1 Resource Hub README and mutant.cloud's JSON; package
+                         discovery (GitHub releases, publisher manifests, project pages,
+                         M-VAVE's downloads); live checks
                          for newer releases and their builds
   Model/                 settings, catalogue, saved firmwares, flash history, device controller
   Views/                 Device, Firmware (catalogue), Saved, Setup, Flash; the wide layout
@@ -41,9 +42,12 @@ uses its tagged release from GitHub, taking 0.4.x fixes but not 0.5.0, which may
 
 ### The firmware list
 
-The list merges three sources: the firmware hub's catalogue, fm1-editor.com and
-[aroum's FM1 Resource Hub](https://github.com/aroum/fm1-custom-fw). Only facts are taken from
-aroum's list (names, authors, links, licences and sections), as its repository has no licence.
+The list merges four sources: The Firmware Hub's catalogue, fm1-editor.com,
+[aroum's FM1 Resource Hub](https://github.com/aroum/fm1-custom-fw) and
+[mutant.cloud](https://mutant.cloud/). Only facts are taken from aroum's list and mutant.cloud
+(names, authors, links, licences and kinds), as neither gives a licence for its text, and
+mutant.cloud's packages aren't used, as anyone can edit its entries. Firmwares only these two
+list install behind a warning that they may not have been tested on a real FM-1.
 
 fm-1.drewr.dev builds the list once a day with `fm1-catalogue` and publishes it as
 [firmwares.json](https://fm-1.drewr.dev/firmwares.json). The app downloads that, and builds the
@@ -62,8 +66,11 @@ words, marked with `whatSource: "gitHub"` so the app can say where it's from. A 
 firmwares share describes none of them.
 
 `--previous` is the last published list: packages that can't be found this time fall back on it,
-and a list more than a fifth shorter is refused. Any exit code but 0 means "don't publish": 1 for
-bad arguments or a failed write, 2 when a source can't be read, 3 for a list that shrank.
+and so do the firmwares of a source that can't be read. A list more than a fifth shorter is
+refused. Exit codes: 0 written; 1 for bad arguments or a failed write; 2 when a source can't be
+read and there's no previous list, so nothing is written; 3 for a list that shrank, also not
+written; 4 when a source can't be read and its firmwares came from the previous list, so the list
+is written to publish, but the run should still fail.
 
 `MergedCatalogue.currentFormat` is the file's format, raised only for changes that would break
 an app reading it. The app ignores a list in a newer format and builds its own instead.

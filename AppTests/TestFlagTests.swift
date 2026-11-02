@@ -2,7 +2,7 @@ import Testing
 
 @testable import FMSwitch
 
-/// Lists built before the app knew the firmware hub marks every 0.x version a beta.
+/// Lists built before the app knew The Firmware Hub marks every 0.x version a beta.
 @MainActor
 struct TestFlagTests {
     /// A firmware flagged as a test release, with its file from `origin`.

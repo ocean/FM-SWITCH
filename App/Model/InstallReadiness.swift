@@ -33,8 +33,8 @@ struct InstallReadiness: Equatable {
 
     /// Why an untested firmware is a risk, for both looks' confirmation screens.
     static let untestedWarning = """
-        This firmware is only listed on the FM1 Resource Hub, not on FM-1 Firmware Hub or \
-        fm1-editor.com, so it may not have been well tested on a real FM-1. It may not install, or \
+        This firmware is only listed on aroum's FM1 Resource Hub or mutant.cloud, not on The Firmware \
+        Hub or fm1-editor.com, so it may not have been well tested on a real FM-1. It may not install, or \
         may not let another firmware install after it. Recovery might need a computer, check \
         this app's settings for further information.
         """

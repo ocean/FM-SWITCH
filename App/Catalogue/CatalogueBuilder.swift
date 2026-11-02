@@ -13,7 +13,7 @@ public struct MergedCatalogue: Codable, Sendable, Equatable {
     public var formatVersion: Int?
     /// When the list was built.
     public var builtAt: Date
-    /// When the firmware hub last rebuilt its catalogue, as the hub writes it, e.g. "2026-10-14 20:00 UTC".
+    /// When The Firmware Hub last rebuilt its catalogue, as the hub writes it, e.g. "2026-10-14 20:00 UTC".
     var hubUpdated: String?
     var entries: [CatalogueEntry]
     /// Sources that couldn't be read on this refresh, in plain words.
@@ -26,9 +26,9 @@ public struct MergedCatalogue: Codable, Sendable, Equatable {
     public var isReadable: Bool { (formatVersion ?? 1) <= Self.currentFormat }
 }
 
-/// Builds the merged list: the firmware hub's catalogue, plus the firmwares on fm1-editor.com and
-/// in aroum's FM1 Resource Hub that it doesn't carry, with packages discovered for those where
-/// possible.
+/// Builds the merged list: The Firmware Hub's catalogue, plus the firmwares on fm1-editor.com, in
+/// aroum's FM1 Resource Hub and on mutant.cloud that it doesn't carry, with packages discovered for
+/// those where possible.
 public struct CatalogueBuilder: Sendable {
     typealias Fetch = PackageDiscovery.Fetch
 
@@ -36,13 +36,14 @@ public struct CatalogueBuilder: Sendable {
         case nothingReachable
 
         var errorDescription: String? {
-            "Couldn't reach the firmware hub, fm1-editor.com or aroum's FM1 Resource Hub."
+            "Couldn't reach The Firmware Hub, fm1-editor.com, aroum's FM1 Resource Hub or mutant.cloud."
         }
     }
 
     var hubURL = HubFeed.defaultURL
     var editorURL = EditorListing.defaultURL
     var resourceHubURL = ResourceHubListing.defaultURL
+    var mutantCloudURL = MutantCloudListing.defaultURL
     let fetch: Fetch
     /// Whether to fill in missing descriptions from GitHub, at a request per firmware.
     let describesFromGitHub: Bool
@@ -58,38 +59,51 @@ public struct CatalogueBuilder: Sendable {
     }
 
     /// Fetches the lists and merges them, falling back on `previous` for packages that can't be
-    /// found this time.
+    /// found this time, and for the firmwares of a list that can't be read.
     public func build(after previous: MergedCatalogue?) async throws -> MergedCatalogue {
         try await build(previous: previous?.entries ?? [])
     }
 
     /// Fetches the lists and merges them. `previous` supplies discovered packages to fall back
-    /// on when a project's site or GitHub can't be reached this time.
+    /// on when a project's site or GitHub can't be reached this time, and the firmwares of a list
+    /// that can't be read.
     func build(previous: [CatalogueEntry] = []) async throws -> MergedCatalogue {
         async let hubData = try? fetch(hubURL)
         async let editorData = try? fetch(editorURL)
         async let resourceHubData = try? fetch(resourceHubURL)
+        async let mutantCloudData = try? fetch(mutantCloudURL)
         let hub = await hubData.flatMap { try? HubFeed.decode($0) }
+        // A list that reads as empty has most likely changed its layout, so counts as unread.
         let editor = await editorData.flatMap { String(data: $0, encoding: .utf8) }
             .map { html in EditorListing(html: html, pageURL: editorURL) }
+            .flatMap { $0.entries.isEmpty ? nil : $0 }
         let resourceHub = await resourceHubData.flatMap { String(data: $0, encoding: .utf8) }
             .map { markdown in ResourceHubListing(markdown: markdown) }
+            .flatMap { $0.entries.isEmpty ? nil : $0 }
+        let mutantCloud = await mutantCloudData.flatMap { try? MutantCloudListing(json: $0) }
+            .flatMap { $0.entries.isEmpty ? nil : $0 }
 
+        var unread: CatalogueEntry.Listing = []
         var problems: [String] = []
-        if hub == nil { problems.append("The firmware hub couldn't be read.") }
-        if editor == nil || editor?.entries.isEmpty == true { problems.append("fm1-editor.com couldn't be read.") }
-        if resourceHub == nil || resourceHub?.entries.isEmpty == true {
-            problems.append("aroum's FM1 Resource Hub couldn't be read.")
+        for (isRead, listing, name) in [
+            (hub != nil, CatalogueEntry.Listing.hub, "The Firmware Hub"), (editor != nil, .editor, "fm1-editor.com"),
+            (resourceHub != nil, .resourceHub, "aroum's FM1 Resource Hub"),
+            (mutantCloud != nil, .mutantCloud, "mutant.cloud"),
+        ] where !isRead {
+            unread.insert(listing)
+            problems.append("\(name) couldn't be read.")
         }
-        guard hub != nil || editor?.entries.isEmpty == false || resourceHub?.entries.isEmpty == false else {
-            throw Failure.nothingReachable
-        }
+        guard unread != [.hub, .editor, .resourceHub, .mutantCloud] else { throw Failure.nothingReachable }
 
-        let merged = Self.merge(
-            resourceHub: resourceHub?.entries ?? [],
+        let fresh = Self.merge(
+            mutantCloud: mutantCloud?.entries ?? [],
             into: Self.merge(
-                hub: hub?.entries(relativeTo: hubURL) ?? [], editor: editor?.entries ?? [], editorURL: editorURL)
+                resourceHub: resourceHub?.entries ?? [],
+                into: Self.merge(
+                    hub: hub?.entries(relativeTo: hubURL) ?? [], editor: editor?.entries ?? [], editorURL: editorURL)
+            )
         )
+        let merged = Self.carry(previous, listedOnlyBy: unread, into: fresh)
         let discovery = PackageDiscovery(fetch: fetch)
         let previousByID = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
@@ -204,50 +218,6 @@ public struct CatalogueBuilder: Sendable {
         return entries
     }
 
-    /// Adds aroum's FM1 Resource Hub: what it adds to firmwares already listed, then the rest.
-    static func merge(resourceHub: [ResourceHubListing.Entry], into listed: [CatalogueEntry]) -> [CatalogueEntry] {
-        var entries = listed
-        let pageLink = CatalogueLink(label: "FM1 Resource Hub listing", url: ResourceHubListing.pageURL)
-        // A repository several firmwares share (one repository for HYP-1, LOF-1, ECO-1 and GRAV-1)
-        // doesn't say which firmware is which.
-        let repoCounts = resourceHub.flatMap { Set(repos(in: $0.links)) }.reduce(into: [:]) { $0[$1, default: 0] += 1 }
-        let sharedRepos = Set(repoCounts.filter { $0.value > 1 }.keys)
-        for found in resourceHub {
-            let isSame = { (entry: CatalogueEntry) in
-                matches(entry, links: found.links, name: found.name, ignoringRepos: sharedRepos)
-            }
-            if let index = entries.firstIndex(where: isSame) {
-                var entry = entries[index]
-                entry.listing.insert(.resourceHub)
-                if entry.author == nil { entry.author = found.author }
-                if entry.licence == nil { entry.licence = found.licence }
-                for kind in found.kinds where !entry.kinds.contains(kind) {
-                    entry.kinds.append(kind)
-                }
-                for link in found.links + [pageLink]
-                where !entry.links.contains(where: { $0.comparable == link.comparable }) {
-                    entry.links.append(link)
-                }
-                entries[index] = entry
-            } else {
-                let id = "resource-hub-\(slug(found.name))"
-                // Each entry needs its own ID: two the same would show as a blank row.
-                guard !entries.contains(where: { $0.id == id }) else { continue }
-                entries.append(
-                    CatalogueEntry(
-                        id: id,
-                        name: found.name,
-                        author: found.author,
-                        kinds: found.kinds,
-                        links: found.links + [pageLink],
-                        listing: .resourceHub,
-                        licence: found.licence
-                    ))
-            }
-        }
-        return entries
-    }
-
     /// A name as an ID: lowercase letters and numbers, joined by hyphens.
     static func slug(_ name: String) -> String {
         name.lowercased()
@@ -318,7 +288,7 @@ public struct CatalogueBuilder: Sendable {
     }
 
     /// The GitHub repositories links point at, including through GitHub Pages, as "owner/name".
-    private static func repos(in links: [CatalogueLink]) -> [String] {
+    static func repos(in links: [CatalogueLink]) -> [String] {
         PackageDiscovery.gitHubRepos(in: links).map { "\($0.owner)/\($0.name)".lowercased() }
     }
 

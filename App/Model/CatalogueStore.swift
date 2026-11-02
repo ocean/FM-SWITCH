@@ -4,9 +4,9 @@ import os
 
 /// The firmware list, loaded from the on-device copy at launch and refreshed on request.
 ///
-/// A refresh downloads the list fm-1.drewr.dev builds each day from the firmware hub,
-/// fm1-editor.com and aroum's FM1 Resource Hub. If that can't be read, the app builds the list
-/// itself from the same sources.
+/// A refresh downloads the list fm-1.drewr.dev builds each day from The Firmware Hub,
+/// fm1-editor.com, aroum's FM1 Resource Hub and mutant.cloud. If that can't be read, the app
+/// builds the list itself from the same sources.
 @MainActor
 @Observable
 final class CatalogueStore {
@@ -194,7 +194,7 @@ final class CatalogueStore {
         catalogue = Self.correctingTestFlags(of: cached)
     }
 
-    /// The list, with the firmware hub's test flag kept only for versions that look like tests,
+    /// The list, with The Firmware Hub's test flag kept only for versions that look like tests,
     /// and untagged builds marked as tests and shortened to their commit's first seven characters.
     ///
     /// The hub marks every version before 1.0 as a beta, and lists built before the app knew that

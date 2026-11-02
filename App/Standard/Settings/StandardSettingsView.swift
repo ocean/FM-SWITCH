@@ -130,8 +130,8 @@ struct StandardSettingsView: View {
         Section {
             Text(
                 """
-                Firmware lists: thefirmwarehub.com, fm1-editor.com and aroum's FM1 Resource Hub. \
-                Files come from the firmware hub, GitHub releases, publishers' own sites and M-VAVE.
+                Firmware lists: thefirmwarehub.com, fm1-editor.com, aroum's FM1 Resource Hub and mutant.cloud. \
+                Files come from The Firmware Hub, GitHub releases, publishers' own sites and M-VAVE.
                 """
             )
             Text("The update protocol is from the AL-255/FM-1-RE reverse-engineering notes.")

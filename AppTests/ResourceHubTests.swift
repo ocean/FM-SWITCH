@@ -24,6 +24,24 @@ struct ResourceHubTests {
          1. **[An Editor by Di](https://github.com/di/editor):**
         """
 
+    /// Made-up entries in the table layout the README has had since 1 November 2026.
+    static let tableSample = #"""
+        ## 1. Custom & Alternative Firmwares
+        #### 1.1.1. A Synth Family
+        | # | Name, Author, License & Links | Description & Features |
+        |---|-------------------------------|------------------------|
+        | 1 | **Zeta Synth by Ada (ada-dev)**<br>[GitHub](https://github.com/ada-dev/zeta) \#
+        \| [Web Installer](https://a.dev/z/) \| [Manual](https://a.dev/m/)<br>**License:** Open Source \#
+        (GPL-3.0-only). Based on another firmware. | **Polyphony:** 8 voices \| lots.<br>**Features:** Many. |
+        | 2 | **Hersen (赫森) by Hu**<br>[Project Link](https://store.example.com/hersen/) \| [GitHub](https://github.com/hu/hersen)<br>**License:** Closed Source. | Grooves. |
+        ### 1.3. Gaming, Emulators & Non-Audio Ports
+        | # | Name, Author, License & Links | Description & Features |
+        |---|-------------------------------|------------------------|
+        | 1 | **Pong by Cy**<br>[GitHub](https://github.com/cy/pong) | A game. |
+        ## 3. External References & Resources
+        | 1 | **An Editor by Di**<br>[GitHub](https://github.com/di/editor) | An editor. |
+        """#
+
     static func link(_ address: String) -> [CatalogueLink] {
         [CatalogueLink(label: "Source", url: URL(string: address) ?? URL(literal: "https://example.com"))]
     }
@@ -39,6 +57,20 @@ struct ResourceHubTests {
         #expect(listing.entries[3].links.first?.label == "Project site")
         #expect(listing.entries[2].licence == nil)
         #expect(listing.entries[4].kinds == ["game"])
+    }
+
+    @Test func readsTheTableLayout() {
+        let listing = ResourceHubListing(markdown: Self.tableSample)
+        #expect(listing.entries.map(\.name) == ["Zeta Synth", "Hersen (赫森)", "Pong"])
+        let zeta = listing.entries[0]
+        #expect(zeta.author == "Ada (ada-dev)")
+        #expect(zeta.licence == "Open Source (GPL-3.0-only)")
+        #expect(zeta.links.map(\.label) == ["Source code", "Web Installer", "Manual"])
+        #expect(zeta.links.last?.url.absoluteString == "https://a.dev/m/")
+        #expect(listing.entries[1].links.map(\.label) == ["Project site", "GitHub"])
+        #expect(listing.entries[1].licence == "Closed Source")
+        #expect(listing.entries[2].licence == nil)
+        #expect(listing.entries[2].kinds == ["game"])
     }
 
     @Test func mergesWithoutJoiningFirmwaresThatShareARepository() throws {
