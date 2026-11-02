@@ -122,6 +122,7 @@ struct FirmwareDetailView: View {
             if !entry.kinds.isEmpty { detailRow("KIND", entry.kinds.joined(separator: ", ")) }
             if let licence = entry.licence { detailRow("LICENCE", licence) }
             if let stars = entry.stars { detailRow("STARS", "★ \(stars)") }
+            if let installs = entry.installs { detailRow("INSTALLS", "\(installs.formatted()) ON THE FIRMWARE HUB") }
             detailRow("RECOVERY", entry.rescueMode?.summary ?? "Not known")
             detailRow("LISTED ON", entry.listedOn)
             detailRow("FROM SOURCE", entry.sourceBuildSummary)

@@ -24,7 +24,9 @@ struct FirmwareListView: View {
             LazyVStack(alignment: .leading, spacing: 10) {
                 scopePicker
                 summary
+                let firstUncounted = model.settings.firmwareOrder.firstUncounted(in: entries)
                 ForEach(entries) { entry in
+                    if entry.id == firstUncounted { uncountedNote }
                     Button {
                         onSelect(entry)
                     } label: {
@@ -114,7 +116,7 @@ struct FirmwareListView: View {
         .padding(.top, 4)
     }
 
-    /// The order the list is in, Name or Updated, as a menu at the start of the filters.
+    /// The order the list is in, as a menu at the start of the filters.
     private var orderMenu: some View {
         @Bindable var settings = model.settings
         return Menu {
@@ -153,11 +155,26 @@ struct FirmwareListView: View {
             if let error = catalogue.errorMessage {
                 Text(error)
             }
+            if model.settings.firmwareOrder == .installs {
+                Text(FirmwareOrder.installsSource)
+            }
         }
         .font(.footnote)
         .foregroundStyle(Palette.secondaryInk)
         .padding(.horizontal, 4)
         .animation(Motion.fade, value: entries.count)
+    }
+
+    /// Under Most installed, between the firmwares The Firmware Hub counts and the rest.
+    private var uncountedNote: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().overlay(Palette.line)
+            Text(FirmwareOrder.uncountedNote)
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryInk)
+                .padding(.horizontal, 4)
+        }
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder private var emptyMessage: some View {

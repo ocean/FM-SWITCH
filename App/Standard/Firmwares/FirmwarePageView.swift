@@ -266,6 +266,9 @@ struct FirmwarePageView: View {
                 if !entry.kinds.isEmpty { detailRow("Kind", entry.kinds.joined(separator: ", ")) }
                 if let licence = entry.licence { detailRow("Licence", licence) }
                 if let stars = entry.stars { detailRow("GitHub stars", "\(stars)") }
+                if let installs = entry.installs {
+                    detailRow("Installs", "\(installs.formatted()) on The Firmware Hub")
+                }
                 detailRow("Recovery", entry.rescueMode?.summary ?? "Not known")
                 detailRow("Listed on", entry.listedOn)
                 if !entry.isFromFile {

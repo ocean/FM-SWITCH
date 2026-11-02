@@ -45,13 +45,13 @@ struct FirmwareFilter {
         entry.kinds.contains { $0.caseInsensitiveCompare(kind) == .orderedSame }
     }
 
-    /// The firmware hub's names for its kinds, so the filters match the hub's.
+    /// The Firmware Hub's names for its kinds, so the filters match the hub's.
     nonisolated private static let kindNames = [
         "synth": "Synths", "groove": "Grooveboxes", "drums": "Drums & samplers", "chords": "Chords",
         "tracker": "Trackers", "dev": "For devs", "other": "Other", "game": "Games",
     ]
 
-    /// A kind as a filter's name: "groove" as "Grooveboxes", as the firmware hub names it, or
+    /// A kind as a filter's name: "groove" as "Grooveboxes", as The Firmware Hub names it, or
     /// "platform" as "Platform" for one it doesn't.
     nonisolated static func name(of kind: String) -> String {
         kindNames[kind.lowercased()] ?? kind.prefix(1).uppercased() + kind.dropFirst()
@@ -106,6 +106,14 @@ enum FirmwareOrder: String, CaseIterable, Identifiable {
     case name
     /// The newest release first, then by name; firmwares without a release date go last.
     case updated
+    /// The most installs from The Firmware Hub's site first, then by name; firmwares the hub
+    /// doesn't list have no count, so they go last.
+    case installs
+
+    /// Under Most installed, whose counts they are.
+    static let installsSource = "Install counts are from The Firmware Hub's site."
+    /// Under Most installed, above the firmwares with no count.
+    static let uncountedNote = "These aren't on The Firmware Hub, so they have no install count."
 
     var id: String { rawValue }
 
@@ -113,6 +121,7 @@ enum FirmwareOrder: String, CaseIterable, Identifiable {
         switch self {
         case .name: "Name"
         case .updated: "Updated"
+        case .installs: "Most installed"
         }
     }
 
@@ -126,6 +135,17 @@ enum FirmwareOrder: String, CaseIterable, Identifiable {
             entries.enumerated()
                 .sorted { ($0.element.date ?? "", $1.offset) > ($1.element.date ?? "", $0.offset) }
                 .map(\.element)
+        case .installs:
+            entries.enumerated()
+                .sorted { ($0.element.installs ?? -1, $1.offset) > ($1.element.installs ?? -1, $0.offset) }
+                .map(\.element)
         }
+    }
+
+    /// Under Most installed, the first of `sorted` with no install count, where the list says the
+    /// rest aren't on The Firmware Hub; nil in the other orders.
+    func firstUncounted(in sorted: [CatalogueEntry]) -> CatalogueEntry.ID? {
+        guard self == .installs, sorted.contains(where: { $0.installs != nil }) else { return nil }
+        return sorted.first { $0.installs == nil }?.id
     }
 }

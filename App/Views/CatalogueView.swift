@@ -110,12 +110,14 @@ struct CatalogueView: View {
         .scrollIndicators(.hidden)
     }
 
-    /// Switches between the orders, saying which it's in: "SORT: NAME".
+    /// Steps through the orders, saying which it's in: "SORT: NAME".
     private var orderButton: some View {
         @Bindable var settings = model.settings
         return Button {
             withAnimation(.easeOut(duration: 0.15)) {
-                settings.firmwareOrder = settings.firmwareOrder == .name ? .updated : .name
+                let orders = FirmwareOrder.allCases
+                let next = (orders.firstIndex(of: settings.firmwareOrder).map { $0 + 1 } ?? 0) % orders.count
+                settings.firmwareOrder = orders[next]
             }
         } label: {
             Text("SORT: \(settings.firmwareOrder.name.uppercased())")
@@ -154,7 +156,18 @@ struct CatalogueView: View {
             await model.catalogue.refresh()
         } content: {
             LazyVStack(spacing: 8) {
+                if model.settings.firmwareOrder == .installs {
+                    NoteText(FirmwareOrder.installsSource)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                let firstUncounted = model.settings.firmwareOrder.firstUncounted(in: visibleEntries)
                 ForEach(visibleEntries) { entry in
+                    if entry.id == firstUncounted {
+                        NoteText(FirmwareOrder.uncountedNote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+                            .overlay(alignment: .top) { Rectangle().fill(theme.faint).frame(height: 2) }
+                    }
                     Button {
                         selected = entry
                     } label: {
