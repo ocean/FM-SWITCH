@@ -1,4 +1,14 @@
 {
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
   "identifier" : "6F0C2B1E-5A4D-4C8B-9E21-3D7A0F6B8C14",
   "nonRenewingSubscriptions" : [
 
@@ -51,18 +61,30 @@
     }
   ],
   "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
     "_locale" : "en_AU",
+    "_renewalBillingIssuesEnabled" : false,
     "_storefront" : "AUS",
     "_storeKitErrors" : [
 
-    ]
+    ],
+    "_timeRate" : 0
   },
+  "subscriptionBundleGroups" : [
+
+  ],
   "subscriptionGroups" : [
 
   ],
+  "subscriptionSuiteGroups" : [
+
+  ],
   "version" : {
-    "major" : 3,
-    "minor" : 0
+    "major" : 6,
+    "minor" : 3
   }
 }
