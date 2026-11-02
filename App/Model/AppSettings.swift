@@ -85,6 +85,10 @@ final class AppSettings {
     }
     /// The order the firmware list shows firmwares in, on this device.
     var firmwareOrder: FirmwareOrder { didSet { defaults.set(firmwareOrder.rawValue, forKey: Keys.firmwareOrder) } }
+    /// The filter last picked above the firmware list, on this device.
+    var firmwareScope: FirmwareScope {
+        didSet { defaults.set(firmwareScope.storedValue, forKey: Keys.firmwareScope) }
+    }
     /// What the person says starts their FM-1, or nil until they've been asked.
     var startUp: StartUp? { didSet { defaults.set(startUp?.rawValue, forKey: Keys.startUp) } }
     var simulatedRecoveryMode: Bool { didSet { defaults.set(simulatedRecoveryMode, forKey: Keys.simulatedRecovery) } }
@@ -146,6 +150,7 @@ final class AppSettings {
         alwaysViaOfficial = defaults.object(forKey: Keys.alwaysViaOfficial) as? Bool ?? false
         startUp = defaults.string(forKey: Keys.startUp).flatMap(StartUp.init(rawValue:))
         firmwareOrder = defaults.string(forKey: Keys.firmwareOrder).flatMap(FirmwareOrder.init(rawValue:)) ?? .name
+        firmwareScope = FirmwareScope(storedValue: defaults.string(forKey: Keys.firmwareScope))
         notifiesFirmwareUpdates = defaults.bool(forKey: Keys.notifiesFirmwareUpdates)
         hasOfferedUpdateNotices = defaults.bool(forKey: Keys.hasOfferedUpdateNotices)
         simulatedRecoveryMode = defaults.object(forKey: Keys.simulatedRecovery) as? Bool ?? false
@@ -197,6 +202,7 @@ final class AppSettings {
         static let alwaysViaOfficial = "alwaysViaOfficial"
         static let startUp = "startUp"
         static let firmwareOrder = "firmwareOrder"
+        static let firmwareScope = "firmwareScope"
         static let notifiesFirmwareUpdates = "notifiesFirmwareUpdates"
         static let hasOfferedUpdateNotices = "hasOfferedUpdateNotices"
         static let simulatedRecovery = "simulatedRescueMode"  // The original key, so saved settings carry over.

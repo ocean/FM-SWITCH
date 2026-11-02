@@ -7,7 +7,6 @@ import UniformTypeIdentifiers
 struct FirmwareListView: View {
     @Environment(AppModel.self) private var model
     @State private var search = ""
-    @State private var scope = FirmwareScope.all
     @State private var isImporting = false
     @State private var importMessage: String?
     /// The firmware showing beside the list, when there's room for it.
@@ -86,23 +85,17 @@ struct FirmwareListView: View {
         FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
     }
 
-    private var scopePicker: some View {
-        ScrollView(.horizontal) {
-            scopeButtons
-        }
-        .scrollIndicators(.hidden)
-        // The row runs to the screen's edges, and its buttons line up with the cards below.
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        .padding(.horizontal, -16)
-    }
+    /// The filter picked, kept between launches.
+    private var scope: FirmwareScope { model.settings.firmwareScope.offered(in: scopes) }
 
-    private var scopeButtons: some View {
-        HStack(spacing: 8) {
+    /// The order, then the filters, wrapping onto more rows rather than scrolling sideways.
+    private var scopePicker: some View {
+        FlowLayout(spacing: 8, lineSpacing: 8) {
             orderMenu
             ForEach(scopes, id: \.self) { option in
                 let isPicked = option == scope
                 Button(option.name) {
-                    withAnimation(Motion.standard) { scope = option }
+                    withAnimation(Motion.standard) { model.settings.firmwareScope = option }
                 }
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14)

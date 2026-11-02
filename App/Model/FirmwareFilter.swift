@@ -91,6 +91,28 @@ enum FirmwareScope: Hashable {
         }
     }
 
+    /// The filter as it's kept in the settings, e.g. "kind:synth".
+    var storedValue: String {
+        switch self {
+        case .all: "all"
+        case .kind(let kind): "kind:\(kind)"
+        case .builtFromSource: "builtFromSource"
+        }
+    }
+
+    init(storedValue: String?) {
+        switch storedValue {
+        case "builtFromSource": self = .builtFromSource
+        case let value? where value.hasPrefix("kind:"): self = .kind(String(value.dropFirst("kind:".count)))
+        default: self = .all
+        }
+    }
+
+    /// This filter if `scopes` offers it, as a kind can drop out of the lists; otherwise All.
+    func offered(in scopes: [Self]) -> Self {
+        scopes.contains(self) ? self : .all
+    }
+
     func includes(_ entry: CatalogueEntry) -> Bool {
         switch self {
         case .all: true

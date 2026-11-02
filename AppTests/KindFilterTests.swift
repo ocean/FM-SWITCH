@@ -23,4 +23,14 @@ struct KindFilterTests {
         #expect(FirmwareFilter.name(of: "groove") == "Grooveboxes")
         #expect(FirmwareFilter.name(of: "platform") == "Platform")
     }
+
+    /// The filter picked is kept between launches, and one the lists no longer offer shows All.
+    @Test func keepsThePickedFilter() {
+        for scope in [FirmwareScope.all, .kind("synth"), .builtFromSource] {
+            #expect(FirmwareScope(storedValue: scope.storedValue) == scope)
+        }
+        #expect(FirmwareScope(storedValue: nil) == .all)
+        #expect(FirmwareScope.kind("synth").offered(in: [.all, .kind("synth")]) == .kind("synth"))
+        #expect(FirmwareScope.kind("drone").offered(in: [.all, .kind("synth")]) == .all)
+    }
 }

@@ -7,7 +7,6 @@ struct CatalogueView: View {
     @Environment(\.phosphor) private var theme
     @Environment(\.isWideLayout) private var isWide
     @State private var search = ""
-    @State private var scope = FirmwareScope.all
     @State private var selected: CatalogueEntry?
     @FocusState private var isSearchFocused: Bool
     /// The firmware to open at, by catalogue ID.
@@ -99,16 +98,20 @@ struct CatalogueView: View {
     /// The order, then ALL, a filter for each kind the lists give (the most common first), and BUILT
     /// FROM SOURCE.
     private var kindFilter: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                orderButton
-                let scopes = FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
-                ForEach(scopes, id: \.self) { scopeButton($0) }
-            }
-            .padding(.vertical, 1)
+        FlowLayout(spacing: 6, lineSpacing: 6) {
+            orderButton
+            ForEach(scopes, id: \.self) { scopeButton($0) }
         }
-        .scrollIndicators(.hidden)
+        .padding(.vertical, 1)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var scopes: [FirmwareScope] {
+        FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
+    }
+
+    /// The filter picked, kept between launches.
+    private var scope: FirmwareScope { model.settings.firmwareScope.offered(in: scopes) }
 
     /// Steps through the orders, saying which it's in: "SORT: NAME".
     private var orderButton: some View {
@@ -136,7 +139,7 @@ struct CatalogueView: View {
     private func scopeButton(_ option: FirmwareScope) -> some View {
         let isChosen = scope == option
         return Button {
-            withAnimation(.easeOut(duration: 0.15)) { scope = option }
+            withAnimation(.easeOut(duration: 0.15)) { model.settings.firmwareScope = option }
         } label: {
             Text(option.name.uppercased())
                 .font(.pixel(9, bold: true, relativeTo: .caption2))
