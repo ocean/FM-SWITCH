@@ -194,7 +194,7 @@ struct FirmwareDetailView: View {
                     PixelProgressBar(fraction: nil)
                 }
                 if let other = model.library.otherBuild(for: entry) {
-                    NoteText("Replaces the saved \(other.build.map { "\($0) build" } ?? "copy").")
+                    NoteText("Keeps the saved \(other.build.map { "\($0) build" } ?? "copy") as well.")
                 } else {
                     NoteText("Save it first, then flash it any time, even offline.")
                 }
@@ -226,7 +226,7 @@ struct FirmwareDetailView: View {
     private var saveTitle: String {
         if isDownloading { return "DOWNLOADING…" }
         if entry.needsBuildChoice { return "PICK A BUILD FIRST" }
-        if model.library.outdated(for: entry) != nil { return "UPDATE SAVED COPY" }
+        if model.library.outdated(for: entry) != nil { return "SAVE NEW RELEASE" }
         if let build = entry.build, model.library.otherBuild(for: entry) != nil {
             return "SAVE \(build.uppercased()) BUILD"
         }

@@ -123,8 +123,8 @@ final class FirmwareLibrary {
 
     /// A saved copy of this release in another build than the one picked.
     func otherBuild(for entry: CatalogueEntry) -> StoredFirmware? {
-        guard stored(for: entry) == nil, outdated(for: entry) == nil else { return nil }
-        return items.first { $0.catalogueID == entry.id }
+        guard stored(for: entry) == nil else { return nil }
+        return items.first { $0.catalogueID == entry.id && !ReleaseVersion.differs($0.version, from: entry.version) }
     }
 
     func url(for item: StoredFirmware) -> URL {
@@ -200,9 +200,7 @@ final class FirmwareLibrary {
                 data, package: package, name: OfficialFirmware.v15.name, catalogueID: entry.id, from: packageURL)
         }
         guard !entry.isOfficial else { throw Failure.notOfficial }
-        for older in items where older.catalogueID == entry.id {
-            remove(older)
-        }
+        // Other releases and builds saved stay, to install either, such as a stable and a test one.
         let details = StoredFirmware.Details(
             name: entry.name,
             version: entry.version ?? package.product,

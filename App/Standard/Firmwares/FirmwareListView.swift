@@ -279,7 +279,8 @@ struct FirmwareCard: View {
         } else if model.library.outdated(for: entry) != nil {
             Tag(text: "Update", ink: Palette.goodInk, fill: Palette.goodBackground)
         } else if FirmwareFilter.isSaved(entry, in: model) {
-            Tag(text: "Saved", ink: Palette.ink, fill: Palette.control)
+            let count = model.library.savedCopies(of: entry).count
+            Tag(text: count > 1 ? "\(count) saved" : "Saved", ink: Palette.ink, fill: Palette.control)
         }
         // Not known to work on an FM-1 says more than a test release, so only that shows.
         if entry.isFromFile {

@@ -1,4 +1,4 @@
-import FM1Kit
+@_spi(Testing) import FM1Kit
 import Foundation
 import Testing
 
@@ -48,6 +48,40 @@ struct LibraryTests {
         library.remove(item)
         #expect(!FileManager.default.fileExists(atPath: details.path))
         #expect(!FileManager.default.fileExists(atPath: library.url(for: item).path))
+    }
+
+    /// A stable release and a test one can both be kept, to install either.
+    @Test func keepsEachReleaseItSaves() async throws {
+        let library = FirmwareLibrary(directory: Self.emptyDirectory())
+        func file(_ product: String) throws -> URL {
+            let url = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).fwsc")
+            try FwscPackage.sampleFile(product: product).write(to: url)
+            return url
+        }
+        let test = CatalogueEntry(
+            id: "melodee",
+            name: "Melodee",
+            version: "1.6.0-rc.7",
+            beta: true,
+            packageURL: try file("FM-1_916"),
+            listing: .hub
+        )
+        var stable = test
+        stable.version = "1.5.1"
+        stable.beta = false
+        stable.packageURL = try file("FM-1_917")
+        var entry = test
+        entry.otherRelease = CatalogueEntry.OtherRelease(of: stable)
+
+        try await library.download(stable)
+        #expect(library.isSaved(test: false, of: entry))
+        #expect(!library.isSaved(test: true, of: entry))
+        try await library.download(test)
+        #expect(library.savedCopies(of: entry).map(\.version).sorted() == ["1.5.1", "1.6.0-rc.7"])
+        #expect(library.isSaved(test: false, of: entry))
+        #expect(library.isSaved(test: true, of: entry))
+        #expect(library.stored(for: stable)?.version == "1.5.1")
+        #expect(library.stored(for: test)?.version == "1.6.0-rc.7")
     }
 
     /// What another device sharing the folder saved shows up when the folder's read again.

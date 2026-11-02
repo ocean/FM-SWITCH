@@ -17,6 +17,7 @@ struct RetroReleaseChoice: View {
 
     private func button(test: Bool, version: String?) -> some View {
         let isChosen = entry.beta == test
+        let isSaved = model.library.isSaved(test: test, of: entry)
         return Button {
             model.catalogue.choose(test: test, for: entry.id)
         } label: {
@@ -24,6 +25,9 @@ struct RetroReleaseChoice: View {
                 Text(isChosen ? "◆" : "◇")
                 Text("\(test ? "TEST" : "STABLE") \(version?.uppercased() ?? "")")
                 Spacer()
+                if isSaved {
+                    Text("✓").accessibilityLabel("Saved")
+                }
             }
             .frame(maxWidth: .infinity)
         }

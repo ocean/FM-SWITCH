@@ -26,7 +26,7 @@ struct FirmwareFilter {
 
     /// Whether a copy of `entry` is saved here.
     static func isSaved(_ entry: CatalogueEntry, in model: AppModel) -> Bool {
-        model.library.stored(for: entry) != nil || model.library.otherBuild(for: entry) != nil
+        !model.library.savedCopies(of: entry).isEmpty && model.library.outdated(for: entry) == nil
     }
 
     /// The kinds the lists give `entries`, such as "synth" or "groove", the most common first.

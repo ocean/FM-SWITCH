@@ -17,8 +17,8 @@ struct ReleaseChoice: View {
                         set: { model.catalogue.choose(test: $0, for: entry.id) }
                     )
                 ) {
-                    Text("Stable \((entry.beta ? other.version : entry.version) ?? "")").tag(false)
-                    Text("Test \((entry.beta ? entry.version : other.version) ?? "")").tag(true)
+                    label("Stable", version: entry.beta ? other.version : entry.version, test: false).tag(false)
+                    label("Test", version: entry.beta ? entry.version : other.version, test: true).tag(true)
                 }
                 .pickerStyle(.segmented)
                 Text("A test release has the newest changes, and may still have problems.")
@@ -26,5 +26,13 @@ struct ReleaseChoice: View {
                     .foregroundStyle(Palette.secondaryInk)
             }
         }
+    }
+
+    /// The release's name, with a tick when it's saved here.
+    private func label(_ track: String, version: String?, test: Bool) -> some View {
+        let isSaved = model.library.isSaved(test: test, of: entry)
+        let name = "\(track) \(version ?? "")"
+        return Text(isSaved ? "\(name) ✓" : name)
+            .accessibilityLabel(isSaved ? "\(name), saved" : name)
     }
 }

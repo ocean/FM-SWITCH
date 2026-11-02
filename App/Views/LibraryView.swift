@@ -336,9 +336,6 @@ struct LibraryView: View {
 extension LibraryView {
     /// Whether a saved firmware is starred, which leaves it here rather than under STARRED.
     fileprivate func isStarred(_ item: StoredFirmware) -> Bool {
-        model.catalogue.entries.contains { entry in
-            model.starred.contains(entry.id)
-                && (library.stored(for: entry)?.id == item.id || library.otherBuild(for: entry)?.id == item.id)
-        }
+        item.catalogueID.map(model.starred.contains) ?? false
     }
 }
