@@ -1,5 +1,3 @@
-import Foundation
-
 /// The releases of a firmware saved here: each release and build saved is kept, so a stable
 /// release and a test one can both be to hand.
 extension FirmwareLibrary {
