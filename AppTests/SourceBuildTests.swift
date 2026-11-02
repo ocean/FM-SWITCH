@@ -3,7 +3,7 @@ import Testing
 
 @testable import FMSwitch
 
-/// Firmwares built from their source by GitHub Actions, as the firmware hub's signed records say.
+/// Firmwares built from their source by GitHub Actions, as The Firmware Hub's signed records say.
 struct SourceBuildTests {
     private static let sha = String(repeating: "ab", count: 32)
     private static let commit = String(repeating: "c", count: 40)

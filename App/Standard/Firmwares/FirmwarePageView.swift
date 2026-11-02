@@ -117,7 +117,7 @@ struct FirmwarePageView: View {
             Notice(
                 """
                 In testing: not yet known to work on a real FM-1. It's only listed in aroum's FM1 Resource \
-                Hub, not on the firmware hub or fm1-editor.com.
+                Hub or on mutant.cloud, not on The Firmware Hub or fm1-editor.com.
                 """,
                 systemImage: "exclamationmark.triangle",
                 isWarning: true

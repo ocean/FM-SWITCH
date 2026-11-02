@@ -75,7 +75,7 @@ enum HelpTopic: String, CaseIterable, Identifiable {
                 called "WL82 UBOOT1.00".
                 """,
                 Self.downloadModeTools,
-                "The firmware hub lists more rescue tools, for an FM-1 that doesn't get that far.",
+                "The Firmware Hub lists more rescue tools, for an FM-1 that doesn't get that far.",
             ]
         case .notSeen:
             [
@@ -146,5 +146,5 @@ enum HelpTopic: String, CaseIterable, Identifiable {
     private static let fmStatic = CatalogueLink(
         label: "fm-static", url: URL(literal: "https://seajaysec.github.io/fm-static/"))
     private static let hubHelp = CatalogueLink(
-        label: "The firmware hub's help", url: URL(literal: "https://thefirmwarehub.com/kb/#back"))
+        label: "The Firmware Hub's help", url: URL(literal: "https://thefirmwarehub.com/kb/#back"))
 }

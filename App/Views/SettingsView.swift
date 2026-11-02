@@ -145,9 +145,9 @@ struct SettingsView: View {
     @ViewBuilder private var credits: some View {
         NoteText(
             """
-            Firmware lists: thefirmwarehub.com (mirrors each project's GitHub releases) and \
-            fm1-editor.com/firmware. Packages come from the hub, GitHub releases, publishers' own sites, \
-            and M-VAVE.
+            Firmware lists: thefirmwarehub.com (mirrors each project's GitHub releases), \
+            fm1-editor.com/firmware, aroum's FM1 Resource Hub and mutant.cloud. Packages come from the \
+            hub, GitHub releases, publishers' own sites, and M-VAVE.
             """
         )
         NoteText("Update protocol: written from the AL-255/FM-1-RE reverse-engineering notes.")

@@ -1,7 +1,7 @@
 import Foundation
 
-/// One firmware in the merged list, from the firmware hub, fm1-editor.com, aroum's FM1 Resource
-/// Hub, or several of them.
+/// One firmware in the merged list, from The Firmware Hub, fm1-editor.com, aroum's FM1 Resource
+/// Hub, mutant.cloud, or several of them.
 ///
 /// Hub entries always carry a package with a size and SHA-256. Entries found only on
 /// fm1-editor.com get their package from wherever it can be discovered (a GitHub release,
@@ -15,11 +15,12 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
         static let hub = Self(rawValue: 1 << 0)
         static let editor = Self(rawValue: 1 << 1)
         static let resourceHub = Self(rawValue: 1 << 2)
+        static let mutantCloud = Self(rawValue: 1 << 3)
     }
 
     /// Where the package link came from.
     enum PackageOrigin: String, Codable, Sendable, Hashable {
-        /// The firmware hub's mirror, with a size and SHA-256.
+        /// The Firmware Hub's mirror, with a size and SHA-256.
         case hub
         /// An asset on the project's GitHub release.
         case githubRelease
@@ -90,16 +91,18 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var otherRelease: OtherRelease?
     /// The project's star count, as the firmware lists give it.
     var stars: Int?
-    /// The licence, as aroum's FM1 Resource Hub gives it, e.g. "Open Source (GPL-3.0-only)".
+    /// How many times it's been installed from The Firmware Hub's site, as the hub counts them.
+    var installs: Int?
+    /// The licence, as aroum's FM1 Resource Hub or mutant.cloud gives it, e.g. "Open Source (GPL-3.0-only)".
     var licence: String?
-    /// How the firmware hub's package was built, when GitHub signed a record of it.
+    /// How The Firmware Hub's package was built, when GitHub signed a record of it.
     var sourceBuild: SourceBuild?
 
     /// Whether the package offered was built from the project's source by GitHub Actions, as a
     /// signed record says, and not on someone's own computer.
     ///
     /// The record is for one file, so a newer release found at the firmware's source doesn't
-    /// count until the firmware hub has checked its record too.
+    /// count until The Firmware Hub has checked its record too.
     var isBuiltFromSource: Bool {
         sourceBuild != nil && sourceBuild?.sha256 == sha256
     }
@@ -177,7 +180,7 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
 }
 
 /// A package built from a project's source by GitHub Actions, which signed a record of the build
-/// that the firmware hub checks.
+/// that The Firmware Hub checks.
 struct SourceBuild: Codable, Sendable, Hashable {
     /// The package the record is for.
     var sha256: String
@@ -216,9 +219,9 @@ struct CatalogueLink: Codable, Sendable, Hashable {
     }
 }
 
-// MARK: - The firmware hub feed.
+// MARK: - The Firmware Hub feed.
 
-/// The firmware hub's catalogue (`https://thefirmwarehub.com/catalog.json`), rebuilt from each
+/// The Firmware Hub's catalogue (`https://thefirmwarehub.com/catalog.json`), rebuilt from each
 /// project's latest GitHub release and mirrored on the hub with SHA-256 hashes.
 struct HubFeed: Decodable, Sendable {
     static let defaultURL = URL(literal: "https://thefirmwarehub.com/catalog.json")
@@ -257,11 +260,12 @@ struct HubFeed: Decodable, Sendable {
         var play: String?
         var repo: String?
         var stars: Int?
+        var installs: Int?
         var provenance: HubBuildRecord?
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars, provenance
+                editor, play, repo, stars, installs, provenance
             case kinds = "kind"
         }
 
@@ -291,6 +295,7 @@ struct HubFeed: Decodable, Sendable {
             play = try container.decodeIfPresent(String.self, forKey: .play)
             repo = try container.decodeIfPresent(String.self, forKey: .repo)
             stars = try container.decodeIfPresent(Int.self, forKey: .stars)
+            installs = try? container.decodeIfPresent(Int.self, forKey: .installs)
             provenance = try? container.decodeIfPresent(HubBuildRecord.self, forKey: .provenance)
         }
 
@@ -346,12 +351,13 @@ struct HubFeed: Decodable, Sendable {
                 stars: stars
             )
             entry.sourceBuild = sourceBuild
+            entry.installs = installs
             return entry
         }
     }
 }
 
-/// The firmware hub's record of how a package was built, from a signed GitHub attestation.
+/// The Firmware Hub's record of how a package was built, from a signed GitHub attestation.
 struct HubBuildRecord: Decodable, Sendable {
     var sha256: String
     var repo: String

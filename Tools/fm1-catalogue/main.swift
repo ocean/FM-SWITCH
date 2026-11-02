@@ -6,15 +6,19 @@ import Foundation
 //     swift run -c release fm1-catalogue --output firmwares.json [--previous firmwares.json]
 //
 // --previous is the list published last time. Packages that can't be found this time fall back
-// on it, and the new list is refused if it's much shorter. Firmwares no list describes get their
+// on it, as do the firmwares of a source that can't be read, and the new list is refused if it's
+// much shorter. Firmwares no list describes get their
 // GitHub repository's description. Set GITHUB_TOKEN to raise GitHub's API limit from 60 requests an
 // hour to 1000 or more.
 //
-// Exit codes, where anything but 0 means "don't publish":
+// Exit codes:
 //   0  written
 //   1  bad arguments, or the list couldn't be built or written
-//   2  a source couldn't be read, so the list would be missing its firmwares
-//   3  the list is much shorter than the previous one
+//   2  a source couldn't be read and there's no previous list to keep its firmwares from, so
+//      nothing was written
+//   3  the list is much shorter than the previous one, so nothing was written
+//   4  written, but incomplete: a source couldn't be read, so its firmwares are from the previous
+//      list. Publish it, and still fail the run so someone looks at why.
 
 /// Why the tool stopped, with its exit code.
 struct Stop: Error {
@@ -91,7 +95,7 @@ func run() async throws {
     } catch {
         throw Stop(code: 2, message: error.localizedDescription)
     }
-    guard catalogue.problems.isEmpty else {
+    if !catalogue.problems.isEmpty, previous == nil {
         throw Stop(code: 2, message: catalogue.problems.joined(separator: " "))
     }
     // A list that shrank by more than a fifth more likely lost a source's layout than its firmwares.
@@ -109,6 +113,12 @@ func run() async throws {
     }
     let seconds = (ContinuousClock.now - start).components.seconds
     print("Wrote \(catalogue.count) firmwares to \(options.output.path()) in \(seconds) s.")
+    if !catalogue.problems.isEmpty {
+        throw Stop(
+            code: 4,
+            message: catalogue.problems.joined(separator: " ") + " Firmwares only they list are from the previous list."
+        )
+    }
 }
 
 do {

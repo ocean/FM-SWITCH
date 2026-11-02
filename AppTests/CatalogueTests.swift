@@ -8,7 +8,8 @@ struct CatalogueTests {
         {"updated": "2026-10-14 20:00 UTC", "firmwares": [
           {"id": "zp12", "kind": "drums", "name": "zp12", "author": "zvenson", "what": "A 12-bit sampler.",
            "version": "2.4.2", "date": "2026-10-14", "pkg": "fw/zp12-2.4.2.fwsc", "product": "FM-1_974",
-           "size": 610110, "sha256": "DD05", "beta": false, "loader": null, "stars": 21, "unknownField": 1,
+           "size": 610110, "sha256": "DD05", "beta": false, "loader": null, "stars": 21, "installs": 2429,
+           "unknownField": 1,
            "repo": "zvenson/zp12", "site": "https://zp12.designburgapps.com"},
           {"id": "bubba", "kind": ["groove", "drums"], "name": "Bubba Machine", "version": "0.5.0-beta",
            "pkg": "fw/bubba-0.5.0-beta.fwsc", "product": "FM-1_003", "size": 1, "sha256": "ab", "beta": true,
@@ -51,6 +52,8 @@ struct CatalogueTests {
         #expect(entries.count == 2)
         #expect(entries[0].stars == 21)
         #expect(entries[1].stars == nil)
+        #expect(entries[0].installs == 2429)
+        #expect(entries[1].installs == nil)
         #expect(entries[0].kinds == ["drums"])
         #expect(entries[0].sha256 == "dd05")
         #expect(entries[0].packageURL?.absoluteString == "https://thefirmwarehub.com/fw/zp12-2.4.2.fwsc")
