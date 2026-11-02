@@ -1,5 +1,3 @@
-import Foundation
-
 /// Merging the lists without packages into the list, and keeping the firmwares of lists that
 /// can't be read.
 extension CatalogueBuilder {
