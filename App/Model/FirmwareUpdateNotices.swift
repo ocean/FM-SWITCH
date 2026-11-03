@@ -92,20 +92,28 @@ final class FirmwareUpdateNotices: NSObject, UNUserNotificationCenterDelegate {
 
     // MARK: - UNUserNotificationCenterDelegate.
 
+    // The completion handler versions, not the async ones: the system calls an async one's
+    // completion off the main thread, which UIKit stops the app for when it saves its state.
+
     /// Shows the notification even while the app's open.
     nonisolated func userNotificationCenter(
         _: UNUserNotificationCenter,
-        willPresent _: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        willPresent _: UNNotification,
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
     }
 
     /// Opens the firmware's page, for a notification about one.
     nonisolated func userNotificationCenter(
         _: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        guard let id = response.notification.request.content.userInfo["firmware"] as? String else { return }
-        await MainActor.run { open(id) }
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
+        let id = response.notification.request.content.userInfo["firmware"] as? String
+        Task { @MainActor in
+            if let id { open(id) }
+            completionHandler()
+        }
     }
 }
