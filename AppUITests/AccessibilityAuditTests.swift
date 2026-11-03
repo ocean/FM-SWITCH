@@ -55,6 +55,34 @@ import XCTest
             }
         }
 
+        /// With a filter picked and the filters scrolled away, the order and filter pin to the top.
+        func testPinnedFilters() {
+            for setting in Setting.allCases {
+                let app = launch(setting, page: "firmwares", extraArguments: ["-firmwareScope", "kind:synth"])
+                XCTAssertTrue(app.navigationBars["Firmwares"].waitForExistence(timeout: 10), "\(setting)")
+                let pinned = app.buttons["pinnedFilter"]
+                // The bar is always there, faded out until the filters scroll away.
+                XCTAssertFalse(pinned.isHittable, "\(setting)")
+                app.swipeUp()
+                XCTAssertTrue(wait(for: pinned, isHittable: true), "\(setting)")
+                // Not audited here: Apple's audit times out on the scrolled list (the pills are the
+                // ones audited above it in testFirmwareList).
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+                pinned.tap()
+                XCTAssertTrue(wait(for: pinned, isHittable: false), "\(setting)")
+            }
+        }
+
+        /// Waits up to five seconds for `element` to become hittable, or not.
+        private func wait(for element: XCUIElement, isHittable: Bool) -> Bool {
+            let expectation = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: isHittable ? "isHittable == true" : "isHittable == false"),
+                object: element)
+            return XCTWaiter().wait(for: [expectation], timeout: 5) == .completed
+        }
+
         func testSettings() throws {
             for setting in Setting.allCases {
                 let app = launch(setting, page: "settings")

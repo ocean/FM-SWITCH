@@ -24,16 +24,26 @@ struct MyFirmwaresView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 10) {
-                group("Saved on this \(ThisDevice.name)", saved, empty: Self.savedEmpty)
-                group("Starred", starred, empty: Self.starredEmpty)
-                    .padding(.top, 14)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-            .animation(Motion.standard, value: starred.map(\.id))
+        @Bindable var settings = model.settings
+        let saved = saved
+        let starred = starred
+        FilteredFirmwareList(
+            order: $settings.myFirmwaresOrder,
+            scope: $settings.myFirmwaresScope,
+            scopes: FirmwareFilter.scopes(for: saved + starred)
+        ) { scope in
+            let order = settings.myFirmwaresOrder
+            let savedShown = order.sorted(saved.filter(scope.includes))
+            let starredShown = order.sorted(starred.filter(scope.includes))
+            group(
+                "Saved on this \(ThisDevice.name)",
+                savedShown,
+                empty: saved.isEmpty ? Self.savedEmpty : Self.filteredEmpty
+            )
+            group("Starred", starredShown, empty: starred.isEmpty ? Self.starredEmpty : Self.filteredEmpty)
+                .padding(.top, 14)
         }
+        .animation(Motion.standard, value: starred.map(\.id))
         .background(Palette.ground)
         .navigationTitle("My firmwares")
         .refreshable { await model.catalogue.refresh() }
@@ -67,5 +77,7 @@ struct MyFirmwaresView: View {
     static let savedEmpty = """
         Firmwares you download or add with + appear here, ready to install even when you're offline.
         """
+    /// When there are some, but the filter picked leaves none.
+    static let filteredEmpty = "None of these match the filter picked."
     static let starredEmpty = "Star a firmware on its page to keep it here without downloading it."
 }

@@ -13,34 +13,23 @@ struct FirmwareListView: View {
     var selectedID: String?
     var onSelect: (CatalogueEntry) -> Void
 
-    private var entries: [CatalogueEntry] {
+    /// The firmwares to show under `scope`, in order.
+    ///
+    /// It goes through the whole list, so work it out once a pass.
+    private func entries(in scope: FirmwareScope) -> [CatalogueEntry] {
         model.settings.firmwareOrder.sorted(
             FirmwareFilter(search: search).visible(in: model).filter { scope.includes($0) })
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 10) {
-                scopePicker
-                summary
-                let firstUncounted = model.settings.firmwareOrder.firstUncounted(in: entries)
-                ForEach(entries) { entry in
-                    if entry.id == firstUncounted { uncountedNote }
-                    Button {
-                        onSelect(entry)
-                    } label: {
-                        FirmwareCard(entry: entry, isSelected: entry.id == selectedID)
-                    }
-                    .buttonStyle(.pressable)
-                    // For UI tests, which open a firmware from the list.
-                    .accessibilityIdentifier("firmware")
-                }
-                if entries.isEmpty { emptyMessage }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-            .animation(Motion.standard, value: scope)
-            .animation(Motion.standard, value: model.settings.firmwareOrder)
+        @Bindable var settings = model.settings
+        FilteredFirmwareList(
+            order: $settings.firmwareOrder,
+            scope: $settings.firmwareScope,
+            // From the whole list, not the search, so a search doesn't take filters away.
+            scopes: FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
+        ) { scope in
+            list(entries(in: scope))
         }
         .background(Palette.ground)
         .navigationTitle("Firmwares")
@@ -63,6 +52,23 @@ struct FirmwareListView: View {
         }
     }
 
+    @ViewBuilder private func list(_ entries: [CatalogueEntry]) -> some View {
+        summary(count: entries.count)
+        let firstUncounted = model.settings.firmwareOrder.firstUncounted(in: entries)
+        ForEach(entries) { entry in
+            if entry.id == firstUncounted { uncountedNote }
+            Button {
+                onSelect(entry)
+            } label: {
+                FirmwareCard(entry: entry, isSelected: entry.id == selectedID)
+            }
+            .buttonStyle(.pressable)
+            // For UI tests, which open a firmware from the list.
+            .accessibilityIdentifier("firmware")
+        }
+        if entries.isEmpty { emptyMessage }
+    }
+
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItemGroup {
             #if os(macOS)
@@ -81,63 +87,14 @@ struct FirmwareListView: View {
         }
     }
 
-    private var scopes: [FirmwareScope] {
-        FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
-    }
-
-    /// The filter picked, kept between launches.
-    private var scope: FirmwareScope { model.settings.firmwareScope.offered(in: scopes) }
-
-    /// The order, then the filters, wrapping onto more rows rather than scrolling sideways.
-    private var scopePicker: some View {
-        FlowLayout(spacing: 8, lineSpacing: 8) {
-            orderMenu
-            ForEach(scopes, id: \.self) { option in
-                let isPicked = option == scope
-                Button(option.name) {
-                    withAnimation(Motion.standard) { model.settings.firmwareScope = option }
-                }
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 14)
-                .frame(minHeight: 32)
-                .foregroundStyle(isPicked ? Palette.card : Palette.ink)
-                .background(Capsule().fill(isPicked ? Palette.ink : Palette.control))
-                .buttonStyle(.pressable)
-                .accessibilityAddTraits(isPicked ? .isSelected : [])
-            }
-        }
-        .padding(.top, 4)
-    }
-
-    /// The order the list is in, as a menu at the start of the filters.
-    private var orderMenu: some View {
-        @Bindable var settings = model.settings
-        return Menu {
-            Picker("Sort by", selection: $settings.firmwareOrder) {
-                ForEach(FirmwareOrder.allCases) { Text($0.name).tag($0) }
-            }
-        } label: {
-            Label(settings.firmwareOrder.name, systemImage: "arrow.up.arrow.down")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 14)
-                .frame(minHeight: 32)
-                .foregroundStyle(Palette.ink)
-                .background(Capsule().strokeBorder(Palette.control, lineWidth: 2))
-        }
-        .menuIndicator(.hidden)
-        .buttonStyle(.plain)
-        .fixedSize()
-        .accessibilityLabel("Sort by \(settings.firmwareOrder.name)")
-    }
-
     /// How many firmwares there are, and when the list was last checked.
-    @ViewBuilder private var summary: some View {
+    @ViewBuilder private func summary(count: Int) -> some View {
         let catalogue = model.catalogue
         VStack(alignment: .leading, spacing: 2) {
             if catalogue.isRefreshing && catalogue.catalogue == nil {
                 Text("Getting the firmware list…")
             } else {
-                Text("^[\(entries.count) firmware](inflect: true)")
+                Text("^[\(count) firmware](inflect: true)")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Palette.ink)
                     .contentTransition(.numericText())
@@ -155,7 +112,7 @@ struct FirmwareListView: View {
         .font(.footnote)
         .foregroundStyle(Palette.secondaryInk)
         .padding(.horizontal, 4)
-        .animation(Motion.fade, value: entries.count)
+        .animation(Motion.fade, value: count)
     }
 
     /// Under Most installed, between the firmwares The Firmware Hub counts and the rest.
