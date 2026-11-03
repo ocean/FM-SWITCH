@@ -15,7 +15,9 @@ struct CatalogueView: View {
     private var filter: FirmwareFilter { FirmwareFilter(search: search) }
 
     private var visibleEntries: [CatalogueEntry] {
-        model.settings.firmwareOrder.sorted(filter.visible(in: model).filter { scope.includes($0) })
+        // The filter once, not for each firmware: working it out goes through the whole list.
+        let scope = scope
+        return model.settings.firmwareOrder.sorted(filter.visible(in: model).filter { scope.includes($0) })
     }
 
     var body: some View {
@@ -100,7 +102,9 @@ struct CatalogueView: View {
     private var kindFilter: some View {
         FlowLayout(spacing: 6, lineSpacing: 6) {
             orderButton
-            ForEach(scopes, id: \.self) { scopeButton($0) }
+            let scopes = scopes
+            let picked = model.settings.firmwareScope.offered(in: scopes)
+            ForEach(scopes, id: \.self) { scopeButton($0, isChosen: $0 == picked) }
         }
         .padding(.vertical, 1)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,9 +140,8 @@ struct CatalogueView: View {
         .accessibilityLabel("Sort by \(settings.firmwareOrder.name)")
     }
 
-    private func scopeButton(_ option: FirmwareScope) -> some View {
-        let isChosen = scope == option
-        return Button {
+    private func scopeButton(_ option: FirmwareScope, isChosen: Bool) -> some View {
+        Button {
             withAnimation(.easeOut(duration: 0.15)) { model.settings.firmwareScope = option }
         } label: {
             Text(option.name.uppercased())
