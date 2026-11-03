@@ -55,7 +55,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: FM-SWITCH
-        CFBundleShortVersionString: "0.1.0"
+        CFBundleShortVersionString: "0.1.1"
         CFBundleVersion: "5"
         UIAppFonts:
           - VT323-Regular.ttf
