@@ -50,7 +50,7 @@ import XCTest
                 let search = app.searchFields.firstMatch
                 search.tap()
                 search.typeText("B1\n")
-                XCTAssertTrue(app.staticTexts["B1 Drawbar Organ"].waitForExistence(timeout: 5), "\(setting)")
+                XCTAssertTrue(app.staticTexts["B1"].waitForExistence(timeout: 5), "\(setting)")
                 try app.auditStandardLook(isClearOfSearchField: true)
             }
         }
