@@ -274,6 +274,7 @@ struct FirmwarePageView: View {
                 if !entry.isFromFile {
                     detailRow("Tested on an FM-1", entry.isHardwareTested ? "Yes" : "In testing")
                 }
+                if let chip = entry.flashChip { detailRow("FM-1 flash chip", chip.summary) }
                 detailRow("Built from source", entry.sourceBuildSummary)
                 detailRow("File from", entry.packageSource)
                 detailRow("SHA-256", entry.sha256.map { String($0.prefix(16)) + "…" } ?? "Not published")

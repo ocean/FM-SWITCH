@@ -97,6 +97,9 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var licence: String?
     /// How The Firmware Hub's package was built, when GitHub signed a record of it.
     var sourceBuild: SourceBuild?
+    /// Which of the FM-1's flash chips the firmware knows, as The Firmware Hub lists it; nil when
+    /// the source doesn't say.
+    var flashChip: FlashChipSupport?
 
     /// Whether the package offered was built from the project's source by GitHub Actions, as a
     /// signed record says, and not on someone's own computer.
@@ -219,6 +222,32 @@ struct CatalogueLink: Codable, Sendable, Hashable {
     }
 }
 
+/// Which flash chips a firmware's storage and update loader accept.
+///
+/// FM-1 units sold from late 2026 (mostly on AliExpress) carry a UC25HQ80 (JEDEC 0xB36014)
+/// instead of the Puya P25Q80 (0x856014). A firmware that only knows the Puya keeps its saves in
+/// RAM on the new chip, and its update loader may refuse a later update.
+enum FlashChipSupport: String, Codable, Sendable, Hashable {
+    /// Knows only the first FM-1s' Puya chip.
+    case old
+    /// Knows both chips.
+    case new
+    /// Doesn't depend on the flash chip.
+    case any
+
+    /// What to tell the person, in the firmware's details.
+    var summary: String {
+        switch self {
+        case .old: "Older chip only: saving may fail on newer FM-1s"
+        case .new: "Both FM-1 flash chips"
+        case .any: "Either chip"
+        }
+    }
+
+    /// Whether installing it on a newer FM-1 could leave it unable to save or to update.
+    var isRiskyOnNewerUnits: Bool { self == .old }
+}
+
 // MARK: - The Firmware Hub feed.
 
 /// The Firmware Hub's catalogue (`https://thefirmwarehub.com/catalog.json`), rebuilt from each
@@ -261,11 +290,12 @@ struct HubFeed: Decodable, Sendable {
         var repo: String?
         var stars: Int?
         var installs: Int?
+        var chip: String?
         var provenance: HubBuildRecord?
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars, installs, provenance
+                editor, play, repo, stars, installs, chip, provenance
             case kinds = "kind"
         }
 
@@ -296,6 +326,7 @@ struct HubFeed: Decodable, Sendable {
             repo = try container.decodeIfPresent(String.self, forKey: .repo)
             stars = try container.decodeIfPresent(Int.self, forKey: .stars)
             installs = try? container.decodeIfPresent(Int.self, forKey: .installs)
+            chip = try? container.decodeIfPresent(String.self, forKey: .chip)
             provenance = try? container.decodeIfPresent(HubBuildRecord.self, forKey: .provenance)
         }
 
@@ -352,6 +383,7 @@ struct HubFeed: Decodable, Sendable {
             )
             entry.sourceBuild = sourceBuild
             entry.installs = installs
+            entry.flashChip = chip.flatMap(FlashChipSupport.init(rawValue:))
             return entry
         }
     }
