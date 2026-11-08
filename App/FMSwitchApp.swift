@@ -81,7 +81,7 @@ final class AppModel {
     let catalogue = CatalogueStore()
     let library = FirmwareLibrary()
     let history = FlashHistory()
-    let backups = BackupStore()
+    let backups = BackupStore.forLaunch()
     let starred = StarredFirmwares()
     let tipJar = TipJar()
     /// Tells the person when firmwares they've saved have newer releases, once they've asked.
@@ -103,7 +103,7 @@ final class AppModel {
     private var iCloudWatcher: ICloudWatcher?
 
     init() {
-        device = DeviceController(library: library, history: history)
+        device = DeviceController(library: library, history: history, logFolder: InstallLogFile.folder)
         device.configure(settings.transportKind, settings: settings)
         #if os(macOS)
             downloadMode = DownloadModeController(

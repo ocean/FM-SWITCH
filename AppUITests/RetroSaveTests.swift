@@ -9,7 +9,7 @@ import XCTest
             let app = XCUIApplication()
             app.launchArguments = [
                 "-look", "retro", "-acknowledgedNoticeVersion", "99", "-tipNudgesShown", "99",
-                "-simulatedOpenFirmware", "YES",
+                "-simulatedOpenFirmware", "YES", "-freshBackups", "YES",
             ]
             app.launch()
             let open = app.buttons["SAVE MY FM-1"]

@@ -11,8 +11,8 @@ enum DownloadModeJob: Hashable {
     /// Puts a whole-flash backup back.
     case restore(SavedFlashBackup)
     /// Installs a saved firmware straight to the flash, keeping the bootloader.
-    case install(StoredFirmware, erasingSettings: Bool)
-    /// Installs m-bootloader 1.2, which comes with the app.
+    case install(StoredFirmware, erasingSavedData: Bool)
+    /// Installs m-bootloader 2.1, which comes with the app.
     case mBootloader
     /// Puts back M-VAVE's bootloader, from V15's package.
     case mvaveBootloader
@@ -260,8 +260,8 @@ final class DownloadModeController {
             throw FlashFailure(.other, "A backup doesn't write anything.")
         case .restore(let backup):
             return .restore(try await backups.files(of: backup))
-        case .install(let firmware, let erasingSettings):
-            return .firmware(try await packageData(firmware), erasingSettings: erasingSettings)
+        case .install(let firmware, let erasingSavedData):
+            return .firmware(try await packageData(firmware), erasingSavedData: erasingSavedData)
         case .mBootloader:
             return .mBootloader(try Self.mBootloaderData())
         case .mvaveBootloader:
@@ -278,7 +278,7 @@ final class DownloadModeController {
         return try Data(contentsOf: url)
     }
 
-    /// m-bootloader 1.2's `fm1-uboot.boot`, which comes with the app, checked against its
+    /// m-bootloader 2.1's `fm1-uboot.boot`, which comes with the app, checked against its
     /// release's SHA-256.
     static func mBootloaderData() throws -> Data {
         guard let url = Bundle.main.url(forResource: "fm1-uboot", withExtension: "boot"),
@@ -290,8 +290,11 @@ final class DownloadModeController {
         return data
     }
 
-    /// The SHA-256 of m-bootloader 1.2's `fm1-uboot.boot`, from its release's `SHA256SUMS`.
-    static let mBootloaderSHA256 = "9e5ec0e39dc55c167f8e289cfdac612d7d340b5f46100e1be2540ef4d6ec2f13"
+    /// The SHA-256 of m-bootloader 2.1's `fm1-uboot.boot`, from its release's `SHA256SUMS`.
+    ///
+    /// 2.1, not 1.2: 1.2 stops at `BAD CONFIG` after V16's boot area, and FM1Kit refuses it there.
+    /// FM1Kit's stage V installed 2.1 over both V15's and V16's.
+    static let mBootloaderSHA256 = "ef160139f731cb8190c9bb6c3fc4e3b6ecf4ef107ce35e412132f6c2aea65a35"
 
     /// Runs `body`, passing it a progress handler that reaches `update` on the main actor.
     private func withProgress<Value: Sendable>(

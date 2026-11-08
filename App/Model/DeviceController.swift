@@ -13,29 +13,41 @@ import SwiftUI
 @Observable
 final class DeviceController {
     private(set) var identity: FM1Identity?
+    /// Every device that answered, when more than one did, so the person can choose one.
+    private(set) var devices: [FM1DeviceSummary] = []
+    /// The device chosen when more than one is connected, which everything here works with alone.
+    private(set) var chosenDevice: FM1DeviceSummary?
+    /// Whether the FM-1 says it has the newer flash chip, which only some firmwares report.
+    private(set) var hasNewerFlashChip = false
     private(set) var isScanning = false
     private(set) var lastScan: Date?
     private(set) var ports: [MIDIPortDescriptor] = []
     private(set) var job: FlashJob?
-    private(set) var voiceRestore = VoiceRestore.idle
-    private(set) var backupRun = BackupRun.idle
+    /// What the voice restore and the backup are doing; only DeviceController+Restoring sets them.
+    var voiceRestore = VoiceRestore.idle
+    var backupRun = BackupRun.idle
     private(set) var log: [String] = []
+    /// Where the install's log is saved as it goes, if it can be.
+    private var logFile: InstallLogFile?
+    /// The folder installs' logs are saved in, or `nil` to save none, as in tests.
+    private let logFolder: URL?
     private(set) var transportName = ""
     private(set) var transportError: String?
 
     private(set) var transport: any MIDITransport = UnavailableTransport()
-    private var updater = FM1Updater(transport: UnavailableTransport())
+    private(set) var updater = FM1Updater(transport: UnavailableTransport())
     private var watchTask: Task<Void, Never>?
     private let wakeKeeper = WakeKeeper()
 
-    private let library: FirmwareLibrary
-    private let history: FlashHistory
+    let library: FirmwareLibrary
+    let history: FlashHistory
     /// The person's settings, for what they've said starts their FM-1.
-    private var settings: AppSettings?
+    private(set) var settings: AppSettings?
 
-    init(library: FirmwareLibrary, history: FlashHistory) {
+    init(library: FirmwareLibrary, history: FlashHistory, logFolder: URL? = nil) {
         self.library = library
         self.history = history
+        self.logFolder = logFolder
     }
 
     var isFlashing: Bool { job?.isRunning ?? false }
@@ -45,8 +57,6 @@ final class DeviceController {
     /// It's busy during a flash, a voice restore or a backup. A backup doesn't write a project
     /// slot or the sample bank, but it does load each project in turn.
     var isWriting: Bool { isFlashing || voiceRestore.isRunning || backupRun.isRunning }
-
-    var simulatedDevice: SimulatedFM1? { transport as? SimulatedFM1 }
 
     // MARK: - Transport.
 
@@ -64,21 +74,14 @@ final class DeviceController {
                 transportError = error.localizedDescription
             }
         case .simulated:
-            var options = SimulatedFM1.Options()
-            options.startsInRecoveryMode = settings.simulatedRecoveryMode
-            options.unplugDuringWriteAt = settings.simulatedCablePull ? 0.45 : nil
-            options.writesBackwards = settings.simulatedReadsBackwards
-            options.checksAfterWriting = settings.simulatedVerifies
-            if settings.simulatedMBootloader {
-                options.bootloaderVersion = "1.2"
-                options.comparesBootArea = true
-            }
-            if settings.simulatedOpenFirmware { SimulatedOpenFirmware.apply(to: &options) }
-            transport = SimulatedFM1(options: options)
+            transport = SimulatedPair.transport(for: settings)
         }
         transportName = kind.name
         updater = FM1Updater(transport: transport)
         identity = nil
+        hasNewerFlashChip = false
+        devices = []
+        chosenDevice = nil
         ports = []
 
         let changes = transport.changes()
@@ -113,32 +116,40 @@ final class DeviceController {
             lastScan = .now
         }
         ports = await transport.ports()
-        identity = await updater.identify()
+        await findDevices()
         // An FM-1 that's just been plugged in, or has just rebooted, can show up a moment before
         // it answers.
         var retries = 3
-        while identity == nil, !ports.isEmpty, retries > 0, !Task.isCancelled {
+        while identity == nil, !needsChoice, !ports.isEmpty, retries > 0, !Task.isCancelled {
             retries -= 1
             try? await Task.sleep(for: .seconds(1))
             ports = await transport.ports()
-            identity = await updater.identify()
+            await findDevices()
         }
+    }
+
+    /// Works with `device` alone, of the ones connected.
+    func choose(_ device: FM1DeviceSummary) {
+        guard !isWriting, devices.contains(device) else { return }
+        chosenDevice = device
+        updater = FM1Updater(transport: transport, device: device)
+        identity = device.identity
+        hasNewerFlashChip = device.hasNewerFlashChip
+    }
+
+    /// Lists the devices connected, and when there's more than one, keeps working with the one
+    /// chosen, if it's still there.
+    private func findDevices() async {
+        let found = await FM1Updater(transport: transport).devices()
+        devices = found.count > 1 ? found : []
+        chosenDevice = chosenDevice.flatMap { DeviceChoice.same($0, in: devices, identity: identity) }
+        updater = FM1Updater(transport: transport, device: chosenDevice)
+        let current = devices.isEmpty ? found.first : chosenDevice
+        identity = current?.identity
+        hasNewerFlashChip = current?.hasNewerFlashChip ?? false
     }
 
     // MARK: - Flashing.
-
-    /// The steps for installing `target`: the official firmware first when it is required
-    /// (or always, if the user prefers) and the device is not already running it.
-    func plan(for target: StoredFirmware, requiresOfficial: Bool, alwaysViaOfficial: Bool) -> [StoredFirmware] {
-        guard target.source != .official,
-            requiresOfficial || alwaysViaOfficial,
-            let official = library.official,
-            identity?.text != official.product
-        else {
-            return [target]
-        }
-        return [official, target]
-    }
 
     /// What installing `item` on the connected FM-1 would do, sending only the handshake (and,
     /// for M-VAVE's open firmware, its capability query).
@@ -155,13 +166,26 @@ final class DeviceController {
     ///     firmware; FM1Kit refuses one otherwise.
     ///   - confirmsSameIdentity: Set once the person has confirmed installing the identity a
     ///     custom firmware already reports; FM1Kit refuses one otherwise.
-    func flash(_ steps: [StoredFirmware], confirmsSwitchingFirmware: Bool = false, confirmsSameIdentity: Bool = false) {
+    ///   - confirmsReinstallingOfficial: Set once the person has confirmed the FM-1 isn't really
+    ///     running the official firmware it reports, such as TransitFM1 reporting V15.
+    ///   - startedOnV16: Set when carrying on from an install that started on V16.
+    func flash(
+        _ steps: [StoredFirmware],
+        confirmsSwitchingFirmware: Bool = false,
+        confirmsSameIdentity: Bool = false,
+        confirmsReinstallingOfficial: Bool = false,
+        startedOnV16: Bool = false
+    ) {
         guard !steps.isEmpty, !isWriting else { return }
         log = []
+        logFile = logFolder.flatMap { InstallLogFile(in: $0) }
         job = FlashJob(
             steps: steps,
             confirmsSwitchingFirmware: confirmsSwitchingFirmware,
-            confirmsSameIdentity: confirmsSameIdentity
+            confirmsSameIdentity: confirmsSameIdentity,
+            confirmsReinstallingOfficial: confirmsReinstallingOfficial,
+            guide: runningGuide,
+            startedOnV16: startedOnV16 || identity == .officialV16
         )
         Task { await run(from: 0) }
     }
@@ -183,16 +207,18 @@ final class DeviceController {
 
     private func run(from startIndex: Int) async {
         guard let steps = job?.steps else { return }
-        let options = InstallOptions(
+        var options = InstallOptions(
             confirmsSwitchingFirmware: job?.confirmsSwitchingFirmware ?? false,
             confirmsSameIdentity: job?.confirmsSameIdentity ?? false
         )
+        options.confirmsReinstallingOfficial = job?.confirmsReinstallingOfficial ?? false
         setKeepAwake(true)
         defer { setKeepAwake(false) }
 
         for index in startIndex..<steps.count {
             job?.index = index
             job?.phase = .preparing
+            job?.writtenFraction = 0
             let item = steps[index]
             appendLog("▸ \(item.name) \(item.version) (\(item.product))")
             do {
@@ -205,7 +231,8 @@ final class DeviceController {
                         self?.apply(event)
                     }
                 }
-                let isLoaderRunning = await updater.identify()?.isLoader ?? false
+                let before = await updater.identify()
+                let isLoaderRunning = before?.isLoader ?? false
                 let result: Result<FM1Identity, any Error>
                 do {
                     let report: @Sendable (UpdateEvent) -> Void = { continuation.yield($0) }
@@ -219,20 +246,78 @@ final class DeviceController {
                 continuation.finish()
                 await consumer.value
 
-                let installed = try result.get()
+                let installed = try await confirmed(result, of: package, reinstalling: before == package.identity)
                 identity = installed
-                history.record(item)
+                record(item, from: package)
             } catch {
+                if let written = job?.writtenFraction, written > 0 {
+                    appendLog("Written: \(Int(written * 100))% of it.")
+                }
                 appendLog("✕ \(error.localizedDescription)")
-                let message = failureMessage(for: error, installing: item)
+                let needsAStepFirst = FlashJob.needsAStepFirst(
+                    after: error, installing: item, from: job?.guide, startUp: settings?.startUp)
+                let running = identity.flatMap { history.lastInstall(matching: $0.text)?.name }
+                let message = FlashJob.failureMessage(
+                    for: error, installing: item, running: running, needsAStepFirst: needsAStepFirst)
                 job?.phase = .failed(message, canResume: FlashJob.canResume(after: error))
-                job?.needsAStepFirst = needsAStepFirst(after: error, installing: item)
+                job?.needsAStepFirst = needsAStepFirst
                 job?.mightBeRefused = FlashJob.mightBeRefused(after: error)
                 return
             }
         }
         job?.phase = .succeeded(identity?.text ?? "")
         appendLog("✓ Finished.")
+    }
+
+    /// What `result` installed, or after an error that can hide a finished install, the package's
+    /// identity if the FM-1 turns out to be running it.
+    private func confirmed(
+        _ result: Result<FM1Identity, any Error>,
+        of package: FwscPackage,
+        reinstalling: Bool
+    ) async throws -> FM1Identity {
+        do {
+            return try result.get()
+        } catch {
+            let written = job?.writtenFraction ?? 0
+            guard FlashJob.mightHaveFinished(after: error, written: written, reinstalling: reinstalling),
+                let returned = await returned(running: package)
+            else {
+                throw error
+            }
+            return returned
+        }
+    }
+
+    /// Looks for the FM-1 for a while, in case it restarted into `package` without FM1Kit seeing
+    /// it: its loader can restart without saying it's finished, or the FM-1 can come back where
+    /// FM1Kit isn't looking.
+    ///
+    /// - Returns: The package's identity once the FM-1 reports it, or `nil` if it reports anything
+    ///   else, or nothing in time.
+    private func returned(running package: FwscPackage) async -> FM1Identity? {
+        job?.phase = .rebooting
+        appendLog("Looking for the FM-1, in case it restarted into the new firmware.")
+        let deadline = ContinuousClock.now + FlashJob.returnSearch
+        while ContinuousClock.now < deadline, !Task.isCancelled {
+            if let found = await updater.identify() {
+                appendLog("Device reports \(found.text).")
+                return found == package.identity ? found : nil
+            }
+            try? await Task.sleep(for: .seconds(2))
+        }
+        appendLog("No FM-1 answered.")
+        return nil
+    }
+
+    /// Records an install, with the guide to switching away from it, and what starts the FM-1
+    /// once the install has brought a bootloader of its own.
+    private func record(_ item: StoredFirmware, from package: FwscPackage) {
+        let installed = SwitchingGuide.installing(
+            package, named: item.name, over: job?.guide, startUp: settings?.startUp)
+        history.record(item, guide: installed.guide)
+        if let startUp = installed.startUp { settings?.startUp = startUp }
+        job?.guide = installed.guide ?? job?.guide
     }
 
     private func apply(_ event: UpdateEvent) {
@@ -248,9 +333,12 @@ final class DeviceController {
             appendLog("Loader: \(identity.text)")
         case .writing(let fraction, _):
             job?.phase = .writing(fraction: fraction)
+            let written = job?.writtenFraction ?? 0
+            job?.writtenFraction = max(written, fraction)
         case .checking(let fraction, _):
-            if case .verifying = job?.phase {} else { appendLog("Written; the loader is reading it back to check it.") }
-            job?.phase = .verifying(fraction: fraction)
+            if case .secondPass = job?.phase {} else { appendLog("Written once; the loader is going over it again.") }
+            job?.phase = .secondPass(fraction: fraction)
+            job?.writtenFraction = 1
         case .rebooting:
             job?.phase = .rebooting
             appendLog("Rebooting into the new firmware.")
@@ -259,131 +347,16 @@ final class DeviceController {
         }
     }
 
-    // MARK: - Factory voices.
-
-    /// Erases the FM-1's four voice banks and writes V15's 128 factory voices from the official
-    /// firmware, if the FM-1 is running V15.
-    ///
-    /// Every voice in the banks is replaced, including the person's own, and V15 can't read
-    /// them back first, so ask before calling this. If it's interrupted, running it again fixes it.
-    func restoreFactoryVoices() async {
-        guard !isWriting else { return }
-        voiceRestore = .writing(fraction: 0)
-        setKeepAwake(true)
-        defer { setKeepAwake(false) }
-        do {
-            guard let official = library.official else { throw FM1UpdateError.factoryVoicesUnavailable }
-            let package = try await library.loadPackage(official)
-            let (fractions, continuation) = AsyncStream<Double>.makeStream()
-            let consumer = Task { @MainActor [weak self] in
-                for await fraction in fractions {
-                    self?.voiceRestore = .writing(fraction: fraction)
-                }
-            }
-            let result: Result<Void, any Error>
-            do {
-                try await updater.restoreFactoryVoices(from: package) { continuation.yield($0) }
-                result = .success(())
-            } catch {
-                result = .failure(error)
-            }
-            continuation.finish()
-            await consumer.value
-            try result.get()
-            voiceRestore = .succeeded
-        } catch {
-            voiceRestore = .failed(error.localizedDescription)
-        }
-    }
-
-    #if os(macOS)
-        /// Asks the connected FM-1 to restart into the chip's USB download mode, and waits for it
-        /// to appear there.
-        ///
-        /// Nothing is written: switching the FM-1 off and on starts its firmware again.
-        func enterDownloadMode() async throws {
-            guard !isWriting else { return }
-            try await updater.enterDownloadMode()
-        }
-    #endif
-
-    func dismissVoiceRestore() {
-        guard !voiceRestore.isRunning else { return }
-        voiceRestore = .idle
-    }
-
-    // MARK: - Backing up.
-
-    /// Saves the projects and samples of an FM-1 running M-VAVE's open firmware into `store`.
-    ///
-    /// While it runs, the FM-1 loads each project in turn, then goes back to the one being edited,
-    /// unsaved changes and all. No project slot or sample is changed.
-    func backUp(into store: BackupStore) async {
-        guard !isWriting else { return }
-        backupRun = .saving(fraction: 0)
-        setKeepAwake(true)
-        defer { setKeepAwake(false) }
-        let (fractions, continuation) = AsyncStream<Double>.makeStream(bufferingPolicy: .bufferingNewest(1))
-        let consumer = Task { @MainActor [weak self] in
-            for await fraction in fractions {
-                self?.backupRun = .saving(fraction: fraction)
-            }
-        }
-        let result: Result<OpenFirmwareBackup, any Error>
-        do {
-            result = .success(try await updater.backUpOpenFirmware { continuation.yield($0) })
-        } catch {
-            result = .failure(error)
-        }
-        continuation.finish()
-        await consumer.value
-        do {
-            backupRun = .succeeded(try store.save(try result.get()))
-        } catch {
-            backupRun = .failed(error.localizedDescription)
-        }
-    }
-
-    func dismissBackup() {
-        guard !backupRun.isRunning else { return }
-        backupRun = .idle
-    }
-
-    /// What went wrong, in words: FM1Kit's, apart from the installed firmware refusing the
-    /// package, which is said plainly.
-    private func failureMessage(for error: any Error, installing item: StoredFirmware) -> String {
-        guard FlashJob.isRefusal(error) else { return error.localizedDescription }
-        let running = identity.flatMap { history.lastInstall(matching: $0.text)?.name } ?? "the firmware it had"
-        // With M-VAVE's start-up these firmwares still take V15, so going through it gets past them.
-        if !needsAStepFirst(after: error, installing: item) {
-            return """
-                Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
-                Install V15 first, then \(item.name).
-                """
-        }
-        // MIDIMON and LOOM-8 are let in, and their updated check takes the rest (FM1Kit's stage P).
-        return """
-            Your FM-1 is fine. It's still running \(running), which won't take \(item.name) from here. \
-            Install MIDIMON 0.4 or LOOM-8 first, then \(item.name).
-            """
-    }
-
-    /// Whether `error` is a refusal that only MIDIMON or LOOM-8 gets past, as
-    /// ``failureMessage(for:installing:)`` says.
-    private func needsAStepFirst(after error: any Error, installing item: StoredFirmware) -> Bool {
-        guard FlashJob.isRefusal(error) else { return false }
-        return settings?.startUp != .mVave || item.source == .official
-    }
-
     private func appendLog(_ line: String) {
         log.append(line)
+        logFile?.append(line)
     }
 
     // MARK: - Staying alive.
 
     /// Keeps the device awake for the whole flash, restore or backup, so the person only has to
     /// stay in the app.
-    private func setKeepAwake(_ on: Bool) {
+    func setKeepAwake(_ on: Bool) {
         wakeKeeper.isHolding = on
     }
 

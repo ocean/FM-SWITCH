@@ -4,7 +4,7 @@ import Foundation
 /// looks.
 enum HelpTopic: String, CaseIterable, Identifiable {
     /// A firmware built on Felucca's earlier update code refuses V15, Open and most others, once
-    /// the FM-1's bootloader has been changed.
+    /// the FM-1's bootloader has been changed, and some refuse V16 whatever the bootloader.
     case wontInstall
     case stoppedHalfway
     case wontStart
@@ -33,9 +33,11 @@ enum HelpTopic: String, CaseIterable, Identifiable {
             [
                 """
                 If your FM-1's bootloader has been changed, usually to m-bootloader, or by installing \
-                M-VAVE's Open V12 or V14, some firmwares built on Felucca's update code (AMB-1, DUB-1, \
-                HYP-1 and others) won't let you install V15, Open, or most firmwares not built on \
-                Felucca. The FM-1 may show "UPDATE / CHECK HEAD / FAILED", or nothing at all.
+                M-VAVE's V16, Open V12 or V14, some firmwares built on Felucca's update code (AMB-1, \
+                DUB-1, HYP-1 and others) won't let you install V15, Open, or most firmwares not built \
+                on Felucca. Firmwares based on Felucca 1.6.1 refuse V16 and Open whatever the \
+                bootloader, and so does TransitFM1. The FM-1 may show "UPDATE / CHECK HEAD / FAILED", \
+                or nothing at all.
                 """,
                 """
                 Your FM-1 is fine: nothing was written, and it's still running the firmware it had. \
@@ -44,8 +46,10 @@ enum HelpTopic: String, CaseIterable, Identifiable {
                 """,
                 """
                 There's a way round it, and it works from this \(ThisDevice.name) too. First install \
-                MIDIMON 0.4 or LOOM-8 0.8. They're built on Felucca, so your firmware lets them in, but \
-                their check is updated, so either can then install V15, Open or the firmware you wanted.
+                MIDIMON 0.4 or LOOM-8. They're built on Felucca, so your firmware lets them in, but \
+                their check is updated, so either can then install V15, V16, Open or the firmware you \
+                wanted. When FM-SWITCH knows the firmware on your FM-1 needs this, it puts MIDIMON on \
+                first for you, then the one you picked.
                 """,
                 """
                 If you installed Open V12 or V14 before, some of these firmwares (DUB-1, for one) can \

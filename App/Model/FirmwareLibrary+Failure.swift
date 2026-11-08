@@ -25,7 +25,7 @@ extension FirmwareLibrary {
             case .notOfficial:
                 return """
                     That file isn't a recognised official FM-1 firmware \
-                    (only an unmodified V15 FM-1.fwsc is accepted).
+                    (only an unmodified V15 or V16 FM-1.fwsc is accepted).
                     """
             case .officialNotFound:
                 return """

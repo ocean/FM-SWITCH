@@ -6,14 +6,15 @@ struct BeforeYouStartView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var checked = InstallCheckState.checking
+    @State private var switching = SwitchingCheck()
     @State private var hasDataCable = false
     @State private var staysPluggedIn = false
     @State private var hasSaved = false
     @State private var acceptsUntested = false
+    @State private var confirmsNotOfficial = false
     /// Whether to ask what starts the FM-1, decided once as the sheet opens so the question stays
     /// while it's answered.
     @State private var asksStartUp = false
-    @State private var refusesV15 = false
     let target: StoredFirmware
     var requiresOfficial = false
 
@@ -22,7 +23,7 @@ struct BeforeYouStartView: View {
             target: target,
             requiresOfficial: requiresOfficial,
             checked: checked,
-            refusesV15OverOtherBootloaders: refusesV15,
+            switching: switching,
             model: model)
         NavigationStack {
             ScrollView {
@@ -47,11 +48,15 @@ struct BeforeYouStartView: View {
             .safeAreaInset(edge: .bottom) { startButton(readiness) }
         }
         .tint(Palette.accentText)
-        .sensoryFeedback(.selection, trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested])
+        .sensoryFeedback(
+            .selection, trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested, confirmsNotOfficial]
+        )
+        .task(id: "\(target.id)|\(model.device.identity?.text ?? "")|\(model.settings.startUp?.rawValue ?? "")") {
+            switching = await SwitchingCheck.read(installing: target, requiresOfficial: requiresOfficial, model: model)
+            asksStartUp = asksStartUp || (switching.dependsOnStartUp && model.settings.startUp != .mVave)
+        }
         .task(id: "\(readiness.steps.first?.id ?? "")|\(model.device.identity?.text ?? "")") {
             checked = .checking
-            refusesV15 = await InstallReadiness.refusesV15OverOtherBootloaders(target, in: model.library)
-            asksStartUp = asksStartUp || (refusesV15 && model.settings.startUp != .mVave)
             checked = await InstallReadiness.check(readiness.steps.first, on: model.device)
         }
         #if os(macOS)
@@ -61,11 +66,17 @@ struct BeforeYouStartView: View {
 
     /// What goes on, in order.
     @ViewBuilder private func plan(_ readiness: InstallReadiness) -> some View {
+        let planned = readiness.steps.filter { $0 != readiness.switching.firstStep }
         HStack(spacing: 14) {
             FirmwareBadge(design: model.catalogue.badge(id: target.catalogueID, name: target.name))
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(target.name) \(target.version)").font(.headline)
-                if readiness.steps.count > 1, let first = readiness.steps.first {
+                if let firstStep = readiness.switching.firstStep, let running = readiness.switching.running {
+                    Text(SwitchingWords.firstStep(firstStep.name, running: running.firmwareName, next: planned[0].name))
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+                if planned.count > 1, let first = planned.first {
                     Text("\(first.name) goes on first, as \(target.name) installs from it.")
                         .font(.subheadline)
                         .foregroundStyle(Palette.secondaryInk)
@@ -79,6 +90,17 @@ struct BeforeYouStartView: View {
                 isWarning: true
             )
         }
+        if readiness.isMissingFirstStep, let running = readiness.switching.running {
+            Notice(
+                SwitchingWords.missingFirstStep(
+                    running: running.firmwareName,
+                    next: planned[0].name,
+                    problem: readiness.switching.firstStepProblem
+                ),
+                systemImage: "exclamationmark.triangle",
+                isWarning: true
+            )
+        }
         if readiness.isUntested {
             Notice(
                 "In testing. \(InstallReadiness.untestedWarning)",
@@ -86,16 +108,52 @@ struct BeforeYouStartView: View {
                 isWarning: true
             )
         }
+        if !readiness.switching.knowsOnlyFirstChip.isEmpty {
+            Notice(
+                InstallReadiness.newerFlashChipWarning(readiness.switching.knowsOnlyFirstChip),
+                systemImage: "exclamationmark.triangle",
+                isWarning: true
+            )
+        }
+        if readiness.switching.installsV16 {
+            Notice(InstallReadiness.beforeV16Warning, systemImage: "exclamationmark.triangle", isWarning: true)
+        }
+        if readiness.switching.followsV16 {
+            Notice(InstallReadiness.afterV16Warning, systemImage: "exclamationmark.triangle", isWarning: true)
+        }
+        route(readiness.switching)
     }
 
-    /// What starts the FM-1, when this firmware's install depends on it, and what that means.
+    /// How the firmware running gets to the one planned, when it has to go another way, or might.
+    @ViewBuilder private func route(_ switching: SwitchingCheck) -> some View {
+        if let running = switching.running, let destination = switching.destination {
+            switch switching.route {
+            case .throughFixedFirmware? where switching.firstStep != nil:
+                DisclosureGroup("Why?") {
+                    StepsText(steps: running.instructions(to: destination))
+                }
+                .font(.callout.weight(.semibold))
+            case .uncertain?:
+                Notice(
+                    running.instructions(to: destination).joined(separator: " "),
+                    systemImage: "info.circle",
+                    isWarning: false
+                )
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    /// What starts the FM-1, when this firmware's install depends on it, and what switching away
+    /// from it will take.
     @ViewBuilder private func startUp(_ readiness: InstallReadiness) -> some View {
         @Bindable var settings = model.settings
         if asksStartUp {
             StartUpQuestion(startUp: $settings.startUp.animation(Motion.fade))
         }
-        if let warning = readiness.macWarning {
-            MacWarningCard(warning: warning) {
+        if !readiness.switching.warnings.isEmpty {
+            SwitchingWarningCard(warnings: readiness.switching.warnings) {
                 model.requestedPage = .help(.wontInstall)
                 dismiss()
             }
@@ -120,9 +178,19 @@ struct BeforeYouStartView: View {
                 }
             case .failed(let reason):
                 Notice(reason, systemImage: "exclamationmark.triangle", isWarning: true)
+            case .found(.reinstall) where readiness.knowsItIsntOfficial:
+                if let running = readiness.switching.running {
+                    Notice(
+                        SwitchingWords.replacesLookAlike(running.firmwareName, reporting: identity),
+                        systemImage: "info.circle",
+                        isWarning: false
+                    )
+                }
             case .found(.reinstall) where readiness.isAlreadyInstalled:
                 Notice(
-                    "Your FM-1 is already running this, so there's nothing to install.",
+                    readiness.canReinstallOfficial
+                        ? SwitchingWords.alreadyOfficial(identity)
+                        : "Your FM-1 is already running this, so there's nothing to install.",
                     systemImage: "checkmark.circle",
                     isWarning: false
                 )
@@ -138,6 +206,8 @@ struct BeforeYouStartView: View {
             default:
                 EmptyView()
             }
+        } else if model.device.needsChoice {
+            Notice(DeviceChoice.chooseFirst, systemImage: "cable.connector", isWarning: true)
         } else {
             Notice("Plug in your FM-1 and switch it on.", systemImage: "cable.connector", isWarning: true)
         }
@@ -145,16 +215,23 @@ struct BeforeYouStartView: View {
 
     @ViewBuilder private func checklist(_ readiness: InstallReadiness) -> some View {
         VStack(spacing: 0) {
+            if readiness.canReinstallOfficial, !readiness.knowsItIsntOfficial, let identity = readiness.identity {
+                CheckRow(
+                    title: SwitchingWords.notReallyOfficial,
+                    detail: SwitchingWords.notReallyOfficialDetail(identity),
+                    isOn: $confirmsNotOfficial)
+                Divider().overlay(Palette.line)
+            }
             CheckRow(
                 title: "It's plugged in with a data cable",
                 detail: "Some USB cables only charge. If your FM-1 showed up in the app, yours is fine.",
                 isOn: $hasDataCable)
             Divider().overlay(Palette.line)
             CheckRow(
-                title: "I'll leave it plugged in until it's done",
-                detail: "And keep the app open. If anything stops it, you can carry on where it left off.",
+                title: InstallWords.staysOn,
+                detail: InstallWords.staysOnDetail,
                 isOn: $staysPluggedIn)
-            if readiness.isSwitching {
+            if isSwitching(readiness) {
                 Divider().overlay(Palette.line)
                 CheckRow(
                     title: "I've saved anything I want to keep",
@@ -170,14 +247,20 @@ struct BeforeYouStartView: View {
             }
         }
         .cardBackground()
-        Text("Takes about a minute. Your FM-1 restarts on its own along the way.")
+        Text(InstallWords.takesAMinute)
             .font(.footnote)
             .foregroundStyle(Palette.secondaryInk)
     }
 
+    /// Whether this switches firmware, including V15 over a firmware that only reports V15.
+    private func isSwitching(_ readiness: InstallReadiness) -> Bool {
+        readiness.isSwitching || (readiness.canReinstallOfficial && confirmsNotOfficial)
+    }
+
     private func startButton(_ readiness: InstallReadiness) -> some View {
+        let isSwitching = isSwitching(readiness)
         let isTicked =
-            hasDataCable && staysPluggedIn && (!readiness.isSwitching || hasSaved)
+            hasDataCable && staysPluggedIn && (!isSwitching || hasSaved)
             && (!readiness.isUntested || acceptsUntested)
         let title =
             readiness.needsStartUp
@@ -185,18 +268,25 @@ struct BeforeYouStartView: View {
         let install = Button(title) {
             model.device.flash(
                 readiness.steps,
-                confirmsSwitchingFirmware: readiness.isSwitching && hasSaved,
-                confirmsSameIdentity: readiness.isSameIdentity
+                confirmsSwitchingFirmware: isSwitching && hasSaved,
+                confirmsSameIdentity: readiness.isSameIdentity,
+                confirmsReinstallingOfficial: readiness.knowsItIsntOfficial
+                    || (readiness.canReinstallOfficial && confirmsNotOfficial)
             )
             dismiss()
         }
         .buttonStyle(.prominent(Palette.firmwares))
-        .disabled(!isTicked || !readiness.canStart(confirmsSwitch: hasSaved, acceptsUntested: acceptsUntested))
+        .disabled(
+            !isTicked
+                || !readiness.canStart(
+                    confirmsSwitch: hasSaved, acceptsUntested: acceptsUntested, confirmsNotOfficial: confirmsNotOfficial
+                )
+        )
         .animation(Motion.fade, value: isTicked)
         return HStack(spacing: 10) {
             // Keeping things as they are is as easy to pick as installing.
-            if let warning = readiness.macWarning {
-                Button(warning.decline) { dismiss() }
+            if !readiness.switching.warnings.isEmpty {
+                Button(SwitchingWords.decline) { dismiss() }
                     .buttonStyle(.secondary)
             }
             install

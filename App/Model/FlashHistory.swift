@@ -1,3 +1,4 @@
+import FM1Kit
 import Foundation
 import Observation
 
@@ -11,6 +12,10 @@ struct FlashRecord: Codable, Hashable, Identifiable {
     var version: String
     var product: String
     var date: Date
+    /// How to switch away from it, worked out from its package as it was installed.
+    ///
+    /// Installs recorded before guides were saved have none.
+    var guide: LeavingGuide?
 }
 
 @MainActor
@@ -38,8 +43,10 @@ final class FlashHistory {
         return last
     }
 
-    func record(_ item: StoredFirmware) {
-        records.insert(FlashRecord(name: item.name, version: item.version, product: item.product, date: .now), at: 0)
+    func record(_ item: StoredFirmware, guide: LeavingGuide? = nil) {
+        let record = FlashRecord(
+            name: item.name, version: item.version, product: item.product, date: .now, guide: guide)
+        records.insert(record, at: 0)
         records = Array(records.prefix(Self.limit))
         if let data = try? JSONEncoder().encode(records) {
             defaults.set(data, forKey: Self.key)

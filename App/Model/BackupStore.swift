@@ -40,6 +40,18 @@ final class BackupStore {
         reload()
     }
 
+    /// The backups for this launch: in debug builds, a fresh, empty folder when UI tests ask for one
+    /// with `-freshBackups YES`, so earlier runs' saves don't pile up on the page under test.
+    static func forLaunch() -> BackupStore {
+        #if DEBUG
+            if UserDefaults.standard.bool(forKey: "freshBackups") {
+                return BackupStore(
+                    directory: URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory))
+            }
+        #endif
+        return BackupStore()
+    }
+
     /// Reads the backups from disk again, as another device may have added some.
     ///
     /// Backups whose files haven't arrived from iCloud Drive yet start downloading, and are left out

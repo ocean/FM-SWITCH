@@ -64,8 +64,8 @@ struct InstallingView: View {
                 .multilineTextAlignment(.center)
             Text(
                 job.steps.count > 1
-                    ? "Step \(job.index + 1) of \(job.steps.count). Keep it plugged in."
-                    : "Keep it plugged in. Nearly there."
+                    ? "Step \(job.index + 1) of \(job.steps.count). \(InstallWords.darkScreen)"
+                    : InstallWords.darkScreen
             )
             .foregroundStyle(Palette.secondaryInk)
             .contentTransition(.opacity)
@@ -113,7 +113,7 @@ struct ProgressBar: View {
     }
 }
 
-/// The four stages, ticked off as they pass.
+/// The three stages, ticked off as they pass.
 private struct StageList: View {
     var current: InstallProgress.Stage
 

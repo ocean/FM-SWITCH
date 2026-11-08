@@ -177,12 +177,14 @@ struct StandardSettingsView: View {
                 Toggle("Start waiting to finish an install", isOn: $settings.simulatedRecoveryMode)
                 Toggle("Pull the cable at 45%", isOn: $settings.simulatedCablePull)
                 Toggle("Read backwards, like V15", isOn: $settings.simulatedReadsBackwards)
-                Toggle("Check after writing, like Felucca", isOn: $settings.simulatedVerifies)
+                Toggle("Go over it twice, like Felucca", isOn: $settings.simulatedVerifies)
                 Toggle("Has m-bootloader, and refuses M-VAVE's packages", isOn: $settings.simulatedMBootloader)
                     .onChange(of: settings.simulatedMBootloader) { model.applyConnectionSettings() }
                 Toggle("Run open firmware, with projects to save", isOn: $settings.simulatedOpenFirmware)
                     // It changes what the FM-1 reports, so it starts again straight away.
                     .onChange(of: settings.simulatedOpenFirmware) { model.applyConnectionSettings() }
+                Toggle("Connect a second one, running V15", isOn: $settings.simulatedSecondFM1)
+                    .onChange(of: settings.simulatedSecondFM1) { model.applyConnectionSettings() }
                 Button("Reset the simulated FM-1") { model.applyConnectionSettings() }
                     .disabled(model.device.isWriting)
             }

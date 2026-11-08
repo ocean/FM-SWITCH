@@ -50,9 +50,11 @@ phone. A native app fills that gap.
   OCT− + OCT+ held 5 s while running for FiMba-1 and FuMi-1. The rest don't say.
 - **Not possible on iOS:** ROM bootloader recovery (`UBOOT1.00` USB mass storage with SCSI
   pass-through via jl-uboot-tool). That needs a computer. The app must say so clearly.
-  FM-1-RE says this hasn't been demonstrated on the FM-1, though Melodee, FuMi-1
-  (`tools/fm1_rescue.py`) and Hortator (`docs/RECOVERY.md`) each publish a rescue for a device
-  that shows up as WL80UBOOT. If it never gets that far, the SLOOP family point to
+  FM-1-RE said this hadn't been demonstrated on the FM-1, but FM1Kit's stage K (2026-10-25)
+  used it on a real one, reached through m-bootloader, to back up, install and restore, and
+  FM-SWITCH's Mac Backup & rescue uses it. Melodee, FuMi-1 (`tools/fm1_rescue.py`) and
+  Hortator (`docs/RECOVERY.md`) each publish a rescue for a device that shows up as WL80UBOOT
+  too. If it never gets that far, the SLOOP family point to
   FM-1-transporter. SETUP's "IF IT WON'T START AT ALL" panel says this.
 
 ## Firmware sources

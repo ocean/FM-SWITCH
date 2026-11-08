@@ -8,6 +8,8 @@ struct FlashView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.phosphor) private var theme
     @State private var restoringVoices = false
+    @State private var isFindingFirstStep = false
+    @State private var firstStepProblem: String?
 
     var body: some View {
         if let job = model.device.job {
@@ -97,6 +99,7 @@ struct FlashView: View {
                     )
                     Button("RESTORE FACTORY VOICES") { restoringVoices = true }
                         .buttonStyle(.pixel)
+                    if job.startedOnV16 { NoteText(SwitchingWords.stillMono) }
                 }
                 Button("CLOSE") { model.device.dismissFlash() }
                     .buttonStyle(.pixelProminent)
@@ -105,8 +108,9 @@ struct FlashView: View {
             PixelPanel(title: "STOPPED") {
                 MonoText(message, size: 15)
                 if job.needsAStepFirst {
-                    refusedActions
+                    refusedActions(job)
                 } else if canResume {
+                    MonoText(InstallWords.reconnectThenResume, size: 15)
                     Button("RESUME") { model.device.resume() }
                         .buttonStyle(.pixelProminent)
                 } else {
@@ -133,7 +137,8 @@ struct FlashView: View {
                 NoteText(
                     """
                     An install takes from about 35 seconds to a minute, depending on the firmware being \
-                    replaced. If it is interrupted, the FM-1 waits in update mode and RESUME carries on.
+                    replaced. The FM-1's screen stays dark until it's done. If it is interrupted, don't \
+                    switch it off: reconnect it and RESUME carries on.
                     """
                 )
             }
@@ -143,20 +148,27 @@ struct FlashView: View {
     /// What to do when the FM-1's firmware refused the install: MIDIMON first, or Help.
     ///
     /// Trying again would only be refused again, so it isn't offered.
-    @ViewBuilder private var refusedActions: some View {
-        let wayRound = model.catalogue.entry(id: FeluccaUpdateCode.wayRound)
-        if let wayRound {
-            Button("INSTALL \(wayRound.name.uppercased())") {
-                model.device.dismissFlash()
-                model.requestedPage = .firmware(wayRound.id)
+    @ViewBuilder private func refusedActions(_ job: DeviceController.FlashJob) -> some View {
+        Button(isFindingFirstStep ? "GETTING MIDIMON…" : SwitchingWords.installFirst("MIDIMON").uppercased()) {
+            isFindingFirstStep = true
+            firstStepProblem = nil
+            Task {
+                defer { isFindingFirstStep = false }
+                do {
+                    try await FixedFirmware.installFirst(model: model)
+                } catch {
+                    firstStepProblem = error.localizedDescription
+                }
             }
-            .buttonStyle(.pixelProminent)
         }
+        .buttonStyle(.pixelProminent)
+        .disabled(isFindingFirstStep)
+        NoteText(firstStepProblem ?? SwitchingWords.installFirstDetail("MIDIMON", then: job.current.name))
         Button("WHAT CAN I DO?") {
             model.device.dismissFlash()
             model.requestedPage = .help(.wontInstall)
         }
-        .buttonStyle(PixelButtonStyle(prominent: wayRound == nil))
+        .buttonStyle(.pixel)
     }
 
     private func headerTitle(_ job: DeviceController.FlashJob) -> String {

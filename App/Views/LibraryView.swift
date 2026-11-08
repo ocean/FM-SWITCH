@@ -308,8 +308,8 @@ struct LibraryView: View {
         busy = true
         defer { busy = false }
         do {
-            try await library.downloadOfficialFromMVAVE()
-            message = "Official firmware downloaded from M-VAVE, verified and saved."
+            let official = try await library.downloadOfficialFromMVAVE()
+            message = "\(official.name) downloaded from M-VAVE, verified and saved."
         } catch {
             message = error.localizedDescription
         }

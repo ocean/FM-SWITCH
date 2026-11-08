@@ -47,7 +47,9 @@ struct RetroDownloadModeJobs: View {
     /// Opens a file chooser for a backup from elsewhere, such as M-Flasher.
     var chooseFile: () -> Void
     @State private var firmwareID: StoredFirmware.ID?
-    @State private var erasesSettings = false
+    @State private var erasesSavedData = false
+    @State private var gettingV16 = false
+    @State private var v16Problem: String?
 
     private var tools: DownloadModeController { model.downloadMode }
 
@@ -102,12 +104,32 @@ struct RetroDownloadModeJobs: View {
             .buttonStyle(.plain)
             .fixedSize()
             Button(DownloadModeWords.install.uppercased()) {
-                if let chosenFirmware { start(.install(chosenFirmware, erasingSettings: erasesSettings)) }
+                if let chosenFirmware { start(.install(chosenFirmware, erasingSavedData: erasesSavedData)) }
             }
             .buttonStyle(.pixelProminent)
             .disabled(chosenFirmware == nil)
         }
-        PixelToggle(DownloadModeWords.erasesSettings.uppercased(), isOn: $erasesSettings)
+        if model.library.v16 == nil {
+            Button((gettingV16 ? DownloadModeWords.gettingV16 : DownloadModeWords.getV16).uppercased(), action: getV16)
+                .buttonStyle(.pixel)
+                .disabled(gettingV16)
+            NoteText(v16Problem ?? DownloadModeWords.getV16Detail)
+        }
+        PixelToggle(DownloadModeWords.erasesSavedData.uppercased(), isOn: $erasesSavedData)
+        NoteText(DownloadModeWords.erasesSavedDataDetail)
+    }
+
+    private func getV16() {
+        gettingV16 = true
+        v16Problem = nil
+        Task {
+            do {
+                firmwareID = try await model.library.getV16().id
+            } catch {
+                v16Problem = error.localizedDescription
+            }
+            gettingV16 = false
+        }
     }
 
     private func job(_ title: String, _ detail: String, @ViewBuilder controls: () -> some View) -> some View {

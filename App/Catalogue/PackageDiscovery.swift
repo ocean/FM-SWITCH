@@ -72,23 +72,28 @@ struct PackageDiscovery: Sendable {
         return nil
     }
 
-    /// M-VAVE's own FM-1 firmware, linked from their downloads page and checked by hash on download.
+    /// M-VAVE's own FM-1 firmware, linked from their downloads page: V16 since 21 October 2026,
+    /// V15 before.
+    ///
+    /// The package is read to tell which, and only one FM1Kit knows by its hash is given.
     func officialPackage() async -> DiscoveredPackage? {
         guard let data = try? await fetch(Self.mvaveDownloadsURL),
             let html = String(data: data, encoding: .utf8),
             let url = Self.packageLinks(in: html, pageURL: Self.mvaveDownloadsURL, includingOfficial: true)
-                .first(where: { $0.lastPathComponent.caseInsensitiveCompare("FM-1.fwsc") == .orderedSame })
+                .first(where: { $0.lastPathComponent.caseInsensitiveCompare("FM-1.fwsc") == .orderedSame }),
+            let package = try? FwscPackage(data: await fetch(url)),
+            let official = OfficialFirmware.matching(package),
+            OfficialFirmware.official.contains(official)
         else {
             return nil
         }
-        let official = OfficialFirmware.v15
         return DiscoveredPackage(
             url: url,
             origin: .mvave,
-            version: "V15",
+            version: official.identity == .officialV16 ? "V16" : "V15",
             date: nil,
             beta: false,
-            product: nil,
+            product: package.product,
             size: official.size,
             sha256: official.sha256
         )

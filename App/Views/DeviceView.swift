@@ -27,6 +27,7 @@ struct DeviceView: View {
                 #endif
 
                 AdaptiveColumns {
+                    if device.devices.count > 1 { choicePanel }
                     identityPanel
 
                     if let identity = device.identity {
@@ -51,6 +52,34 @@ struct DeviceView: View {
         .task { await device.scan() }
         .voiceRestoreSheet(isPresented: $restoringVoices, model: model, theme: theme)
         .retroSaveSheet(isPresented: $isSaving, model: model, theme: theme)
+    }
+
+    /// The devices connected, when there's more than one, to choose the one to work with.
+    private var choicePanel: some View {
+        PixelPanel(title: DeviceChoice.title.uppercased()) {
+            NoteText(DeviceChoice.detail)
+            ForEach(device.devices) { found in
+                let isChosen = device.chosenDevice?.id == found.id
+                Button {
+                    device.choose(found)
+                } label: {
+                    HStack(alignment: .top) {
+                        Text(isChosen ? "(●)" : "( )")
+                            .font(.mono(17))
+                            .foregroundStyle(theme.bright)
+                        VStack(alignment: .leading, spacing: 2) {
+                            MonoText(DeviceChoice.name(of: found, in: model).uppercased(), size: 14)
+                            NoteText(DeviceChoice.detail(of: found))
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(device.isWriting)
+                .accessibilityAddTraits(isChosen ? [.isSelected] : [])
+            }
+        }
     }
 
     /// Save my FM-1, offered on M-VAVE's open firmware, or while there are earlier saves.

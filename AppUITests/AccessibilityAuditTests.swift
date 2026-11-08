@@ -94,7 +94,9 @@ import XCTest
         /// Save my FM-1, ready to save and once it's saved, with the simulated FM-1 on open firmware.
         func testSaveMyFM1() throws {
             for setting in Setting.allCases {
-                let app = launch(setting, page: "save", extraArguments: ["-simulatedOpenFirmware", "YES"])
+                // Each run saves three more, which the audit would otherwise have to get through.
+                let app = launch(
+                    setting, page: "save", extraArguments: ["-simulatedOpenFirmware", "YES", "-freshBackups", "YES"])
                 let save = app.buttons["Save my FM-1"]
                 XCTAssertTrue(save.waitForExistence(timeout: 15), "\(setting)")
                 try app.auditStandardLook()

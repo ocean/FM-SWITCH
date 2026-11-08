@@ -56,7 +56,7 @@
                 Issue.record("Expected a backup, got \(tools.phase)")
                 return
             }
-            #expect(after.bootloader?.hasPrefix("m-bootloader 1.2") == true)
+            #expect(after.bootloader?.hasPrefix("m-bootloader 2.1") == true)
 
             await tools.start(.restore(before))
             guard case .confirming(let restore, _) = tools.phase else {
@@ -76,7 +76,7 @@
         @Test func writesNothingWhenTheFirmwareIsAlreadyThere() async throws {
             let official = try #require(library.official)
             await tools.enterDownloadMode()
-            await tools.start(.install(official, erasingSettings: false))
+            await tools.start(.install(official, erasingSavedData: false))
             guard case .nothingToWrite = tools.phase else {
                 Issue.record("Expected nothing to write, got \(tools.phase)")
                 return
@@ -129,7 +129,7 @@
         }
 
         @Test func comesWithMBootloader() throws {
-            #expect(try DownloadModeController.mBootloaderData().count == 12_936)
+            #expect(try DownloadModeController.mBootloaderData().count == 13_842)
         }
 
         @Test func carriesABackupBetweenTheHelperAndTheApp() async throws {

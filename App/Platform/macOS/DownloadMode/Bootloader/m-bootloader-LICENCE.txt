@@ -1,8 +1,8 @@
-fm1-uboot.boot: m-bootloader 1.2 for the M-VAVE FM-1
+fm1-uboot.boot: m-bootloader 2.1 for the M-VAVE FM-1
 
-This is m-bootloader's fm1-uboot.boot from its v1.2 release, unmodified:
-https://github.com/jvitkauskas/m-bootloader/releases/tag/v1.2
-SHA-256 9e5ec0e39dc55c167f8e289cfdac612d7d340b5f46100e1be2540ef4d6ec2f13, as the release's SHA256SUMS lists it.
+This is m-bootloader's fm1-uboot.boot from its v2.1 release, unmodified:
+https://github.com/jvitkauskas/m-bootloader/releases/tag/v2.1
+SHA-256 ef160139f731cb8190c9bb6c3fc4e3b6ecf4ef107ce35e412132f6c2aea65a35, as the release's SHA256SUMS lists it.
 
 MIT License
 

@@ -181,7 +181,7 @@ final class FirmwareLibrary {
     /// Downloads a catalogue firmware, checks whatever is published about it (size, hash,
     /// identity), checks it reads as an FM-1 package, and saves it, replacing older releases.
     ///
-    /// M-VAVE's own firmware is recognised by its hash and kept as the official firmware.
+    /// M-VAVE's own firmware, V15 or V16, is recognised by its hash and kept as an official firmware.
     @discardableResult
     func download(_ entry: CatalogueEntry) async throws -> StoredFirmware {
         guard let packageURL = entry.packageURL else { throw Failure.noPackage }
@@ -189,15 +189,19 @@ final class FirmwareLibrary {
         defer { downloading.remove(entry.id) }
 
         let data = try await fetch(packageURL)
-        if let size = entry.size, data.count != size { throw Failure.hashMismatch }
-        if let sha256 = entry.sha256, FwscPackage.sha256Hex(data) != sha256 { throw Failure.hashMismatch }
+        // M-VAVE serve whichever is newest at one link, which the list may not have caught up
+        // with, so theirs is checked against the hashes FM1Kit knows instead.
+        if !entry.isOfficial {
+            if let size = entry.size, data.count != size { throw Failure.hashMismatch }
+            if let sha256 = entry.sha256, FwscPackage.sha256Hex(data) != sha256 { throw Failure.hashMismatch }
+        }
         let package = try FwscPackage(data: data)
-        if let product = entry.product, package.product != product {
+        if !entry.isOfficial, let product = entry.product, package.product != product {
             throw Failure.productMismatch(expected: product, found: package.product)
         }
-        if OfficialFirmware.matching(package) == .v15 {
+        if let official = OfficialFirmware.official(package) {
             return try saveOfficial(
-                data, package: package, name: OfficialFirmware.v15.name, catalogueID: entry.id, from: packageURL)
+                data, package: package, name: official.name, catalogueID: entry.id, from: packageURL)
         }
         guard !entry.isOfficial else { throw Failure.notOfficial }
         // Other releases and builds saved stay, to install either, such as a stable and a test one.
@@ -213,7 +217,8 @@ final class FirmwareLibrary {
         return try save(data, package: package, details: details)
     }
 
-    /// Finds FM-1.fwsc on M-VAVE's downloads page and saves it, if it is the known official release.
+    /// Finds FM-1.fwsc on M-VAVE's downloads page and saves it, if it's V15 or V16: V16 since
+    /// 21 October 2026.
     @discardableResult
     func downloadOfficialFromMVAVE() async throws -> StoredFirmware {
         guard let found = await PackageDiscovery(fetch: Network.fetch).officialPackage() else {
@@ -233,24 +238,24 @@ final class FirmwareLibrary {
         return try add(data, fallbackName: url.deletingPathExtension().lastPathComponent)
     }
 
-    /// Downloads the official firmware from a link the user supplies; anything else is refused.
+    /// Downloads the official firmware, V15 or V16, from a link the user supplies; anything else
+    /// is refused.
     @discardableResult
     func importOfficial(from remoteURL: URL) async throws -> StoredFirmware {
         let data = try await fetch(remoteURL)
         let package = try FwscPackage(data: data)
-        guard OfficialFirmware.matching(package) == .v15 else { throw Failure.notOfficial }
+        guard OfficialFirmware.official(package) != nil else { throw Failure.notOfficial }
         return try add(data, fallbackName: "Official")
     }
 
     private func add(_ data: Data, fallbackName: String) throws -> StoredFirmware {
         let package = try FwscPackage(data: data)
         let official = OfficialFirmware.matching(package)
-        if official == .v15 {
-            return try saveOfficial(
-                data, package: package, name: OfficialFirmware.v15.name, catalogueID: nil, from: nil)
+        if let known = OfficialFirmware.official(package) {
+            return try saveOfficial(data, package: package, name: known.name, catalogueID: nil, from: nil)
         }
         if let existing = existing(package) { return existing }
-        // M-VAVE's other releases (FM1 Open) are named and credited, but aren't the official V15.
+        // M-VAVE's other releases (FM1 Open) are named and credited, but aren't V15 or V16.
         let details = StoredFirmware.Details(
             name: official?.name ?? fallbackName,
             version: package.product,

@@ -38,6 +38,11 @@ struct InstallDoneView: View {
                 .foregroundStyle(Palette.ink)
                 Button("Put back the factory sounds…") { restoresVoices = true }
                     .buttonStyle(.secondary)
+                if job.startedOnV16 {
+                    Text(SwitchingWords.stillMono)
+                        .font(.callout)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
             }
             .padding(16)
             .cardBackground()
@@ -57,6 +62,8 @@ struct InstallProblemView: View {
     var message: String
     /// Whether the FM-1 is waiting in its update loader, so the install can carry on.
     var canResume: Bool
+    @State private var isFindingFirstStep = false
+    @State private var firstStepProblem: String?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -72,8 +79,10 @@ struct InstallProblemView: View {
         .multilineTextAlignment(.center)
         if canResume {
             VStack(alignment: .leading, spacing: 12) {
-                step(1, "Plug the FM-1 back in, if it came out.")
-                step(2, "Tap Carry on. It picks up where it stopped.")
+                step(1, InstallWords.dontSwitchOff)
+                    .foregroundStyle(Palette.warningInk)
+                step(2, InstallWords.plugBackIn)
+                step(3, "Tap Carry on. It picks up where it stopped.")
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,15 +90,18 @@ struct InstallProblemView: View {
         }
         if job.needsAStepFirst {
             // Trying again would only be refused again.
-            if let wayRound {
-                Button("Install \(wayRound.name)") { open(wayRound) }
-                    .buttonStyle(.prominent)
-                Button("What can I do?") { openHelp() }
-                    .buttonStyle(.secondary)
-            } else {
-                Button("What can I do?") { openHelp() }
-                    .buttonStyle(.prominent)
+            VStack(spacing: 6) {
+                Button(isFindingFirstStep ? "Getting MIDIMON…" : SwitchingWords.installFirst("MIDIMON")) {
+                    installFirst()
+                }
+                .buttonStyle(.prominent)
+                .disabled(isFindingFirstStep)
+                Text(firstStepProblem ?? SwitchingWords.installFirstDetail("MIDIMON", then: job.current.name))
+                    .font(.footnote)
+                    .foregroundStyle(firstStepProblem == nil ? Palette.secondaryInk : Palette.warningInk)
             }
+            Button("What can I do?") { openHelp() }
+                .buttonStyle(.secondary)
         } else {
             Button(canResume ? "Carry on installing" : "Try again") { model.device.resume() }
                 .buttonStyle(.prominent)
@@ -110,12 +122,18 @@ struct InstallProblemView: View {
         return mightBeRefused ? check + " If it stops again, the firmware on it may not accept this one." : check
     }
 
-    /// MIDIMON, to install first, when the list has it.
-    private var wayRound: CatalogueEntry? { model.catalogue.entry(id: FeluccaUpdateCode.wayRound) }
-
-    private func open(_ entry: CatalogueEntry) {
-        model.device.dismissFlash()
-        model.requestedPage = .firmware(entry.id)
+    /// Puts MIDIMON on first and carries on, downloading it if it isn't saved.
+    private func installFirst() {
+        isFindingFirstStep = true
+        firstStepProblem = nil
+        Task {
+            defer { isFindingFirstStep = false }
+            do {
+                try await FixedFirmware.installFirst(model: model)
+            } catch {
+                firstStepProblem = error.localizedDescription
+            }
+        }
     }
 
     private func openHelp() {

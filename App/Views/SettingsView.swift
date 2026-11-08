@@ -111,9 +111,10 @@ struct SettingsView: View {
             PixelToggle("START IN USB RECOVERY MODE", isOn: $settings.simulatedRecoveryMode)
             PixelToggle("PULL THE CABLE AT 45%", isOn: $settings.simulatedCablePull)
             PixelToggle("READ BACKWARDS, LIKE V15", isOn: $settings.simulatedReadsBackwards)
-            PixelToggle("VERIFY AFTER WRITING, LIKE FELUCCA", isOn: $settings.simulatedVerifies)
+            PixelToggle("GO OVER IT TWICE, LIKE FELUCCA", isOn: $settings.simulatedVerifies)
             PixelToggle("M-BOOTLOADER, REFUSES M-VAVE'S", isOn: $settings.simulatedMBootloader)
             PixelToggle("RUN OPEN FIRMWARE, WITH PROJECTS", isOn: $settings.simulatedOpenFirmware)
+            PixelToggle("CONNECT A SECOND ONE, ON V15", isOn: $settings.simulatedSecondFM1)
             Button("RESET SIMULATED FM-1") { model.applyConnectionSettings() }
                 .buttonStyle(.pixel)
                 .disabled(model.device.isWriting)

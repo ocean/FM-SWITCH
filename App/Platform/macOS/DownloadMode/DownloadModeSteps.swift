@@ -72,7 +72,9 @@ struct DownloadModeJobsCard: View {
     var chooseFile: () -> Void
     @State private var backupID: SavedFlashBackup.ID?
     @State private var firmwareID: StoredFirmware.ID?
-    @State private var erasesSettings = false
+    @State private var erasesSavedData = false
+    @State private var gettingV16 = false
+    @State private var v16Problem: String?
 
     private var tools: DownloadModeController { model.downloadMode }
 
@@ -151,14 +153,39 @@ struct DownloadModeJobsCard: View {
             .frame(maxWidth: 220)
             Button(DownloadModeWords.install) {
                 if let firmware = model.library.items.first(where: { $0.id == firmwareID }) {
-                    start(.install(firmware, erasingSettings: erasesSettings))
+                    start(.install(firmware, erasingSavedData: erasesSavedData))
                 }
             }
             .buttonStyle(.prominent(Palette.accent))
             .disabled(firmwareID == nil)
         }
-        Toggle(DownloadModeWords.erasesSettings, isOn: $erasesSettings)
-            .font(.callout)
+        if model.library.v16 == nil {
+            Button(gettingV16 ? DownloadModeWords.gettingV16 : DownloadModeWords.getV16, action: getV16)
+                .buttonStyle(.secondary)
+                .disabled(gettingV16)
+            Text(v16Problem ?? DownloadModeWords.getV16Detail)
+                .font(.footnote)
+                .foregroundStyle(v16Problem == nil ? Palette.secondaryInk : Palette.warningInk)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        Toggle(isOn: $erasesSavedData) {
+            Text(DownloadModeWords.erasesSavedData)
+            Text(DownloadModeWords.erasesSavedDataDetail)
+        }
+        .font(.callout)
+    }
+
+    private func getV16() {
+        gettingV16 = true
+        v16Problem = nil
+        Task {
+            do {
+                firmwareID = try await model.library.getV16().id
+            } catch {
+                v16Problem = error.localizedDescription
+            }
+            gettingV16 = false
+        }
     }
 
     private func job(_ title: String, _ detail: String, @ViewBuilder controls: () -> some View) -> some View {

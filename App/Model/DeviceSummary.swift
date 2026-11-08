@@ -8,6 +8,8 @@ import Foundation
 struct DeviceSummary: Equatable {
     enum State: Equatable {
         case notConnected
+        /// More than one connected, and none chosen yet.
+        case choosing(count: Int)
         /// Running a firmware, named if it's known.
         case running(name: String?)
         /// Waiting in its update loader, part-way through an install.
@@ -21,7 +23,8 @@ struct DeviceSummary: Equatable {
     @MainActor
     init(model: AppModel) {
         guard let identity = model.device.identity else {
-            self.init(state: .notConnected, identity: nil)
+            let count = model.device.devices.count
+            self.init(state: model.device.needsChoice ? .choosing(count: count) : .notConnected, identity: nil)
             return
         }
         if identity.isLoader {
@@ -34,6 +37,8 @@ struct DeviceSummary: Equatable {
                 "\(last.name) \(last.version)"
             } else if identity == .officialV15 {
                 "the official firmware (V15)"
+            } else if identity == .officialV16 {
+                "the official firmware (V16)"
             } else if matches.count == 1, let match = matches.first {
                 [match.name, match.version].compactMap(\.self).joined(separator: " ")
             } else {
@@ -51,6 +56,7 @@ struct DeviceSummary: Equatable {
     var statusLine: String {
         switch state {
         case .notConnected: "Not connected"
+        case .choosing(let count): "\(count) connected: choose one"
         case .running(let name?): "Connected, running \(name)"
         case .running(nil): "Connected, reporting \(identity ?? "")"
         case .waiting: "Connected, waiting to finish an install"
@@ -61,7 +67,12 @@ struct DeviceSummary: Equatable {
     var screenTitle: String {
         switch state {
         case .notConnected: "HELLO"
-        case .running(let name?): name.replacingOccurrences(of: "the official firmware (V15)", with: "V15").uppercased()
+        case .choosing: "WHICH?"
+        case .running(let name?):
+            name.replacingOccurrences(
+                of: #"the official firmware \((V1[56])\)"#, with: "$1", options: .regularExpression
+            )
+            .uppercased()
         case .running(nil): identity ?? ""
         case .waiting: "UPDATE"
         }
@@ -70,6 +81,7 @@ struct DeviceSummary: Equatable {
     var screenLine: String {
         switch state {
         case .notConnected: "Plug me in"
+        case .choosing: "Choose one"
         case .running: "Ready"
         case .waiting: "Waiting…"
         }

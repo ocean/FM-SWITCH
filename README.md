@@ -21,7 +21,7 @@ App/                     SwiftUI app (iOS 17+)
   Views/                 Device, Firmware (catalogue), Saved, Setup, Flash; the wide layout
                          (sidebar and two panes) for iPad and Mac
   Platform/iOS, macOS/   the few things done differently on each: staying awake, links, navigation;
-                         on the Mac, Backup & rescue (download mode), with m-bootloader 1.2 (MIT)
+                         on the Mac, Backup & rescue (download mode), with m-bootloader 2.1 (MIT)
   Resources/Fonts/       Departure Mono, Silkscreen, VT323 (SIL OFL)
   Resources/Firmware/    M-VAVE's FM-1 V15, unmodified, and its Apache-2.0 notice
   Assets.xcassets/       the app icons, made by scripts/make-app-icon.swift and make-icon.py
@@ -38,7 +38,7 @@ scripts/make-icon.py     draws Retro's pixel icon from its 32 x 32 pixel map
 
 Talking to the FM-1 (the update protocol, `.fwsc` packages, CoreMIDI and a simulated FM-1)
 is [FM1Kit](https://github.com/ocean/FM1Kit), an open-source Swift package. `project.yml`
-uses its tagged release from GitHub, taking 0.4.x fixes but not 0.5.0, which may change the API.
+uses its tagged release from GitHub, taking 0.6.x fixes but not 0.7.0, which may change the API.
 
 ### The firmware list
 

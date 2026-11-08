@@ -1,7 +1,7 @@
 /// One progress value for a whole install, across its steps and phases, with the plain-words
 /// stage it's at.
 ///
-/// FM1Kit reports each phase from 0 on its own, and whether a loader checks what it wrote isn't
+/// FM1Kit reports each phase from 0 on its own, and whether a loader makes a second pass isn't
 /// known until it starts, so the phases get fixed shares of each step and ``Tracker`` holds the
 /// value so it never goes backwards.
 struct InstallProgress: Equatable {
@@ -9,7 +9,6 @@ struct InstallProgress: Equatable {
     enum Stage: Int, CaseIterable, Identifiable {
         case gettingReady
         case installing
-        case checking
         case restarting
 
         var id: Int { rawValue }
@@ -18,7 +17,6 @@ struct InstallProgress: Equatable {
             switch self {
             case .gettingReady: "Getting ready"
             case .installing: "Installing"
-            case .checking: "Checking"
             case .restarting: "Restarting"
             }
         }
@@ -32,7 +30,7 @@ struct InstallProgress: Equatable {
     private static let staging = 0.0...0.1
     private static let waiting = 0.1...0.12
     private static let writing = 0.12...0.85
-    private static let checking = 0.85...0.97
+    private static let secondPass = 0.85...0.97
     private static let restarting = 0.97...1.0
 
     init(fraction: Double, stage: Stage) {
@@ -59,8 +57,9 @@ struct InstallProgress: Equatable {
             (point(in: waiting, at: 0.5), .gettingReady)
         case .writing(let fraction):
             (point(in: writing, at: fraction), .installing)
-        case .verifying(let fraction):
-            (point(in: checking, at: fraction), .checking)
+        // Felucca's loader still writes in its second pass, so it counts as installing.
+        case .secondPass(let fraction):
+            (point(in: secondPass, at: fraction), .installing)
         case .rebooting:
             (point(in: restarting, at: 0.5), .restarting)
         case .succeeded:
@@ -75,7 +74,7 @@ struct InstallProgress: Equatable {
     }
 
     /// Keeps the progress of one install from going backwards, as the stages' fixed shares can
-    /// (a loader that doesn't check jumps from writing to restarting, which is fine, but a resumed
+    /// (a loader without a second pass jumps from writing to restarting, which is fine, but a resumed
     /// write restarts its phase from 0).
     struct Tracker: Equatable {
         private(set) var current = InstallProgress(fraction: 0, stage: .gettingReady)

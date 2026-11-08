@@ -116,6 +116,10 @@ final class AppSettings {
     var simulatedOpenFirmware: Bool {
         didSet { defaults.set(simulatedOpenFirmware, forKey: Keys.simulatedOpenFirmware) }
     }
+    /// A second simulated FM-1, running V15, to try choosing between them.
+    var simulatedSecondFM1: Bool {
+        didSet { defaults.set(simulatedSecondFM1, forKey: Keys.simulatedSecondFM1) }
+    }
     /// The `SafetyNotice.version` the user last acknowledged (0 for never).
     var acknowledgedNoticeVersion: Int {
         didSet { defaults.set(acknowledgedNoticeVersion, forKey: Keys.acknowledgedNotice) }
@@ -171,6 +175,7 @@ final class AppSettings {
         simulatedMBootloader = defaults.bool(forKey: Keys.simulatedMBootloader)
         // `bool(forKey:)` reads `-simulatedOpenFirmware YES` too, for UI tests.
         simulatedOpenFirmware = defaults.bool(forKey: Keys.simulatedOpenFirmware)
+        simulatedSecondFM1 = defaults.bool(forKey: Keys.simulatedSecondFM1)
         acknowledgedNoticeVersion = defaults.integer(forKey: Keys.acknowledgedNotice)
         tipNudgesShown = defaults.integer(forKey: Keys.tipNudgesShown)
     }
@@ -224,6 +229,7 @@ final class AppSettings {
         static let simulatedVerifies = "simulatedVerifies"
         static let simulatedMBootloader = "simulatedMBootloader"
         static let simulatedOpenFirmware = "simulatedOpenFirmware"
+        static let simulatedSecondFM1 = "simulatedSecondFM1"
         static let acknowledgedNotice = "acknowledgedNoticeVersion"
         static let tipNudgesShown = "tipNudgesShown"
     }

@@ -22,7 +22,7 @@ struct StandardLookTests {
         var seen: [FMSwitch.InstallProgress] = []
         for phase: DeviceController.FlashPhase in [
             .preparing, .staging(requests: 40), .waitingForLoader, .writing(fraction: 0.5),
-            .verifying(fraction: 0.5), .rebooting, .succeeded("FM-1_910"),
+            .secondPass(fraction: 0.5), .rebooting, .succeeded("FM-1_910"),
         ] {
             job.phase = phase
             seen.append(FMSwitch.InstallProgress(job))
@@ -30,7 +30,7 @@ struct StandardLookTests {
         #expect(seen.map(\.fraction) == seen.map(\.fraction).sorted())
         #expect(
             seen.map(\.stage) == [
-                .gettingReady, .gettingReady, .gettingReady, .installing, .checking, .restarting, .restarting,
+                .gettingReady, .gettingReady, .gettingReady, .installing, .installing, .restarting, .restarting,
             ])
         #expect(seen.last?.fraction == 1)
     }

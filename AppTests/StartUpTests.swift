@@ -20,35 +20,6 @@ struct StartUpTests {
         #expect(AppSettings(defaults: defaults).startUp == nil)
     }
 
-    @Test func onlyKnownFirmwaresAreFlagged() {
-        #expect(FeluccaUpdateCode.isKnown("amb"))
-        #expect(FeluccaUpdateCode.isKnown("melodee"))
-        #expect(!FeluccaUpdateCode.isKnown("fm1-editor-estampie"))
-        #expect(!FeluccaUpdateCode.isKnown("mvave-official"))
-        #expect(!FeluccaUpdateCode.isKnown("zp12"))
-        #expect(!FeluccaUpdateCode.isKnown(nil))
-    }
-
-    @Test func aPackageThatAcceptsV15IsntFlagged() async throws {
-        let library = FirmwareLibrary(
-            directory: URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory))
-        let item = try FlashingTests.save("FM-1_015", in: library)
-        #expect(await !InstallReadiness.refusesV15OverOtherBootloaders(item, in: library))
-    }
-
-    @Test func theWarningNamesTheOthersAndHedgesWhenUnsure() {
-        let sure = FeluccaUpdateCode.Warning(installing: "amb", named: "AMB-1", startUp: .mBootloader)
-        #expect(sure.body.hasPrefix("Once AMB-1 is on your FM-1"))
-        #expect(sure.body.contains("(DUB-1, Felucca, HYP-1, LOF-1 and Melodee)"))
-        #expect(sure.body.hasSuffix("install MIDIMON 0.4 or LOOM-8 0.8 first, then the one you want."))
-        #expect(sure.title == "Coming back from this takes two installs")
-
-        let unsure = FeluccaUpdateCode.Warning(installing: "dub", named: "DUB-1", startUp: .notSure)
-        #expect(unsure.body.hasPrefix("If your FM-1's bootloader has been changed, once DUB-1 is on your FM-1"))
-        #expect(unsure.body.contains("AMB-1"))
-        #expect(!unsure.body.contains("DUB-1,"))
-    }
-
     @Test func aRefusedInstallIsExplainedPlainly() async throws {
         let setup = try await FlashingTests.setUp { $0.simulatedMBootloader = true }
         let item = try FlashingTests.save("FM-1_015", in: setup.library)

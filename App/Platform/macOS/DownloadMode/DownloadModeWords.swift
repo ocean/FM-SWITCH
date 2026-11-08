@@ -45,18 +45,31 @@ enum DownloadModeWords {
     static let chooseFile = "Choose a file…"
     static let installTitle = "Install a firmware"
     static let installDetail = """
-        Writes a saved firmware straight to the flash, keeping the bootloader: for an FM-1 whose \
-        firmware won't start. To swap firmware the usual way, use Firmwares.
+        Writes a saved firmware straight to the flash, keeping the bootloader (V16 brings its own): \
+        for an FM-1 whose firmware won't start. To swap firmware the usual way, use Firmwares.
         """
     static let install = "Install"
     static let chooseFirmware = "Choose a firmware"
-    static let erasesSettings = "Erase the firmware's settings too"
+    static let getV16 = "Get V16 from M-VAVE"
+    static let gettingV16 = "Getting V16…"
+    static let getV16Detail = """
+        FM-SWITCH can't include V16, so it uses a copy in Downloads, or downloads it from M-VAVE, \
+        and takes it only if it's the V16 it knows. V16 goes on with its own bootloader, as M-VAVE's \
+        updater does, replacing m-bootloader if it's there: keep the FM-1 connected and switched on.
+        """
+    static let erasesSavedData = "Start the new firmware fresh"
+    static let erasesSavedDataDetail = """
+        Each firmware keeps its presets, projects and settings in its own way, and what the last \
+        one left behind can confuse the new one. Tick this to clear them, so the new firmware \
+        starts with its defaults. The backup saved just before installing can put everything \
+        back. Bluetooth devices will need pairing again.
+        """
     static let bootloaderTitle = "Bootloader"
     static let bootloaderDetail = """
         m-bootloader adds a recovery menu (hold PLAY) and download mode (hold REC), so a firmware \
-        that won't start can always be fixed from a Mac. Installing V15 later puts M-VAVE's back.
+        that won't start can always be fixed from a Mac. Installing V15 or V16 later puts M-VAVE's back.
         """
-    static let installMBootloader = "Install m-bootloader 1.2"
+    static let installMBootloader = "Install m-bootloader 2.1"
     static let putBackMVave = "Put back M-VAVE's"
 
     // MARK: - Running.

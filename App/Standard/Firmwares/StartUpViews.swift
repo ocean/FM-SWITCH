@@ -50,25 +50,19 @@ struct StartUpQuestion: View {
     }
 }
 
-/// Says that getting back to M-VAVE's firmwares will take a Mac, with why tucked away.
-struct MacWarningCard: View {
-    var warning: FeluccaUpdateCode.Warning
+/// What switching away from a firmware will take, from its guide, with where to find out more.
+struct SwitchingWarningCard: View {
+    var warnings: [String]
     /// Opens Help at what to do, closing the sheet the card is on.
     var openHelp: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(warning.title, systemImage: "exclamationmark.triangle.fill")
+            Label(SwitchingWords.warningTitle, systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
-            Text(warning.body)
-                .font(.callout)
-            DisclosureGroup("Why?") {
-                Text(warning.why)
-                    .font(.footnote)
-                    .padding(.top, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(warnings, id: \.self) { warning in
+                Text(warning).font(.callout)
             }
-            .font(.callout.weight(.semibold))
             Button("What can I do?", action: openHelp)
                 .font(.callout.weight(.semibold))
                 .buttonStyle(.plain)
@@ -82,5 +76,22 @@ struct MacWarningCard: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Palette.warningBackground)
         )
+    }
+}
+
+/// A guide's steps, numbered.
+struct StepsText: View {
+    var steps: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                Text("\(index + 1). \(step)")
+                    .font(.footnote)
+                    .foregroundStyle(Palette.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.top, 6)
     }
 }

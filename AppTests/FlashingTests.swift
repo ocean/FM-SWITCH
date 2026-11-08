@@ -72,10 +72,10 @@ struct FlashingTests {
 
         #expect(setup.controller.job?.phase == .succeeded("FM-1_916"))
         let log = setup.controller.log
-        let verifying = try #require(log.firstIndex { $0.contains("reading it back") })
+        let secondPass = try #require(log.firstIndex { $0.contains("going over it again") })
         let rebooting = try #require(log.firstIndex { $0.contains("Rebooting") })
-        #expect(verifying < rebooting)
-        #expect(log.count { $0.contains("reading it back") } == 1)
+        #expect(secondPass < rebooting)
+        #expect(log.count { $0.contains("going over it again") } == 1)
     }
 
     @Test func resumesAfterTheCableIsPulled() async throws {

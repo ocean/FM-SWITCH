@@ -89,9 +89,12 @@ struct FlashReading: Codable, Sendable, Hashable {
 enum FlashRequest: Codable, Sendable, Hashable {
     /// Puts a whole-flash backup back.
     case restore(FlashFiles)
-    /// Installs a firmware package's image, keeping the bootloader, and erasing the firmware's
-    /// settings if asked.
-    case firmware(Data, erasingSettings: Bool)
+    /// Installs a firmware package's image, keeping the bootloader, and erasing every firmware's
+    /// saved data if asked.
+    ///
+    /// V16 brings its own bootloader, as M-VAVE's loader does, since V16 hasn't been tried over
+    /// another.
+    case firmware(Data, erasingSavedData: Bool)
     /// Installs m-bootloader from its `.boot` file.
     case mBootloader(Data)
     /// Puts back the bootloader in a firmware package: M-VAVE's, from V15's.
@@ -105,8 +108,14 @@ enum FlashRequest: Codable, Sendable, Hashable {
         switch self {
         case .restore(let files):
             return try FlashPlan.restoring(files.backup(), onto: current)
-        case .firmware(let data, let erasingSettings):
-            return try FlashPlan.installing(FwscPackage(data: data), onto: current, erasingSettings: erasingSettings)
+        case .firmware(let data, let erasingSavedData):
+            let package = try FwscPackage(data: data)
+            return try FlashPlan.installing(
+                package,
+                onto: current,
+                includingBootloader: OfficialFirmware.matching(package) == .v16,
+                erasingSavedData: erasingSavedData
+            )
         case .mBootloader(let data):
             guard let bootloader = BootloaderImage(data: data) else {
                 throw FlashFailure(

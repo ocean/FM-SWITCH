@@ -36,6 +36,7 @@ struct HomeView: View {
                     StatusPill(summary: summary)
                 }
                 .padding(.top, 8)
+                if device.devices.count > 1 { ChooseFM1Card() }
                 firmwaresCard
                 if let openMine { mineCard(openMine) }
                 if model.offersSaveMyFM1 { saveCard }

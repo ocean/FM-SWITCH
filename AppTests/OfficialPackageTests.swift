@@ -1,9 +1,10 @@
+@_spi(Testing) import FM1Kit
 import Foundation
 import Testing
 
 @testable import FMSwitch
 
-/// Only M-VAVE's official firmware gets the V15 package on their downloads page.
+/// Only M-VAVE's official firmware gets the package on their downloads page, V15 or V16.
 struct OfficialPackageTests {
     private let v15 = URL(literal: "https://yms-file-store.oss-cn-hongkong.aliyuncs.com/software/firmware/FM-1.fwsc")
     private let downloadsPage = """
@@ -18,13 +19,27 @@ struct OfficialPackageTests {
         ]
     }
 
-    @Test func givesTheOfficialFirmwareM_VAVEsPackage() async throws {
+    @MainActor @Test func givesTheOfficialFirmwareM_VAVEsPackage() async throws {
         let page = Data(downloadsPage.utf8)
-        let discovery = PackageDiscovery { _ in page }
+        let package = try Data(contentsOf: #require(FirmwareLibrary.bundledOfficialURL))
+        let discovery = PackageDiscovery { url in url.pathExtension == "fwsc" ? package : page }
         let found = try #require(
             await discovery.discover(name: "M-VAVE official firmware", links: openFirmwareLinks, isOfficial: true))
         #expect(found.url.lastPathComponent == "FM-1.fwsc")
         #expect(found.origin == .mvave)
+        #expect(found.version == "V15")
+        #expect(found.product == FM1Identity.officialV15.text)
+        #expect(found.sha256 == OfficialFirmware.v15.sha256)
+    }
+
+    /// M-VAVE's link serves whichever is newest, so a package FM1Kit doesn't know isn't given.
+    @Test func doesNotGiveAnUnknownPackageAtM_VAVEsLink() async throws {
+        let page = Data(downloadsPage.utf8)
+        let unknown = FwscPackage.sampleFile(product: "FM-1_017")
+        let discovery = PackageDiscovery { url in url.pathExtension == "fwsc" ? unknown : page }
+        #expect(
+            await discovery.discover(name: "M-VAVE official firmware", links: openFirmwareLinks, isOfficial: true)
+                == nil)
     }
 
     @Test func doesNotGiveTheOpenFirmwareV15() async {
