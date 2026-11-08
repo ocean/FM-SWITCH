@@ -97,6 +97,9 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var licence: String?
     /// How The Firmware Hub's package was built, when GitHub signed a record of it.
     var sourceBuild: SourceBuild?
+    /// Which of the FM-1's flash chips the firmware knows, as The Firmware Hub lists it; nil when
+    /// the source doesn't say.
+    var flashChip: FlashChipSupport?
 
     /// Whether the package offered was built from the project's source by GitHub Actions, as a
     /// signed record says, and not on someone's own computer.
@@ -261,11 +264,12 @@ struct HubFeed: Decodable, Sendable {
         var repo: String?
         var stars: Int?
         var installs: Int?
+        var chip: String?
         var provenance: HubBuildRecord?
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars, installs, provenance
+                editor, play, repo, stars, installs, chip, provenance
             case kinds = "kind"
         }
 
@@ -296,6 +300,7 @@ struct HubFeed: Decodable, Sendable {
             repo = try container.decodeIfPresent(String.self, forKey: .repo)
             stars = try container.decodeIfPresent(Int.self, forKey: .stars)
             installs = try? container.decodeIfPresent(Int.self, forKey: .installs)
+            chip = try? container.decodeIfPresent(String.self, forKey: .chip)
             provenance = try? container.decodeIfPresent(HubBuildRecord.self, forKey: .provenance)
         }
 
@@ -352,6 +357,7 @@ struct HubFeed: Decodable, Sendable {
             )
             entry.sourceBuild = sourceBuild
             entry.installs = installs
+            entry.flashChip = chip.flatMap(FlashChipSupport.init(rawValue:))
             return entry
         }
     }
