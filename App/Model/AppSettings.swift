@@ -120,6 +120,13 @@ final class AppSettings {
     var simulatedSecondFM1: Bool {
         didSet { defaults.set(simulatedSecondFM1, forKey: Keys.simulatedSecondFM1) }
     }
+    /// Every simulated FM-1 switch, so the settings can start it again when any of them changes.
+    var simulatedSwitches: [Bool] {
+        [
+            simulatedRecoveryMode, simulatedCablePull, simulatedReadsBackwards, simulatedVerifies,
+            simulatedMBootloader, simulatedOpenFirmware, simulatedSecondFM1,
+        ]
+    }
     /// The `SafetyNotice.version` the user last acknowledged (0 for never).
     var acknowledgedNoticeVersion: Int {
         didSet { defaults.set(acknowledgedNoticeVersion, forKey: Keys.acknowledgedNotice) }
