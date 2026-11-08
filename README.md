@@ -212,3 +212,18 @@ lock the phone, not when you stop touching it. So the app:
 - asks iOS for the short background grace period if you do leave;
 - shows a "keep this screen open" notice;
 - relies on the loader's resume when a write is interrupted anyway.
+
+## Licence
+
+FM-SWITCH is by Drew Robinson and released under the Mozilla Public License 2.0. See
+[LICENSE](LICENSE). You're welcome to reuse it: keep the copyright and licence notices, and if you
+ship changed versions of its files, publish those files' source under the same licence.
+
+These files keep their own licences, which sit beside them:
+
+- FM1Kit, the package FM-SWITCH is built on: MIT.
+- `App/Platform/macOS/DownloadMode/Bootloader/fm1-uboot.boot`, m-bootloader 2.1 by Julius
+  Vitkauskas: MIT.
+- `App/Resources/Firmware/FM-1_015.fwsc`, M-VAVE's original V15 firmware: Apache License 2.0.
+- The fonts in `App/Resources/Fonts` (Departure Mono, Silkscreen and VT323): SIL Open Font
+  License 1.1.
