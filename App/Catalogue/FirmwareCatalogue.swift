@@ -97,9 +97,9 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     var licence: String?
     /// How The Firmware Hub's package was built, when GitHub signed a record of it.
     var sourceBuild: SourceBuild?
-    /// Which of the FM-1's flash chips the firmware knows, as The Firmware Hub lists it; nil when
-    /// the source doesn't say.
-    var flashChip: FlashChipSupport?
+    /// Which of the FM-1's flash chips the firmware knows, as The Firmware Hub lists it, or nil when
+    /// it doesn't say.
+    var flashChip: HubFlashChip?
 
     /// Whether the package offered was built from the project's source by GitHub Actions, as a
     /// signed record says, and not on someone's own computer.
@@ -357,7 +357,7 @@ struct HubFeed: Decodable, Sendable {
             )
             entry.sourceBuild = sourceBuild
             entry.installs = installs
-            entry.flashChip = chip.flatMap(FlashChipSupport.init(rawValue:))
+            entry.flashChip = chip.flatMap(HubFlashChip.init(rawValue:))
             return entry
         }
     }

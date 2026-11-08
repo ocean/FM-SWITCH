@@ -1,3 +1,4 @@
+import FM1Kit
 import Foundation
 import Testing
 
@@ -16,9 +17,9 @@ struct FlashChipTests {
     }
 
     @Test func readsWhichChipsAFirmwareKnows() throws {
-        #expect(try entry(chip: "old").flashChip == .old)
-        #expect(try entry(chip: "new").flashChip == .new)
-        #expect(try entry(chip: "any").flashChip == .any)
+        #expect(try entry(chip: "old").flashChip?.support == .firstChipOnly)
+        #expect(try entry(chip: "new").flashChip?.support == .bothChips)
+        #expect(try entry(chip: "any").flashChip?.support == .noCheck)
     }
 
     @Test func leavesTheChipUnknownWhenTheFeedSaysNothingUseful() throws {
@@ -26,9 +27,9 @@ struct FlashChipTests {
         #expect(try entry(chip: "future").flashChip == nil)
     }
 
-    @Test func onlyTheOlderChipIsRiskyOnNewerUnits() {
-        #expect(FlashChipSupport.old.isRiskyOnNewerUnits)
-        #expect(!FlashChipSupport.new.isRiskyOnNewerUnits)
-        #expect(!FlashChipSupport.any.isRiskyOnNewerUnits)
+    @Test func keepsTheChipWhenTheListIsSaved() throws {
+        let entry = try entry(chip: "old")
+        let saved = try JSONDecoder().decode(CatalogueEntry.self, from: JSONEncoder().encode(entry))
+        #expect(saved.flashChip?.support == .firstChipOnly)
     }
 }
