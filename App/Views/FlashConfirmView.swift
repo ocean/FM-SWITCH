@@ -16,6 +16,7 @@ struct FlashConfirmView: View {
     /// it's answered.
     @State private var asksStartUp = false
     @State private var showsWhy = false
+    @State private var showsHowToTell = false
     let target: StoredFirmware
     var requiresOfficial = false
     var onStart: () -> Void = {}
@@ -99,7 +100,13 @@ struct FlashConfirmView: View {
             }
         }
         if !switching.knowsOnlyFirstChip.isEmpty {
-            MonoText("! \(InstallReadiness.newerFlashChipWarning(switching.knowsOnlyFirstChip))", size: 14)
+            let warning = FlashChipWords.warning(
+                switching.knowsOnlyFirstChip, hasNewerFlashChip: switching.hasNewerFlashChip)
+            MonoText("! \(warning)", size: 14)
+            if !switching.hasNewerFlashChip {
+                PixelToggle(FlashChipWords.howToTellQuestion.uppercased(), isOn: $showsHowToTell)
+                if showsHowToTell { NoteText(FlashChipWords.howToTell) }
+            }
         }
         if switching.installsV16 {
             MonoText("! \(InstallReadiness.beforeV16Warning)", size: 14)

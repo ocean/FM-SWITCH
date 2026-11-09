@@ -109,10 +109,9 @@ struct BeforeYouStartView: View {
             )
         }
         if !readiness.switching.knowsOnlyFirstChip.isEmpty {
-            Notice(
-                InstallReadiness.newerFlashChipWarning(readiness.switching.knowsOnlyFirstChip),
-                systemImage: "exclamationmark.triangle",
-                isWarning: true
+            FlashChipNotice(
+                names: readiness.switching.knowsOnlyFirstChip,
+                hasNewerFlashChip: readiness.switching.hasNewerFlashChip
             )
         }
         if readiness.switching.installsV16 {

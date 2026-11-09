@@ -32,4 +32,15 @@ struct FlashChipTests {
         let saved = try JSONDecoder().decode(CatalogueEntry.self, from: JSONEncoder().encode(entry))
         #expect(saved.flashChip?.support == .firstChipOnly)
     }
+
+    @Test func warnsAboutTheNewerChipWhenTheFM1HasntSaidWhichItHas() {
+        let one = FlashChipWords.warning(["ZEN-1"], hasNewerFlashChip: false)
+        #expect(one.hasPrefix("ZEN-1 only knows the older FM-1 flash chip."))
+        #expect(one.contains("it usually keeps changes"))
+        let two = FlashChipWords.warning(["ZEN-1", "DUB-1"], hasNewerFlashChip: false)
+        #expect(two.contains("only know the older"))
+        #expect(two.contains("they usually keep changes"))
+        #expect(
+            FlashChipWords.warning(["ZEN-1"], hasNewerFlashChip: true).hasPrefix("Your FM-1 has the newer flash chip"))
+    }
 }

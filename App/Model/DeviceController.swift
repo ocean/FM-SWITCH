@@ -17,8 +17,8 @@ final class DeviceController {
     private(set) var devices: [FM1DeviceSummary] = []
     /// The device chosen when more than one is connected, which everything here works with alone.
     private(set) var chosenDevice: FM1DeviceSummary?
-    /// Whether the FM-1 says it has the newer flash chip, which only some firmwares report.
-    private(set) var hasNewerFlashChip = false
+    /// The flash chip's JEDEC ID, when the FM-1's firmware reports it, as only some do.
+    private(set) var flashChipID: UInt32?
     private(set) var isScanning = false
     private(set) var lastScan: Date?
     private(set) var ports: [MIDIPortDescriptor] = []
@@ -79,7 +79,7 @@ final class DeviceController {
         transportName = kind.name
         updater = FM1Updater(transport: transport)
         identity = nil
-        hasNewerFlashChip = false
+        flashChipID = nil
         devices = []
         chosenDevice = nil
         ports = []
@@ -134,7 +134,7 @@ final class DeviceController {
         chosenDevice = device
         updater = FM1Updater(transport: transport, device: device)
         identity = device.identity
-        hasNewerFlashChip = device.hasNewerFlashChip
+        flashChipID = device.flashChipID
     }
 
     /// Lists the devices connected, and when there's more than one, keeps working with the one
@@ -146,7 +146,7 @@ final class DeviceController {
         updater = FM1Updater(transport: transport, device: chosenDevice)
         let current = devices.isEmpty ? found.first : chosenDevice
         identity = current?.identity
-        hasNewerFlashChip = current?.hasNewerFlashChip ?? false
+        flashChipID = current?.flashChipID
     }
 
     // MARK: - Flashing.

@@ -1,3 +1,4 @@
+import FM1Kit
 import SwiftUI
 
 /// One firmware: what it is, where to read more, and installing it.
@@ -21,6 +22,7 @@ struct FirmwarePageView: View {
                 }
                 VStack(alignment: .leading, spacing: 18) {
                     untested
+                    olderChipOnly
                     newerRelease
                     ReleaseChoice(entry: entry)
                     buildChoice
@@ -122,6 +124,15 @@ struct FirmwarePageView: View {
                 systemImage: "exclamationmark.triangle",
                 isWarning: true
             )
+        }
+    }
+
+    /// A warning for firmwares The Firmware Hub says only know the older flash chip, unless the
+    /// FM-1 connected says it has that one.
+    @ViewBuilder private var olderChipOnly: some View {
+        let chip = model.device.flashChipID
+        if entry.flashChip == .old, chip != FM1FlashChip.p25q80 {
+            FlashChipNotice(names: [entry.name], hasNewerFlashChip: chip == FM1FlashChip.uc25hq80)
         }
     }
 

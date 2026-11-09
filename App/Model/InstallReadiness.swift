@@ -36,9 +36,11 @@ struct SwitchingCheck: Equatable {
     var followsV16 = false
     /// Whether V16 goes on, after which going back to V15 needs a Mac.
     var installsV16 = false
-    /// The firmwares planned that only know the first FM-1s' flash chip, when the FM-1 says it has
-    /// the newer one.
+    /// The firmwares planned that only know the first FM-1s' flash chip, unless the FM-1 says it
+    /// has that one.
     var knowsOnlyFirstChip: [String] = []
+    /// Whether the FM-1 says it has the newer flash chip, rather than not saying which it has.
+    var hasNewerFlashChip = false
 
     /// Whether the firmware running can't install the one planned directly, so another goes on first.
     var needsFirstStep: Bool { route == .throughFixedFirmware }
@@ -80,9 +82,13 @@ struct SwitchingCheck: Equatable {
         check.destination = packages.first.map(LeavingDestination.init(installing:))
         check.route = check.destination.flatMap { check.running?.route(to: $0) }
         check.installsV16 = packages.contains { LeavingDestination(installing: $0) == .v16 }
-        if device.hasNewerFlashChip {
-            check.knowsOnlyFirstChip = zip(steps, packages).filter { $0.1.flashChipSupport == .firstChipOnly }
-                .map(\.0.name)
+        if device.flashChipID != FM1FlashChip.p25q80 {
+            check.knowsOnlyFirstChip = zip(steps, packages).filter { step, package in
+                let listed = step.catalogueID.flatMap { model.catalogue.entry(id: $0)?.flashChip?.support }
+                return (package.flashChipSupport ?? listed) == .firstChipOnly
+            }
+            .map(\.0.name)
+            check.hasNewerFlashChip = device.flashChipID == FM1FlashChip.uc25hq80
         }
         check.followsV16 =
             packages.contains { LeavingDestination(installing: $0) == .v15 }
@@ -148,16 +154,6 @@ struct InstallReadiness: Equatable {
         Going back to V15 later needs a Mac: after V16, V15 plays one note at a time until it's \
         installed again in FM-SWITCH's Backup & rescue, with Start the new firmware fresh ticked.
         """
-
-    /// What a firmware that only knows the first flash chip does on an FM-1 with the newer one,
-    /// for both looks' confirmation screens.
-    static func newerFlashChipWarning(_ names: [String]) -> String {
-        let name = ListFormatter.localizedString(byJoining: names)
-        return """
-            Your FM-1 has the newer flash chip, which \(name) doesn't know. On it, \(name) usually keeps \
-            changes only until it's switched off, and it often can't install another firmware.
-            """
-    }
 
     /// What V15 does after V16, for both looks' confirmation screens.
     #if os(macOS)
