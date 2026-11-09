@@ -68,6 +68,22 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
+/// A button that deletes something: outlined in the danger colour, so it stands apart from the others.
+struct DangerButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 12)
+            .foregroundStyle(Palette.danger)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.danger, lineWidth: 1.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .modifier(PressEffect(isPressed: configuration.isPressed))
+    }
+}
+
 /// A disclosure group whose whole header opens and closes it, not just its arrow.
 ///
 /// On the Mac, the system's only answers a click on its small triangle. Here the header is one
@@ -152,6 +168,10 @@ extension ButtonStyle where Self == ProminentButtonStyle {
 
 extension ButtonStyle where Self == SecondaryButtonStyle {
     static var secondary: SecondaryButtonStyle { SecondaryButtonStyle() }
+}
+
+extension ButtonStyle where Self == DangerButtonStyle {
+    static var danger: DangerButtonStyle { DangerButtonStyle() }
 }
 
 extension View {

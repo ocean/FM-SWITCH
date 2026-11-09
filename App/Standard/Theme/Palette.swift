@@ -39,6 +39,7 @@ enum Palette {
         static let goodBackground = Shade(light: 0xE3F1E7, dark: 0x173322)
         static let warningInk = Shade(light: 0x7A3E00, dark: 0xFFC58A)
         static let warningBackground = Shade(light: 0xFFF4E5, dark: 0x3A2610)
+        static let danger = Shade(light: 0xA8380A, dark: 0xFF9259)
     }
 
     /// Behind everything.
@@ -75,6 +76,8 @@ enum Palette {
     /// A warning's text, and its background.
     static let warningInk = Color(Shades.warningInk)
     static let warningBackground = Color(Shades.warningBackground)
+    /// The text and outline of buttons that delete something.
+    static let danger = Color(Shades.danger)
 }
 
 extension Color {

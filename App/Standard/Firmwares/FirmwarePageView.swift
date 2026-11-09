@@ -6,12 +6,18 @@ struct FirmwarePageView: View {
     @Environment(AppModel.self) private var model
     @State private var errorMessage: String?
     @State private var installing: StoredFirmware?
+    /// The earlier release saved here that the person picked to work with, rather than this one.
+    @State private var chosenEarlierID: String?
     let listed: CatalogueEntry
 
     /// The listed release, or a newer one found at the firmware's source.
-    private var entry: CatalogueEntry { model.firmware(id: listed.id) ?? listed }
-    private var stored: StoredFirmware? { model.library.stored(for: entry) }
-    private var isDownloading: Bool { model.library.downloading.contains(entry.id) }
+    var entry: CatalogueEntry { model.firmware(id: listed.id) ?? listed }
+    var stored: StoredFirmware? { model.library.stored(for: entry) }
+    /// The saved firmwares, for the saving section in FirmwarePageView+Saving.
+    var library: FirmwareLibrary { model.library }
+    /// Whether an FM-1 is connected.
+    var isConnected: Bool { model.device.identity != nil }
+    var isDownloading: Bool { model.library.downloading.contains(entry.id) }
 
     var body: some View {
         ScrollView {
@@ -73,7 +79,7 @@ struct FirmwarePageView: View {
                         .foregroundStyle(Palette.secondaryInk)
                 }
                 if let what = entry.what {
-                    Text(what)
+                    Text(FirmwareDescription.styled(what))
                         .font(.body)
                         .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -174,11 +180,12 @@ struct FirmwarePageView: View {
 
     @ViewBuilder private var installSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if stored != nil || entry.isDownloadable {
+            versionChoice
+            if installable != nil || entry.isDownloadable {
                 installButton
-                if stored == nil { saveButton }
+                if installable == nil { saveButton }
                 installNote
-                if let stored { UpdateNoticesOffer(stored: stored) }
+                if let stored, chosenEarlier == nil { UpdateNoticesOffer(stored: stored) }
             } else {
                 Text(
                     """
@@ -207,41 +214,11 @@ struct FirmwarePageView: View {
                     Text("Downloading…")
                 }
             } else {
-                Text("Install \(entry.name)")
+                Text("Install \(entry.name)\(shownVersion)")
             }
         }
         .buttonStyle(.prominent(Palette.firmwares))
-        .disabled(isDownloading || (stored == nil && entry.needsBuildChoice))
-    }
-
-    /// Saves it here without installing, to install later, even offline.
-    private var saveButton: some View {
-        Button("Save to this \(ThisDevice.name) for later") {
-            Task { await save() }
-        }
-        .buttonStyle(.secondary)
-        .disabled(isDownloading || entry.needsBuildChoice)
-    }
-
-    @ViewBuilder private var installNote: some View {
-        if let stored, !model.library.canRemove(stored) {
-            Text("Comes with the app, so it installs even offline.")
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryInk)
-        } else if let stored {
-            HStack {
-                Text("Saved on this \(ThisDevice.name), so it installs even offline.")
-                Spacer()
-                Button("Remove") { model.library.remove(stored) }
-                    .foregroundStyle(Palette.accentText)
-            }
-            .font(.footnote)
-            .foregroundStyle(Palette.secondaryInk)
-        } else if model.device.identity == nil {
-            Text("Downloads now. Plug in your FM-1 when you're ready to install.")
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryInk)
-        }
+        .disabled(isDownloading || (installable == nil && entry.needsBuildChoice))
     }
 
     @ViewBuilder private var links: some View {
@@ -310,7 +287,7 @@ struct FirmwarePageView: View {
     }
 
     /// Downloads the firmware and keeps it here, without installing it.
-    private func save() async {
+    func save() async {
         errorMessage = nil
         do {
             try await model.library.download(entry)
@@ -322,8 +299,8 @@ struct FirmwarePageView: View {
     /// Downloads the firmware if it isn't saved yet, then asks the questions before installing.
     private func install() async {
         errorMessage = nil
-        if let stored {
-            installing = stored
+        if let installable {
+            installing = installable
             return
         }
         do {
@@ -348,6 +325,28 @@ extension FirmwarePageView {
             ForEach(builds, id: \.name) { build in
                 Text(build.name.capitalized).tag(build.name)
             }
+        }
+    }
+}
+
+// MARK: - Choosing a saved release.
+
+extension FirmwarePageView {
+    /// The earlier release picked to work with, while it's still saved.
+    var chosenEarlier: StoredFirmware? { earlier.first { $0.id == chosenEarlierID } }
+
+    /// A choice between this release and the earlier ones saved here.
+    @ViewBuilder var versionChoice: some View {
+        let earlier = earlier
+        if !earlier.isEmpty {
+            Picker("Version", selection: $chosenEarlierID) {
+                Text(entry.version ?? "Newest").tag(String?.none)
+                ForEach(earlier, id: \.id) { copy in
+                    Text(copy.version).tag(Optional(copy.id))
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 }

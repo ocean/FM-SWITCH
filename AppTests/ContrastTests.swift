@@ -23,6 +23,7 @@ struct ContrastTests {
         ("picked filter", Shades.card, Shades.ink),
         ("good news", Shades.goodInk, Shades.goodBackground),
         ("warning", Shades.warningInk, Shades.warningBackground),
+        ("danger on ground", Shades.danger, Shades.ground),
         ("button", white, Shades.accent),
         ("firmwares button", white, Shades.firmwares),
         ("save tile", white, Shades.save),

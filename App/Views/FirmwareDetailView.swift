@@ -28,7 +28,7 @@ struct FirmwareDetailView: View {
                 sourceCheck
 
                 if let what = entry.what {
-                    MonoText(what, size: 15)
+                    MonoText(FirmwareDescription.plain(what), size: 15)
                     if entry.whatSource == .gitHub {
                         NoteText("The author's description of the project on GitHub.")
                     }
@@ -194,7 +194,12 @@ struct FirmwareDetailView: View {
                 if isDownloading {
                     PixelProgressBar(fraction: nil)
                 }
-                if let other = model.library.otherBuild(for: entry) {
+                if let older = model.library.outdated(for: entry) {
+                    Button("FLASH SAVED \(older.version)") { confirming = older }
+                        .buttonStyle(.pixel)
+                    Button("REMOVE \(older.version)") { model.library.remove(older) }
+                        .buttonStyle(.pixel)
+                } else if let other = model.library.otherBuild(for: entry) {
                     NoteText("Keeps the saved \(other.build.map { "\($0) build" } ?? "copy") as well.")
                 } else {
                     NoteText("Save it first, then flash it any time, even offline.")

@@ -188,7 +188,7 @@ struct FirmwareCard: View {
                     }
                 }
                 if let what = entry.what {
-                    Text(what)
+                    Text(FirmwareDescription.styled(what))
                         .font(.subheadline)
                         .foregroundStyle(Palette.secondaryInk)
                         .lineLimit(2)

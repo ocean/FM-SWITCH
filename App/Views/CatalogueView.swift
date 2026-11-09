@@ -244,7 +244,7 @@ private struct CatalogueRow: View {
         VStack(alignment: .leading, spacing: 6) {
             title
             if let what = entry.what {
-                Text(what)
+                Text(FirmwareDescription.plain(what))
                     .font(.mono(13))
                     .lineSpacing(3)
                     .foregroundStyle(theme.ink)
