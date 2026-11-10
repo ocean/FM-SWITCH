@@ -5,18 +5,18 @@ import SwiftUI
 /// Tapping one opens it larger.
 struct FirmwarePictures: View {
     @Environment(\.openURL) private var openURL
-    var pictures: [URL]
+    var pictures: [Screenshot]
     var name: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
-                    ForEach(Array(pictures.enumerated()), id: \.element) { index, url in
+                    ForEach(Array(pictures.enumerated()), id: \.element) { index, picture in
                         Button {
-                            openURL(url)
+                            openURL(picture.page)
                         } label: {
-                            picture(url)
+                            image(picture.image)
                         }
                         .buttonStyle(.pressable)
                         .accessibilityLabel("Picture \(index + 1) of \(pictures.count) of \(name)")
@@ -33,7 +33,7 @@ struct FirmwarePictures: View {
         }
     }
 
-    private func picture(_ url: URL) -> some View {
+    private func image(_ url: URL) -> some View {
         AsyncImage(url: url) { phase in
             if let image = phase.image {
                 image

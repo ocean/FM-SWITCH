@@ -6,18 +6,18 @@ import SwiftUI
 struct RetroPictures: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.phosphor) private var theme
-    var pictures: [URL]
+    var pictures: [Screenshot]
     var name: String
 
     var body: some View {
         PixelPanel(title: "PICTURES") {
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
-                    ForEach(Array(pictures.enumerated()), id: \.element) { index, url in
+                    ForEach(Array(pictures.enumerated()), id: \.element) { index, picture in
                         Button {
-                            openURL(url)
+                            openURL(picture.page)
                         } label: {
-                            picture(url)
+                            image(picture.image)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Picture \(index + 1) of \(pictures.count) of \(name)")
@@ -31,7 +31,7 @@ struct RetroPictures: View {
         }
     }
 
-    private func picture(_ url: URL) -> some View {
+    private func image(_ url: URL) -> some View {
         AsyncImage(url: url) { phase in
             if let image = phase.image {
                 image

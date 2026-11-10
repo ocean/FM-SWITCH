@@ -33,7 +33,7 @@ final class CatalogueStore {
     }
 
     /// The pictures in each firmware's README, by catalogue ID, once they've been looked for.
-    private(set) var screenshots: [String: [URL]] = [:]
+    private(set) var screenshots: [String: [Screenshot]] = [:]
     private var lookingForScreenshots: Set<String> = []
 
     private let cacheURL: URL
