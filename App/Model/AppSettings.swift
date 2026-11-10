@@ -120,11 +120,20 @@ final class AppSettings {
     var simulatedSecondFM1: Bool {
         didSet { defaults.set(simulatedSecondFM1, forKey: Keys.simulatedSecondFM1) }
     }
+    /// The simulated FM-1's firmware gives its USB port another name, as some do.
+    var simulatedRenamedPort: Bool {
+        didSet { defaults.set(simulatedRenamedPort, forKey: Keys.simulatedRenamedPort) }
+    }
+    /// The MIDI ports the person chose to try, though they aren't named like an FM-1's, for
+    /// firmwares that rename their USB port.
+    var triedPortNames: Set<String> {
+        didSet { defaults.set(triedPortNames.sorted(), forKey: Keys.triedPortNames) }
+    }
     /// Every simulated FM-1 switch, so the settings can start it again when any of them changes.
     var simulatedSwitches: [Bool] {
         [
             simulatedRecoveryMode, simulatedCablePull, simulatedReadsBackwards, simulatedVerifies,
-            simulatedMBootloader, simulatedOpenFirmware, simulatedSecondFM1,
+            simulatedMBootloader, simulatedOpenFirmware, simulatedSecondFM1, simulatedRenamedPort,
         ]
     }
     /// The `SafetyNotice.version` the user last acknowledged (0 for never).
@@ -183,6 +192,8 @@ final class AppSettings {
         // `bool(forKey:)` reads `-simulatedOpenFirmware YES` too, for UI tests.
         simulatedOpenFirmware = defaults.bool(forKey: Keys.simulatedOpenFirmware)
         simulatedSecondFM1 = defaults.bool(forKey: Keys.simulatedSecondFM1)
+        simulatedRenamedPort = defaults.bool(forKey: Keys.simulatedRenamedPort)
+        triedPortNames = Set(defaults.stringArray(forKey: Keys.triedPortNames) ?? [])
         acknowledgedNoticeVersion = defaults.integer(forKey: Keys.acknowledgedNotice)
         tipNudgesShown = defaults.integer(forKey: Keys.tipNudgesShown)
     }
@@ -237,6 +248,8 @@ final class AppSettings {
         static let simulatedMBootloader = "simulatedMBootloader"
         static let simulatedOpenFirmware = "simulatedOpenFirmware"
         static let simulatedSecondFM1 = "simulatedSecondFM1"
+        static let simulatedRenamedPort = "simulatedRenamedPort"
+        static let triedPortNames = "triedPortNames"
         static let acknowledgedNotice = "acknowledgedNoticeVersion"
         static let tipNudgesShown = "tipNudgesShown"
     }

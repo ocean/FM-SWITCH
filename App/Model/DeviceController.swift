@@ -77,7 +77,7 @@ final class DeviceController {
             transport = SimulatedPair.transport(for: settings)
         }
         transportName = kind.name
-        updater = FM1Updater(transport: transport)
+        updater = makeUpdater()
         identity = nil
         flashChipID = nil
         devices = []
@@ -132,7 +132,7 @@ final class DeviceController {
     func choose(_ device: FM1DeviceSummary) {
         guard !isWriting, devices.contains(device) else { return }
         chosenDevice = device
-        updater = FM1Updater(transport: transport, device: device)
+        updater = makeUpdater(for: device)
         identity = device.identity
         flashChipID = device.flashChipID
     }
@@ -140,13 +140,19 @@ final class DeviceController {
     /// Lists the devices connected, and when there's more than one, keeps working with the one
     /// chosen, if it's still there.
     private func findDevices() async {
-        let found = await FM1Updater(transport: transport).devices()
+        let found = await makeUpdater().devices()
         devices = found.count > 1 ? found : []
         chosenDevice = chosenDevice.flatMap { DeviceChoice.same($0, in: devices, identity: identity) }
-        updater = FM1Updater(transport: transport, device: chosenDevice)
+        updater = makeUpdater(for: chosenDevice)
         let current = devices.isEmpty ? found.first : chosenDevice
         identity = current?.identity
         flashChipID = current?.flashChipID
+    }
+
+    /// An updater for `device`, or whichever FM-1 is connected, that also talks to the ports the
+    /// person chose to try.
+    func makeUpdater(for device: FM1DeviceSummary? = nil) -> FM1Updater {
+        FM1Updater(transport: transport, device: device, alsoProbing: settings?.triedPortNames ?? [])
     }
 
     // MARK: - Flashing.

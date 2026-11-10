@@ -116,6 +116,7 @@ struct SettingsView: View {
                 PixelToggle("M-BOOTLOADER, REFUSES M-VAVE'S", isOn: $settings.simulatedMBootloader)
                 PixelToggle("RUN OPEN FIRMWARE, WITH PROJECTS", isOn: $settings.simulatedOpenFirmware)
                 PixelToggle("CONNECT A SECOND ONE, ON V15", isOn: $settings.simulatedSecondFM1)
+                PixelToggle("GIVE ITS USB PORT ANOTHER NAME", isOn: $settings.simulatedRenamedPort)
                 Button("RESET SIMULATED FM-1") { model.applyConnectionSettings() }
                     .buttonStyle(.pixel)
             }

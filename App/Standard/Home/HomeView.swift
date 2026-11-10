@@ -42,7 +42,7 @@ struct HomeView: View {
                 if model.offersSaveMyFM1 { saveCard }
                 if case .waiting(let loader) = summary.state { finishCard(loader) }
                 if device.identity == .officialV15 { factorySoundsCard }
-                if summary.state == .notConnected { connectCard }
+                if summary.state == .notConnected { ConnectCard() }
                 if let openHelp { helpCard(openHelp) }
             }
             .padding(.horizontal, 20)
@@ -181,24 +181,6 @@ struct HomeView: View {
                 tint: Palette.save)
         }
         .buttonStyle(.pressable)
-    }
-
-    private var connectCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Connect your FM-1").font(.headline)
-            Text("1. Switch it on.")
-            Text("2. Plug it into this \(ThisDevice.name) with a USB data cable.")
-            Text("3. Close any other music app that's using it.")
-            if let error = device.transportError {
-                Text(error).font(.footnote).foregroundStyle(Palette.warningInk)
-                Button("Try again") { model.retryConnectionIfUnavailable() }
-                    .buttonStyle(.secondary)
-            }
-        }
-        .foregroundStyle(Palette.ink)
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground()
     }
 
     /// Five quick taps on the drawing's screen find the Retro look, which goes into Settings, and

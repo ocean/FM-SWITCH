@@ -8,6 +8,8 @@ struct DeviceView: View {
     @Binding var tab: AppTab
     @State private var restoringVoices = false
     @State private var isSaving = false
+    /// The port the person asked to try, until they say they're sure.
+    @State private var trying: MIDIPortDescriptor?
 
     private var device: DeviceController { model.device }
 
@@ -52,6 +54,7 @@ struct DeviceView: View {
         .task { await device.scan() }
         .voiceRestoreSheet(isPresented: $restoringVoices, model: model, theme: theme)
         .retroSaveSheet(isPresented: $isSaving, model: model, theme: theme)
+        .confirmingTryPort($trying)
     }
 
     /// The devices connected, when there's more than one, to choose the one to work with.
@@ -220,17 +223,38 @@ struct DeviceView: View {
                 MonoText("None found.", size: 14, dim: true)
             }
             ForEach(device.ports) { port in
-                HStack {
-                    MonoText(port.name, size: 14)
-                    Spacer()
-                    PixelTag(
-                        text: FM1Updater.isProbeable(port) ? "PROBED" : "IGNORED",
-                        inverted: FM1Updater.isProbeable(port))
-                }
+                portRow(port)
+            }
+            if device.ports.contains(where: { !FM1Updater.isProbeable($0) }) {
+                MonoText(
+                    """
+                    Only ports named like an FM-1's are probed, so other gear is left alone. Try one \
+                    if your FM-1's firmware names its port differently.
+                    """,
+                    size: 13,
+                    dim: true)
             }
             if let lastScan = device.lastScan {
                 MonoText("Last scan \(lastScan.formatted(date: .omitted, time: .standard))", size: 16, dim: true)
             }
+            MonoText("FM-SWITCH \(AppVersion.text)", size: 14, dim: true)
+        }
+    }
+
+    @ViewBuilder private func portRow(_ port: MIDIPortDescriptor) -> some View {
+        HStack {
+            MonoText(port.name, size: 14)
+            Spacer()
+            PixelTag(
+                text: device.isTried(port) ? "TRIED" : device.asks(port) ? "PROBED" : "IGNORED",
+                inverted: device.asks(port))
+        }
+        if device.isTried(port) {
+            Button("STOP TRYING") { Task { await device.stopTrying(port) } }
+                .buttonStyle(.pixel)
+        } else if !device.asks(port) {
+            Button("TRY THIS PORT") { trying = port }
+                .buttonStyle(.pixel)
         }
     }
 }
