@@ -3,10 +3,18 @@ import ImageIO
 
 /// A picture of a firmware, and what opens to show it larger.
 struct Screenshot: Hashable, Sendable {
+    /// Where a picture was found.
+    enum Source: Hashable, Sendable {
+        case readme
+        /// The picture the author gave The Firmware Hub.
+        case hub
+    }
+
     /// The picture, which may be one kept inside an SVG drawing, as a `data:` address.
     var image: URL
     /// The picture itself, or the drawing it's kept in, as a page that shows it.
     var page: URL
+    var source = Source.readme
 }
 
 /// Finds the pictures in a firmware project's README, by reading the images it shows.
@@ -26,6 +34,16 @@ enum Screenshots {
             "https://raw.githubusercontent.com/\(repo)/HEAD/readme.md",
             "https://cdn.jsdelivr.net/gh/\(repo)@HEAD/README.md",
         ].compactMap(URL.init(string:))
+    }
+
+    /// The pictures in the firmware's README, or when it has none, the one its author gave The
+    /// Firmware Hub.
+    ///
+    /// Not both, as the hub's picture is often one the README shows too.
+    static func find(for entry: CatalogueEntry, fetch: (URL) async throws -> Data) async -> [Screenshot] {
+        let found = if let repo = entry.repo { await find(repo: repo, fetch: fetch) } else { [Screenshot]() }
+        guard found.isEmpty, let card = entry.hubCard else { return found }
+        return [Screenshot(image: card, page: card, source: .hub)]
     }
 
     /// The pictures in the README of `repo`, such as "zvenson/zp12", if it can be read.

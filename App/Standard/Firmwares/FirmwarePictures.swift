@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The pictures in a firmware's README, in a strip that scrolls sideways.
+/// The pictures in a firmware's README, or the one on The Firmware Hub, in a strip that scrolls
+/// sideways.
 ///
 /// Tapping one opens it larger.
 struct FirmwarePictures: View {
@@ -26,11 +27,15 @@ struct FirmwarePictures: View {
             }
             .scrollIndicators(.hidden)
             .contentMargins(.horizontal, 20, for: .scrollContent)
-            Text("From the project's README.")
+            Text(note)
                 .font(.footnote)
                 .foregroundStyle(Palette.secondaryInk)
                 .padding(.horizontal, 20)
         }
+    }
+
+    private var note: String {
+        pictures.allSatisfy { $0.source == .hub } ? "From The Firmware Hub." : "From the project's README."
     }
 
     private func image(_ url: URL) -> some View {

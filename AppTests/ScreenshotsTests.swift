@@ -138,4 +138,28 @@ struct ScreenshotsTests {
         CGImageDestinationFinalize(destination)
         return data as Data
     }
+
+    @Test func takesTheHubsPictureFromItsFeed() throws {
+        let json = """
+            {"firmwares": [{"id": "tuna", "name": "Tuna", "kind": "groove", "version": "1.2", "pkg": "fw/tuna.fwsc",
+            "product": "FM-1_47886200", "size": 1, "sha256": "\(String(repeating: "ab", count: 32))",
+            "card": "fw/cards/tuna.png"}]}
+            """
+        let entry = try #require(HubFeed.decode(Data(json.utf8)).entries().first)
+        #expect(entry.hubCard?.absoluteString == "https://thefirmwarehub.com/fw/cards/tuna.png")
+        let saved = try JSONDecoder().decode(CatalogueEntry.self, from: JSONEncoder().encode(entry))
+        #expect(saved.hubCard == entry.hubCard)
+    }
+
+    @Test func showsTheHubsPictureOnlyWhenTheREADMEHasNone() async throws {
+        let card = try #require(URL(string: "https://thefirmwarehub.com/fw/cards/tuna.png"))
+        var entry = CatalogueEntry(id: "tuna", name: "Tuna", repo: "delirioux/tuna", listing: .hub)
+        entry.hubCard = card
+        let withPictures = await Screenshots.find(for: entry) { _ in Data("![screen](screen.png)".utf8) }
+        #expect(withPictures.map(\.source) == [.readme])
+        let without = await Screenshots.find(for: entry) { _ in Data("No pictures.".utf8) }
+        #expect(without == [Screenshot(image: card, page: card, source: .hub)])
+        entry.repo = nil
+        #expect(await Screenshots.find(for: entry) { _ in Data() }.map(\.image) == [card])
+    }
 }

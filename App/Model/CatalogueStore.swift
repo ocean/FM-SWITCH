@@ -99,14 +99,12 @@ final class CatalogueStore {
         chosenBuilds[id] = name
     }
 
-    /// Looks for the pictures in a firmware's README, once a session.
+    /// Looks for the pictures of a firmware, once a session.
     func findScreenshots(of id: String) async {
-        guard screenshots[id] == nil, !lookingForScreenshots.contains(id), let repo = entry(id: id)?.repo else {
-            return
-        }
+        guard screenshots[id] == nil, !lookingForScreenshots.contains(id), let entry = entry(id: id) else { return }
         lookingForScreenshots.insert(id)
         defer { lookingForScreenshots.remove(id) }
-        screenshots[id] = await Screenshots.find(repo: repo, fetch: Network.fetch)
+        screenshots[id] = await Screenshots.find(for: entry, fetch: Network.fetch)
     }
 
     /// Asks the firmware's own source (its GitHub releases, or its publisher's site) for a newer

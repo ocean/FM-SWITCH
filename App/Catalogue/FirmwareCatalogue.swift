@@ -100,6 +100,8 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
     /// Which of the FM-1's flash chips the firmware knows, as The Firmware Hub lists it, or nil when
     /// it doesn't say.
     var flashChip: HubFlashChip?
+    /// The picture of the firmware its author gave The Firmware Hub, shown when the README has none.
+    var hubCard: URL?
 
     /// Whether the package offered was built from the project's source by GitHub Actions, as a
     /// signed record says, and not on someone's own computer.
@@ -266,10 +268,12 @@ struct HubFeed: Decodable, Sendable {
         var installs: Int?
         var chip: String?
         var provenance: HubBuildRecord?
+        /// The picture its author gave the hub, as a path from the feed's address.
+        var card: String?
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars, installs, chip, provenance
+                editor, play, repo, stars, installs, chip, provenance, card
             case kinds = "kind"
         }
 
@@ -302,6 +306,7 @@ struct HubFeed: Decodable, Sendable {
             installs = try? container.decodeIfPresent(Int.self, forKey: .installs)
             chip = try? container.decodeIfPresent(String.self, forKey: .chip)
             provenance = try? container.decodeIfPresent(HubBuildRecord.self, forKey: .provenance)
+            card = try? container.decodeIfPresent(String.self, forKey: .card)
         }
 
         /// The build record, when it's one the hub counts: checked, for this package, and naming a
@@ -358,6 +363,7 @@ struct HubFeed: Decodable, Sendable {
             entry.sourceBuild = sourceBuild
             entry.installs = installs
             entry.flashChip = chip.flatMap(HubFlashChip.init(rawValue:))
+            entry.hubCard = card.flatMap { URL(string: $0, relativeTo: feedURL)?.absoluteURL }
             return entry
         }
     }
