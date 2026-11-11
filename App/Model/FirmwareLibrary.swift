@@ -184,7 +184,7 @@ final class FirmwareLibrary {
     /// M-VAVE's own firmware, V15 or V16, is recognised by its hash and kept as an official firmware.
     @discardableResult
     func download(_ entry: CatalogueEntry) async throws -> StoredFirmware {
-        guard let packageURL = entry.packageURL else { throw Failure.noPackage }
+        guard entry.isDownloadable, let packageURL = entry.packageURL else { throw Failure.noPackage }
         downloading.insert(entry.id)
         defer { downloading.remove(entry.id) }
 

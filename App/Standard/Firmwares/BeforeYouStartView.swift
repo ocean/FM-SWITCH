@@ -11,6 +11,7 @@ struct BeforeYouStartView: View {
     @State private var staysPluggedIn = false
     @State private var hasSaved = false
     @State private var acceptsUntested = false
+    @State private var acceptsOlderChip = false
     @State private var confirmsNotOfficial = false
     /// Whether to ask what starts the FM-1, decided once as the sheet opens so the question stays
     /// while it's answered.
@@ -49,7 +50,8 @@ struct BeforeYouStartView: View {
         }
         .tint(Palette.accentText)
         .sensoryFeedback(
-            .selection, trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested, confirmsNotOfficial]
+            .selection,
+            trigger: [hasDataCable, staysPluggedIn, hasSaved, acceptsUntested, acceptsOlderChip, confirmsNotOfficial]
         )
         .task(id: "\(target.id)|\(model.device.identity?.text ?? "")|\(model.settings.startUp?.rawValue ?? "")") {
             switching = await SwitchingCheck.read(installing: target, requiresOfficial: requiresOfficial, model: model)
@@ -110,8 +112,10 @@ struct BeforeYouStartView: View {
         }
         if !readiness.switching.knowsOnlyFirstChip.isEmpty {
             FlashChipNotice(
-                names: readiness.switching.knowsOnlyFirstChip,
-                hasNewerFlashChip: readiness.switching.hasNewerFlashChip
+                names: readiness.switching.refusesFlashChip
+                    ? readiness.switching.hubListsFirstChipOnly : readiness.switching.knowsOnlyFirstChip,
+                hasNewerFlashChip: readiness.switching.hasNewerFlashChip,
+                refuses: readiness.switching.refusesFlashChip
             )
         }
         if readiness.switching.installsV16 {
@@ -237,18 +241,31 @@ struct BeforeYouStartView: View {
                     detail: "Changing to a different firmware can erase the FM-1's projects, sounds and samples.",
                     isOn: $hasSaved)
             }
-            if readiness.isUntested {
-                Divider().overlay(Palette.line)
-                CheckRow(
-                    title: "I'll try it while it's in testing",
-                    detail: "If it goes wrong, getting back to another firmware may take a computer.",
-                    isOn: $acceptsUntested)
-            }
+            risks(readiness)
         }
         .cardBackground()
         Text(InstallWords.takesAMinute)
             .font(.footnote)
             .foregroundStyle(Palette.secondaryInk)
+    }
+
+    /// The ticks for installing a firmware in testing, or one that looks like it only knows the
+    /// older flash chip.
+    @ViewBuilder private func risks(_ readiness: InstallReadiness) -> some View {
+        if readiness.isUntested {
+            Divider().overlay(Palette.line)
+            CheckRow(
+                title: "I'll try it while it's in testing",
+                detail: "If it goes wrong, getting back to another firmware may take a computer.",
+                isOn: $acceptsUntested)
+        }
+        if readiness.switching.asksAboutFlashChip {
+            Divider().overlay(Palette.line)
+            CheckRow(
+                title: FlashChipWords.installAnyway,
+                detail: FlashChipWords.installAnywayDetail,
+                isOn: $acceptsOlderChip)
+        }
     }
 
     /// Whether this switches firmware, including V15 over a firmware that only reports V15.
@@ -261,6 +278,7 @@ struct BeforeYouStartView: View {
         let isTicked =
             hasDataCable && staysPluggedIn && (!isSwitching || hasSaved)
             && (!readiness.isUntested || acceptsUntested)
+            && (!readiness.switching.asksAboutFlashChip || acceptsOlderChip)
         let title =
             readiness.needsStartUp
             ? "Choose your FM-1's start-up" : isTicked ? "Install \(target.name)" : "Tick each one to install"
@@ -278,7 +296,10 @@ struct BeforeYouStartView: View {
         .disabled(
             !isTicked
                 || !readiness.canStart(
-                    confirmsSwitch: hasSaved, acceptsUntested: acceptsUntested, confirmsNotOfficial: confirmsNotOfficial
+                    confirmsSwitch: hasSaved,
+                    acceptsUntested: acceptsUntested,
+                    confirmsNotOfficial: confirmsNotOfficial,
+                    acceptsOlderChip: acceptsOlderChip
                 )
         )
         .animation(Motion.fade, value: isTicked)

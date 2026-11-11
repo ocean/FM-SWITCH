@@ -138,7 +138,8 @@ struct FirmwarePageView: View {
     @ViewBuilder private var olderChipOnly: some View {
         let chip = model.device.flashChipID
         if entry.flashChip == .old, chip != FM1FlashChip.p25q80 {
-            FlashChipNotice(names: [entry.name], hasNewerFlashChip: chip == FM1FlashChip.uc25hq80)
+            let isNewer = chip == FM1FlashChip.uc25hq80
+            FlashChipNotice(names: [entry.name], hasNewerFlashChip: isNewer, refuses: isNewer)
         }
     }
 

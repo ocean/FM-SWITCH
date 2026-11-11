@@ -20,13 +20,16 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
 
     /// Where the package link came from.
     enum PackageOrigin: String, Codable, Sendable, Hashable {
-        /// The Firmware Hub's mirror, with a size and SHA-256.
+        /// The Firmware Hub, with a size and SHA-256. Its terms ask for packages from their makers
+        /// instead, so the app no longer downloads from it: lists built since 10 November 2026
+        /// give it with no package, for a firmware whose maker doesn't publish the hub's package.
         case hub
         /// An asset on the project's GitHub release.
         case githubRelease
         /// The publisher's own release list (e.g. Baud Girl's), with a SHA-256.
         case publisherManifest
-        /// A `.fwsc` link found on the project's web page; no published checksum.
+        /// A `.fwsc` file the project publishes outside a release: linked from its web page, with no
+        /// published checksum, or kept in its repository, matching the hub's.
         case projectPage
         /// M-VAVE's own download, checked against the known official hash.
         case mvave
@@ -161,7 +164,7 @@ struct CatalogueEntry: Codable, Sendable, Identifiable, Hashable {
         loader?.lowercased() == "mvave"
     }
 
-    var isDownloadable: Bool { packageURL != nil }
+    var isDownloadable: Bool { packageURL != nil && packageOrigin != .hub }
 
     /// True when the publisher (or the hub) states the package's SHA-256.
     var hasPublishedChecksum: Bool { sha256 != nil }
@@ -330,6 +333,7 @@ struct HubFeed: Decodable, Sendable {
                 ("Release", release),
                 ("Editor", editor),
                 ("Try it in the browser", play),
+                ("On The Firmware Hub", URL(string: "/#fw-\(id)", relativeTo: feedURL)?.absoluteString),
             ]
             var links: [CatalogueLink] = []
             for (label, address) in labelled {

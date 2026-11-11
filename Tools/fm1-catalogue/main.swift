@@ -91,7 +91,8 @@ func run() async throws {
 
     let catalogue: MergedCatalogue
     do {
-        catalogue = try await CatalogueBuilder(fetch: fetch, describesFromGitHub: true).build(after: previous)
+        catalogue = try await CatalogueBuilder(fetch: fetch, describesFromGitHub: true, pagesFiles: pagesFiles)
+            .build(after: previous)
     } catch {
         throw Stop(code: 2, message: error.localizedDescription)
     }

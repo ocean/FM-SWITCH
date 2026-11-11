@@ -128,10 +128,13 @@ struct StandardSettingsView: View {
 
     private var about: some View {
         Section {
+            Link(ListCredit.hub, destination: ListCredit.hubURL)
+            Link("Licence: \(ListCredit.licence)", destination: ListCredit.licenceURL)
+            Text(ListCredit.changes)
             Text(
                 """
-                Firmware lists: thefirmwarehub.com, fm1-editor.com, aroum's FM1 Resource Hub and mutant.cloud. \
-                Files come from The Firmware Hub, GitHub releases, publishers' own sites and M-VAVE.
+                Other firmware lists: fm1-editor.com, aroum's FM1 Resource Hub and mutant.cloud. Files come \
+                from GitHub releases, publishers' own sites and M-VAVE.
                 """
             )
             Text("The update protocol is from the AL-255/FM-1-RE reverse-engineering notes.")

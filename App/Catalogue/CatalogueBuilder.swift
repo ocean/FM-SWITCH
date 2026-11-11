@@ -18,6 +18,9 @@ public struct MergedCatalogue: Codable, Sendable, Equatable {
     var entries: [CatalogueEntry]
     /// Sources that couldn't be read on this refresh, in plain words.
     public var problems: [String]
+    /// The credit The Firmware Hub's terms ask for when its list is passed on; nil in lists built
+    /// before 10 November 2026.
+    public var credit: String?
 
     /// How many firmwares the list has.
     public var count: Int { entries.count }
@@ -47,15 +50,31 @@ public struct CatalogueBuilder: Sendable {
     let fetch: Fetch
     /// Whether to fill in missing descriptions from GitHub, at a request per firmware.
     let describesFromGitHub: Bool
+    /// Whether to read The Firmware Hub's list, which its terms allow at most once a day.
+    let readsTheHub: Bool
+    /// Reads the `.fwsc` files on a Pages site built by a workflow.
+    let pagesFiles: PagesFiles?
 
     /// - Parameters:
     ///   - fetch: Downloads an address, throwing for anything but success.
     ///   - describesFromGitHub: Fill in missing descriptions from each project's GitHub
     ///     description. It takes a GitHub API request per firmware, so it's for fm1-catalogue,
     ///     which has a token, not the app.
-    public init(fetch: @escaping @Sendable (URL) async throws -> Data, describesFromGitHub: Bool = false) {
+    ///   - readsTheHub: Read The Firmware Hub's list, and find where each of its packages' makers
+    ///     publish them. It's for fm1-catalogue, which reads it once a day for everyone; an app
+    ///     building the list itself keeps the hub's firmwares from the list it had.
+    ///   - pagesFiles: Reads the `.fwsc` files on a project's GitHub Pages site, to find a package
+    ///     published only there. It downloads a lot, so it's for fm1-catalogue.
+    public init(
+        fetch: @escaping @Sendable (URL) async throws -> Data,
+        describesFromGitHub: Bool = false,
+        readsTheHub: Bool = true,
+        pagesFiles: PagesFiles? = nil
+    ) {
         self.fetch = fetch
         self.describesFromGitHub = describesFromGitHub
+        self.readsTheHub = readsTheHub
+        self.pagesFiles = pagesFiles
     }
 
     /// Fetches the lists and merges them, falling back on `previous` for packages that can't be
@@ -68,7 +87,7 @@ public struct CatalogueBuilder: Sendable {
     /// on when a project's site or GitHub can't be reached this time, and the firmwares of a list
     /// that can't be read.
     func build(previous: [CatalogueEntry] = []) async throws -> MergedCatalogue {
-        async let hubData = try? fetch(hubURL)
+        async let hubData = readsTheHub ? try? fetch(hubURL) : nil
         async let editorData = try? fetch(editorURL)
         async let resourceHubData = try? fetch(resourceHubURL)
         async let mutantCloudData = try? fetch(mutantCloudURL)
@@ -85,8 +104,10 @@ public struct CatalogueBuilder: Sendable {
 
         var unread: CatalogueEntry.Listing = []
         var problems: [String] = []
+        if !readsTheHub { unread.insert(.hub) }
         for (isRead, listing, name) in [
-            (hub != nil, CatalogueEntry.Listing.hub, "The Firmware Hub"), (editor != nil, .editor, "fm1-editor.com"),
+            (hub != nil || !readsTheHub, CatalogueEntry.Listing.hub, "The Firmware Hub"),
+            (editor != nil, .editor, "fm1-editor.com"),
             (resourceHub != nil, .resourceHub, "aroum's FM1 Resource Hub"),
             (mutantCloud != nil, .mutantCloud, "mutant.cloud"),
         ] where !isRead {
@@ -100,23 +121,49 @@ public struct CatalogueBuilder: Sendable {
             into: Self.merge(
                 resourceHub: resourceHub?.entries ?? [],
                 into: Self.merge(
-                    hub: hub?.entries(relativeTo: hubURL) ?? [], editor: editor?.entries ?? [], editorURL: editorURL)
+                    hub: await fromMakers(hub?.entries(relativeTo: hubURL) ?? [], previous: previous),
+                    editor: editor?.entries ?? [],
+                    editorURL: editorURL)
             )
         )
         let merged = Self.carry(previous, listedOnlyBy: unread, into: fresh)
-        let discovery = PackageDiscovery(fetch: fetch)
         let previousByID = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let resolved = await discoverPackages(for: merged, previous: previousByID)
+        return MergedCatalogue(
+            formatVersion: MergedCatalogue.currentFormat,
+            builtAt: .now,
+            hubUpdated: hub?.updated,
+            entries: describesFromGitHub ? await describe(resolved, previous: previousByID) : resolved,
+            problems: problems,
+            credit: ListCredit.plain
+        )
+    }
 
-        let resolved = await withTaskGroup(of: (Int, CatalogueEntry).self) { group in
-            for (index, entry) in merged.enumerated() where entry.packageURL == nil {
+    /// Finds packages for the firmwares that have none, falling back on the previous list's.
+    func discoverPackages(for merged: [CatalogueEntry], previous previousByID: [String: CatalogueEntry]) async
+        -> [CatalogueEntry]
+    {
+        let discovery = PackageDiscovery(fetch: fetch)
+        let makers = MakerPackage(fetch: fetch, pagesFiles: pagesFiles)
+        return await withTaskGroup(of: (Int, CatalogueEntry).self) { group in
+            // The hub's firmwares keep the package it lists, or none.
+            for (index, entry) in merged.enumerated() where entry.packageURL == nil && entry.packageOrigin != .hub {
                 group.addTask {
-                    guard
-                        let found = await discovery.discover(
-                            name: entry.name, links: entry.links, isOfficial: entry.isOfficial)
-                    else {
-                        return (index, Self.fallBack(entry, to: previousByID[entry.id]))
+                    if let found = await discovery.discover(
+                        name: entry.name, links: entry.links, isOfficial: entry.isOfficial)
+                    {
+                        return (index, Self.apply(found, to: entry))
                     }
-                    return (index, Self.apply(found, to: entry))
+                    // A package a list gives the checksum of can be on its project's Pages site.
+                    if let repo = entry.repo, let sha256 = entry.sha256?.lowercased(),
+                        let url = await makers.pagesFile(repo: repo, sha256: sha256, size: entry.size)
+                    {
+                        var entry = entry
+                        entry.packageURL = url
+                        entry.packageOrigin = .projectPage
+                        return (index, entry)
+                    }
+                    return (index, Self.fallBack(entry, to: previousByID[entry.id]))
                 }
             }
             var entries = merged
@@ -125,13 +172,6 @@ public struct CatalogueBuilder: Sendable {
             }
             return entries
         }
-        return MergedCatalogue(
-            formatVersion: MergedCatalogue.currentFormat,
-            builtAt: .now,
-            hubUpdated: hub?.updated,
-            entries: describesFromGitHub ? await describe(resolved, previous: previousByID) : resolved,
-            problems: problems
-        )
     }
 
     // MARK: - Descriptions.

@@ -42,5 +42,8 @@ struct FlashChipTests {
         #expect(two.contains("they usually keep changes"))
         #expect(
             FlashChipWords.warning(["ZEN-1"], hasNewerFlashChip: true).hasPrefix("Your FM-1 has the newer flash chip"))
+        #expect(
+            FlashChipWords.warning(["ZEN-1"], hasNewerFlashChip: true, refuses: true)
+                .contains("so FM-SWITCH won't install it"))
     }
 }
