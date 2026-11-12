@@ -317,7 +317,7 @@ final class DeviceController {
             package, named: item.name, over: job?.guide, startUp: settings?.startUp)
         history.record(item, guide: installed.guide)
         if let startUp = installed.startUp { settings?.startUp = startUp }
-        job?.guide = installed.guide ?? job?.guide
+        if let guide = installed.guide { job?.guide = guide }
     }
 
     private func apply(_ event: UpdateEvent) {
