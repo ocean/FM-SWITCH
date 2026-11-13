@@ -65,10 +65,10 @@ Reached schedules and deadlines use notify.* for the current owner, or the autho
 
 ## Shared FM-1 issues (kata)
 
-All four FM-1 repos share one kata project, `fm-1`: fm1-site (label `site`), estampie (`estampie`), FM1Kit (`fm1kit`) and FM-SWITCH (`fm-switch`). This repo's label is `fm-switch`.
+All five FM-1 repos share one kata project, `fm-1`: fm1-site (label `site`), estampie (`estampie`), FM1Kit (`fm1kit`), FM-SWITCH (`fm-switch`) and WOODSHED (`woodshed`). This repo's label is `fm-switch`.
 
 - Give every issue the label of each repo it touches: `kata create "<title>" --label fm-switch ...`. Work that spans repos gets every label it needs.
 - This repo's queue: `kata ready --label fm-switch --agent`; everything: `kata list --agent`; counts per repo: `kata labels`.
 - Every session acts as `drew`; this repo's session signs its work with `--teammate fm-switch` (on create and comment).
 - Work for another repo goes in the same project with that repo's label. To ask its session to look: `kata notify <ref> --to drew/<label> --message "<why>"`. Check this session's requests with `kata inbox --for drew/fm-switch --agent`, and clear each after handling it with `kata notify <ref> --to drew/fm-switch --clear`.
-- Contacting people or repos outside these four, committing, pushing and releasing stay Drew's call.
+- Contacting people or repos outside these five, committing, pushing and releasing stay Drew's call.
