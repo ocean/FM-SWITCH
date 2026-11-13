@@ -177,11 +177,11 @@ struct StandardRootView: View {
                         openSettings: { section = .settings })
                 case .firmwares:
                     sideBySide {
-                        FirmwareListView(selectedID: selectedFirmwareID) { select($0) }
+                        FirmwareListView(selectedID: selectedFirmwareID, isBesidePage: true) { select($0) }
                     }
                 case .mine:
                     sideBySide {
-                        MyFirmwaresView(selectedID: selectedFirmwareID) { select($0) }
+                        MyFirmwaresView(selectedID: selectedFirmwareID, isBesidePage: true) { select($0) }
                     }
                 case .save:
                     SaveMyFM1View()
@@ -201,6 +201,11 @@ struct StandardRootView: View {
         .onChange(of: section) { _, section in
             if section != .help { helpTopic = nil }
         }
+        // ⌘↑ and ⌘↓, while the sidebar can be used.
+        .focusedSceneValue(
+            \.sectionSteps,
+            isInstalling || model.settings.needsSafetyNotice || isSidebarLocked
+                ? nil : SectionSteps { stepSection(by: $0) })
     }
 
     /// The sidebar's sections.
@@ -227,9 +232,7 @@ struct StandardRootView: View {
                     .listItemTint(.monochrome)
             }
         }
-        // Leaving mid-save would leave the FM-1 on another project, and leaving mid-write would
-        // hide how it's going.
-        .disabled(model.device.backupRun.isRunning || isUsingDownloadMode)
+        .disabled(isSidebarLocked)
         .navigationTitle("FM-SWITCH")
         .navigationSplitViewColumnWidth(min: 200, ideal: 220)
     }
@@ -255,6 +258,28 @@ struct StandardRootView: View {
                     .listItemTint(Palette.accent)
             #endif
         }
+    }
+
+    /// Whether the sidebar is kept on the page it's on: leaving mid-save would leave the FM-1 on
+    /// another project, and leaving mid-write would hide how it's going.
+    private var isSidebarLocked: Bool { model.device.backupRun.isRunning || isUsingDownloadMode }
+
+    /// The sidebar's sections, in the order it lists them.
+    private var sections: [Section] {
+        var sections: [Section] = [.myFM1, .firmwares, .mine]
+        if model.offersSaveMyFM1 || section == .save { sections.append(.save) }
+        #if os(macOS)
+            sections.append(.downloadMode)
+        #endif
+        return sections + [.help, .settings]
+    }
+
+    /// Picks the section `offset` places from the one picked, if there is one there.
+    private func stepSection(by offset: Int) {
+        let sections = sections
+        guard let index = sections.firstIndex(of: section ?? .myFM1), sections.indices.contains(index + offset)
+        else { return }
+        section = sections[index + offset]
     }
 
     private func select(_ entry: CatalogueEntry) {

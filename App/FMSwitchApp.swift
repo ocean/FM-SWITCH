@@ -36,6 +36,7 @@ struct FMSwitchApp: App {
                     .task { await model.keepCheckingForFirmwareUpdates() }
                 #endif
         }
+        .commands { SectionCommands() }
         #if os(iOS)
             .backgroundTask(.appRefresh(FirmwareUpdateNotices.taskID)) {
                 await model.checkForFirmwareUpdatesInBackground()

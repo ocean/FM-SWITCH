@@ -5,6 +5,8 @@ struct MyFirmwaresView: View {
     @Environment(AppModel.self) private var model
     /// The firmware showing beside the list, when there's room for it.
     var selectedID: String?
+    /// Whether picked firmwares show beside the list, so the arrow keys can step through it.
+    var isBesidePage = false
     var onSelect: (CatalogueEntry) -> Void
 
     /// The listed firmwares saved here, an older release included, then the ones added from files
@@ -27,14 +29,19 @@ struct MyFirmwaresView: View {
         @Bindable var settings = model.settings
         let saved = saved
         let starred = starred
+        let scopes = FirmwareFilter.scopes(for: saved + starred)
+        // Both groups under the list's own filter, which is the one picked unless it's no longer
+        // offered.
+        let scope = settings.myFirmwaresScope.offered(in: scopes)
+        let savedShown = settings.myFirmwaresOrder.sorted(saved.filter(scope.includes))
+        let starredShown = settings.myFirmwaresOrder.sorted(starred.filter(scope.includes))
         FilteredFirmwareList(
             order: $settings.myFirmwaresOrder,
             scope: $settings.myFirmwaresScope,
-            scopes: FirmwareFilter.scopes(for: saved + starred)
-        ) { scope in
-            let order = settings.myFirmwaresOrder
-            let savedShown = order.sorted(saved.filter(scope.includes))
-            let starredShown = order.sorted(starred.filter(scope.includes))
+            scopes: scopes,
+            stepping: isBesidePage
+                ? ArrowKeySteps(entries: savedShown + starredShown, selectedID: selectedID, select: onSelect) : nil
+        ) { _ in
             group(
                 "Saved on this \(ThisDevice.name)",
                 savedShown,

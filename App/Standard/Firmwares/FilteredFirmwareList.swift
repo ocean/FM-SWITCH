@@ -10,6 +10,9 @@ struct FilteredFirmwareList<Content: View>: View {
     /// The filter picked, which may be one `scopes` no longer offers.
     @Binding var scope: FirmwareScope
     var scopes: [FirmwareScope]
+    /// The firmwares the arrow keys step through, and the one picked, when they show beside the
+    /// list.
+    var stepping: ArrowKeySteps?
     /// The list under the filters, given the filter that applies.
     @ViewBuilder var content: (FirmwareScope) -> Content
 
@@ -23,36 +26,45 @@ struct FilteredFirmwareList<Content: View>: View {
     var body: some View {
         let picked = scope.offered(in: scopes)
         ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
-                    filters(picked: picked)
-                        .id(Self.filtersID)
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            proxy.size.height
-                        } action: { height in
-                            filtersHeight = height
-                        }
-                    content(picked)
+            ScrollView { stack(picked: picked) }
+                .modifier(ScrolledPast(offset: filtersHeight, isPast: $areFiltersHidden))
+                // Only as far as it takes to show it, so one already in sight stays put.
+                .onChange(of: stepping?.selectedID) { _, id in
+                    if let id { withAnimation(Motion.standard) { proxy.scrollTo(id) } }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-                .animation(Motion.standard, value: picked)
-                .animation(Motion.standard, value: order)
-            }
-            .modifier(ScrolledPast(offset: filtersHeight, isPast: $areFiltersHidden))
-            .overlay(alignment: .top) {
-                // Always there, only faded out, as adding the order menu while the list scrolls
-                // stalls the Mac's layout.
-                let isPinned = areFiltersHidden && picked != .all
-                pinned(picked: picked) {
-                    withAnimation(Motion.standard) { proxy.scrollTo(Self.filtersID, anchor: .top) }
+                .overlay(alignment: .top) {
+                    // Always there, only faded out, as adding the order menu while the list scrolls
+                    // stalls the Mac's layout.
+                    let isPinned = areFiltersHidden && picked != .all
+                    pinned(picked: picked) {
+                        withAnimation(Motion.standard) { proxy.scrollTo(Self.filtersID, anchor: .top) }
+                    }
+                    .opacity(isPinned ? 1 : 0)
+                    .allowsHitTesting(isPinned)
+                    .accessibilityHidden(!isPinned)
+                    .animation(Motion.fade, value: isPinned)
                 }
-                .opacity(isPinned ? 1 : 0)
-                .allowsHitTesting(isPinned)
-                .accessibilityHidden(!isPinned)
-                .animation(Motion.fade, value: isPinned)
-            }
         }
+    }
+
+    /// The filters, then the list.
+    private func stack(picked: FirmwareScope) -> some View {
+        LazyVStack(alignment: .leading, spacing: 10) {
+            filters(picked: picked)
+                .id(Self.filtersID)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { height in
+                    filtersHeight = height
+                }
+            content(picked)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 24)
+        .animation(Motion.standard, value: picked)
+        .animation(Motion.standard, value: order)
+        // Inside the scroll view, so the arrow keys reach it before the scroll view.
+        .steppingWithArrowKeys(stepping)
     }
 
     private func filters(picked: FirmwareScope) -> some View {

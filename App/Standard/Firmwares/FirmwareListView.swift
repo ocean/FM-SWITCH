@@ -11,6 +11,8 @@ struct FirmwareListView: View {
     @State private var importMessage: String?
     /// The firmware showing beside the list, when there's room for it.
     var selectedID: String?
+    /// Whether picked firmwares show beside the list, so the arrow keys can step through it.
+    var isBesidePage = false
     var onSelect: (CatalogueEntry) -> Void
 
     /// The firmwares to show under `scope`, in order.
@@ -23,13 +25,17 @@ struct FirmwareListView: View {
 
     var body: some View {
         @Bindable var settings = model.settings
+        // From the whole list, not the search, so a search doesn't take filters away.
+        let scopes = FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
+        // The list's own filter, which is the one picked unless it's no longer offered.
+        let shown = entries(in: settings.firmwareScope.offered(in: scopes))
         FilteredFirmwareList(
             order: $settings.firmwareOrder,
             scope: $settings.firmwareScope,
-            // From the whole list, not the search, so a search doesn't take filters away.
-            scopes: FirmwareFilter.scopes(for: FirmwareFilter().visible(in: model))
-        ) { scope in
-            list(entries(in: scope))
+            scopes: scopes,
+            stepping: isBesidePage ? ArrowKeySteps(entries: shown, selectedID: selectedID, select: onSelect) : nil
+        ) { _ in
+            list(shown)
         }
         .background(Palette.ground)
         .navigationTitle("Firmwares")
