@@ -32,7 +32,7 @@ enum SwitchingWords {
         return warnings
     }
 
-    /// Why MIDIMON or LOOM-8 goes on first.
+    /// Why MIDIMON goes on first.
     static func firstStep(_ firstStep: String, running: String, next: String) -> String {
         """
         \(firstStep) goes on first: \(running) can't install \(next) directly, but it can install \
@@ -82,7 +82,7 @@ enum SwitchingWords {
             """
     #endif
 
-    /// What the install that stopped will do instead, putting MIDIMON or LOOM-8 on first.
+    /// What the install that stopped will do instead, putting MIDIMON on first.
     static func installFirst(_ firstStep: String) -> String {
         "Install \(firstStep) first"
     }

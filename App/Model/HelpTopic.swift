@@ -46,8 +46,8 @@ enum HelpTopic: String, CaseIterable, Identifiable {
                 """,
                 """
                 There's a way round it, and it works from this \(ThisDevice.name) too. First install \
-                MIDIMON 0.4 or LOOM-8. They're built on Felucca, so your firmware lets them in, but \
-                their check is updated, so either can then install V15, V16, Open or the firmware you \
+                MIDIMON 0.5. It's built on Felucca, so your firmware lets it in, but its \
+                check is updated, so it can then install V15, V16, Open or the firmware you \
                 wanted. When FM-SWITCH knows the firmware on your FM-1 needs this, it puts MIDIMON on \
                 first for you, then the one you picked.
                 """,

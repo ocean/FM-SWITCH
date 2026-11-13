@@ -147,7 +147,7 @@ struct SwitchingGuideTests {
         let message = DeviceController.FlashJob.failureMessage(
             for: refused, installing: item, running: "Felucca", needsAStepFirst: true)
         #expect(message.hasPrefix("Your FM-1 is fine. It's still running Felucca, which won't take LOOM from here."))
-        #expect(message.hasSuffix(" Install MIDIMON 0.4 or LOOM-8 first, then LOOM."))
+        #expect(message.hasSuffix(" Install MIDIMON 0.5 first, then LOOM."))
     }
 
     // MARK: - Choosing a device.

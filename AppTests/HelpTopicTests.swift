@@ -14,9 +14,9 @@ struct HelpTopicTests {
         #endif
     }
 
-    @Test func theWayRoundGoesThroughMIDIMONOrLOOM8() {
+    @Test func theWayRoundGoesThroughMIDIMON() {
         let paragraphs = HelpTopic.wontInstall.paragraphs
-        #expect(paragraphs.contains { $0.contains("First install MIDIMON 0.4 or LOOM-8.") })
+        #expect(paragraphs.contains { $0.contains("First install MIDIMON 0.5.") })
         #expect(paragraphs.last?.hasPrefix("If that doesn't work,") == true)
     }
 }

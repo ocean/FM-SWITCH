@@ -75,7 +75,7 @@ struct FlashConfirmView: View {
         }
     }
 
-    /// Why MIDIMON or LOOM-8 goes on first, or why the firmware running might refuse this, and
+    /// Why MIDIMON goes on first, or why the firmware running might refuse this, and
     /// what V15 does after V16.
     @ViewBuilder private func route(_ readiness: InstallReadiness) -> some View {
         let switching = readiness.switching

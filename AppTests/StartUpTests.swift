@@ -32,7 +32,7 @@ struct StartUpTests {
             return
         }
         #expect(message.hasPrefix("Your FM-1 is fine. It's still running the firmware it had"))
-        #expect(message.hasSuffix("Install MIDIMON 0.4 or LOOM-8 first, then \(item.name)."))
+        #expect(message.hasSuffix("Install MIDIMON 0.5 first, then \(item.name)."))
         #expect(setup.controller.job?.needsAStepFirst == true)
         #expect(setup.controller.identity?.text == "FM-1_900")
     }

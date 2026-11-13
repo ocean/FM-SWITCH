@@ -72,7 +72,7 @@ extension DeviceController {
         var index = 0
         var phase = FlashPhase.preparing
         /// Whether it stopped because, with the FM-1's bootloader changed, its firmware won't take
-        /// this until MIDIMON or LOOM-8 is installed first.
+        /// this until MIDIMON is installed first.
         var needsAStepFirst = false
         /// Whether it stopped before the install started, which might be the FM-1's firmware
         /// refusing it, so trying again might not help.
@@ -127,7 +127,7 @@ extension DeviceController {
             }
         }
 
-        /// Whether `error` is a refusal that only MIDIMON or LOOM-8 gets past, rather than
+        /// Whether `error` is a refusal that only MIDIMON gets past, rather than
         /// putting V15 on first: always for V15 itself, and otherwise unless the firmware running
         /// installs V15, as its guide says, or when there's none, as the FM-1's start-up says.
         static func needsAStepFirst(
@@ -149,7 +149,7 @@ extension DeviceController {
         ///   - error: Why the install stopped.
         ///   - item: The firmware it was installing.
         ///   - running: The name of the firmware the FM-1 is running, if it's known.
-        ///   - needsAStepFirst: Whether only MIDIMON or LOOM-8 gets past the refusal.
+        ///   - needsAStepFirst: Whether only MIDIMON gets past the refusal.
         /// - Returns: The message.
         static func failureMessage(
             for error: any Error,
@@ -163,8 +163,8 @@ extension DeviceController {
                 \(item.name) from here.
                 """
             // V15 takes the rest, so going through it gets past a refusal it isn't part of; MIDIMON
-            // and LOOM-8 are let in, and their updated check takes the rest (FM1Kit's stage P).
-            let first = needsAStepFirst ? "MIDIMON 0.4 or LOOM-8" : "V15"
+            // is let in, and its updated check takes the rest (FM1Kit's stage P).
+            let first = needsAStepFirst ? "MIDIMON 0.5" : "V15"
             return "\(opening) Install \(first) first, then \(item.name)."
         }
 

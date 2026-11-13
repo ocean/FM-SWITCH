@@ -141,10 +141,12 @@ extension StartUp {
 /// The firmwares with Felucca's fixed update check that go on first when the firmware on the FM-1
 /// can't install the one picked: they install any firmware, and every firmware takes them.
 enum FixedFirmware {
-    /// MIDIMON's catalogue ID, the one downloaded when none is saved.
+    /// MIDIMON's catalogue ID, the one downloaded when no saved one will do.
     static let midimon = "midimon"
-    /// The ones FM1Kit has tried on an FM-1, by catalogue ID: MIDIMON and LOOM-8.
-    static let catalogueIDs = [midimon, "loom"]
+    /// LOOM-8's catalogue ID, for a saved one when MIDIMON can't be had.
+    ///
+    /// It has the fixed check too, but from 0.8 its sounds need files only its own installer sends.
+    static let loom = "loom"
 
     enum Failure: LocalizedError {
         case notListed
@@ -158,25 +160,49 @@ enum FixedFirmware {
         }
     }
 
-    /// A saved MIDIMON or LOOM-8 with the fixed check, or MIDIMON downloaded from the list.
+    /// A saved MIDIMON with the fixed check, or MIDIMON downloaded from the list, or else a saved
+    /// LOOM-8 with the fixed check.
+    ///
+    /// A saved one that only knows the first FM-1s' flash chip, as MIDIMON 0.4 does, is passed
+    /// over unless the FM-1 says it has that chip: on the newer one it often can't install the
+    /// next firmware.
     @MainActor
-    static func find(in library: FirmwareLibrary, catalogue: CatalogueStore) async throws -> StoredFirmware {
-        for id in catalogueIDs {
-            for item in library.items where item.catalogueID == id {
-                if (try? await library.loadPackage(item).updateCode) == .feluccaFixedCheck { return item }
+    static func find(
+        in library: FirmwareLibrary,
+        catalogue: CatalogueStore,
+        flashChipID: UInt32?
+    ) async throws -> StoredFirmware {
+        let onFirstChip = flashChipID == FM1FlashChip.p25q80
+        if let saved = await saved(midimon, in: library, onFirstChip: onFirstChip) { return saved }
+        do {
+            guard let entry = catalogue.entry(id: midimon) else { throw Failure.notListed }
+            let item = try await library.download(entry)
+            guard try await library.loadPackage(item).updateCode == .feluccaFixedCheck else {
+                throw Failure.notFixed(item.name)
             }
+            return item
+        } catch {
+            if let saved = await saved(loom, in: library, onFirstChip: onFirstChip) { return saved }
+            throw error
         }
-        guard let entry = catalogue.entry(id: midimon) else { throw Failure.notListed }
-        let item = try await library.download(entry)
-        guard try await library.loadPackage(item).updateCode == .feluccaFixedCheck else {
-            throw Failure.notFixed(item.name)
+    }
+
+    /// A saved firmware with the catalogue ID `id` and the fixed check, that knows the FM-1's
+    /// flash chip.
+    @MainActor
+    private static func saved(_ id: String, in library: FirmwareLibrary, onFirstChip: Bool) async -> StoredFirmware? {
+        for item in library.items where item.catalogueID == id {
+            guard let package = try? await library.loadPackage(item), package.updateCode == .feluccaFixedCheck,
+                onFirstChip || package.flashChipSupport != .firstChipOnly
+            else { continue }
+            return item
         }
-        return item
+        return nil
     }
 }
 
 extension FixedFirmware {
-    /// Carries on with the install that was refused, with MIDIMON or LOOM-8 on first, or when the
+    /// Carries on with the install that was refused, with MIDIMON on first, or when the
     /// person didn't confirm switching firmware for it, opens MIDIMON's page to install it from.
     @MainActor
     static func installFirst(model: AppModel) async throws {
@@ -185,6 +211,7 @@ extension FixedFirmware {
             model.requestedPage = .firmware(midimon)
             return
         }
-        model.device.installFirst(try await find(in: model.library, catalogue: model.catalogue))
+        model.device.installFirst(
+            try await find(in: model.library, catalogue: model.catalogue, flashChipID: model.device.flashChipID))
     }
 }

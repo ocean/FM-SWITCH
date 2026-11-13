@@ -24,7 +24,7 @@ struct SwitchingCheck: Equatable {
     var route: LeavingRoute?
     /// Where the first firmware planned takes the FM-1, for the guide's steps.
     var destination: LeavingDestination?
-    /// MIDIMON or LOOM-8, to go on first, as the firmware running can't install the one planned.
+    /// MIDIMON, to go on first, as the firmware running can't install the one planned.
     var firstStep: StoredFirmware?
     /// Why the firmware to go on first couldn't be had.
     var firstStepProblem: String?
@@ -76,8 +76,8 @@ struct SwitchingCheck: Equatable {
     /// What a warning that applies only to a changed bootloader starts with.
     static let ifChanged = "If your FM-1's bootloader isn't the one it came with:"
 
-    /// Reads what installing `target` means for switching away again, and finds MIDIMON or
-    /// LOOM-8 to go on first when the firmware running can't install it.
+    /// Reads what installing `target` means for switching away again, and finds MIDIMON to go
+    /// on first when the firmware running can't install it.
     @MainActor
     static func read(installing target: StoredFirmware, requiresOfficial: Bool, model: AppModel) async -> Self {
         var check = Self(isRead: true)
@@ -110,7 +110,8 @@ struct SwitchingCheck: Equatable {
             && (check.running?.identity == .officialV16 || check.running?.bootArea == .v16)
         if check.needsFirstStep {
             do {
-                check.firstStep = try await FixedFirmware.find(in: model.library, catalogue: model.catalogue)
+                check.firstStep = try await FixedFirmware.find(
+                    in: model.library, catalogue: model.catalogue, flashChipID: device.flashChipID)
             } catch {
                 check.firstStepProblem = error.localizedDescription
             }
@@ -141,7 +142,7 @@ struct SwitchingCheck: Equatable {
 /// Whether installing a firmware can start, and what the person has to confirm first: the rules
 /// both looks' confirmation screens share.
 struct InstallReadiness: Equatable {
-    /// What will be installed, in order: MIDIMON or LOOM-8 first when the firmware running can't
+    /// What will be installed, in order: MIDIMON first when the firmware running can't
     /// install the rest, then the official firmware when it's needed.
     var steps: [StoredFirmware]
     var checked: InstallCheckState
@@ -210,7 +211,7 @@ struct InstallReadiness: Equatable {
         switching.dependsOnStartUp && startUp == nil
     }
 
-    /// Whether MIDIMON or LOOM-8 has to go on first and couldn't be had.
+    /// Whether MIDIMON has to go on first and couldn't be had.
     var isMissingFirstStep: Bool {
         switching.needsFirstStep && switching.firstStep == nil
     }

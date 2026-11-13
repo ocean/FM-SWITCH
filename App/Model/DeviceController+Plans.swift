@@ -34,8 +34,7 @@ extension DeviceController {
     }
 
     /// Starts the stopped install again with `fixedFirmware` on first, as the firmware on the
-    /// FM-1 refused what it was installing: MIDIMON or LOOM-8, which it takes, and which take
-    /// anything.
+    /// FM-1 refused what it was installing: MIDIMON, which it takes, and which takes anything.
     ///
     /// Only for an install the person confirmed switching firmware for, as this switches too.
     func installFirst(_ fixedFirmware: StoredFirmware) {
