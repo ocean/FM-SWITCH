@@ -48,11 +48,8 @@ struct InstallLogFile {
 
     /// The app's version and the system it's on, to start the log.
     private static func heading(_ date: Date) -> String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
-        let build = info?["CFBundleVersion"] as? String ?? "?"
         let system = ProcessInfo.processInfo.operatingSystemVersionString
-        return "FM-SWITCH \(version) (\(build)), \(system), \(date.formatted(.iso8601))"
+        return "FM-SWITCH \(AppVersion.text), \(system), \(date.formatted(.iso8601))"
     }
 
     /// Deletes all but the newest ``kept`` logs.

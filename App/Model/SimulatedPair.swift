@@ -25,6 +25,7 @@ final class SimulatedPair: MIDITransport, Sendable {
             options.comparesBootArea = true
         }
         if settings.simulatedOpenFirmware { SimulatedOpenFirmware.apply(to: &options) }
+        if settings.simulatedRenamedPort { return RenamedPortFM1(SimulatedFM1(options: options)) }
         guard settings.simulatedSecondFM1 else { return SimulatedFM1(options: options) }
         var v15 = SimulatedFM1.Options()
         v15.installedIdentity = .officialV15
@@ -67,5 +68,29 @@ final class SimulatedPair: MIDITransport, Sendable {
     /// The port as this lists it, its identifier prefixed with which device it's on.
     private static func port(_ port: MIDIPortDescriptor, prefix: String) -> MIDIPortDescriptor {
         MIDIPortDescriptor(id: prefix + port.id, name: port.name, serialNumber: port.serialNumber)
+    }
+}
+
+/// A simulated FM-1 whose firmware gives its USB port another name, as some do, so FM-SWITCH
+/// leaves it alone until the person chooses to try it.
+final class RenamedPortFM1: MIDITransport, Sendable {
+    static let portName = "Groovebox MIDI"
+    let device: SimulatedFM1
+
+    init(_ device: SimulatedFM1) {
+        self.device = device
+    }
+
+    func ports() async -> [MIDIPortDescriptor] {
+        await device.ports().map { MIDIPortDescriptor(id: $0.id, name: Self.portName, serialNumber: $0.serialNumber) }
+    }
+
+    func open(_ port: MIDIPortDescriptor) async throws -> any MIDIConnection {
+        try await device.open(
+            MIDIPortDescriptor(id: port.id, name: SimulatedFM1.portName, serialNumber: port.serialNumber))
+    }
+
+    func changes() -> AsyncStream<Void> {
+        device.changes()
     }
 }

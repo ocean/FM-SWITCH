@@ -183,6 +183,7 @@ struct StandardSettingsView: View {
                 Toggle("Has m-bootloader, and refuses M-VAVE's packages", isOn: $settings.simulatedMBootloader)
                 Toggle("Run open firmware, with projects to save", isOn: $settings.simulatedOpenFirmware)
                 Toggle("Connect a second one, running V15", isOn: $settings.simulatedSecondFM1)
+                Toggle("Give its USB port another name", isOn: $settings.simulatedRenamedPort)
                 Button("Reset the simulated FM-1") { model.applyConnectionSettings() }
                     .disabled(model.device.isWriting)
             }
