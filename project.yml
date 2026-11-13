@@ -6,11 +6,11 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
 packages:
-  # The tagged release, taking 0.6.x fixes but not 0.7.0, which may change the API. To work
+  # The tagged release, taking 0.7.x fixes but not 0.8.0, which may change the API. To work
   # against a local checkout at ../FM1Kit instead, generate from project.local.yml.
   FM1Kit:
     url: https://github.com/ocean/FM1Kit.git
-    minorVersion: 0.6.0
+    minorVersion: 0.7.0
 # Each developer's signing team, from the git-ignored Signing.local.xcconfig.
 configFiles:
   Debug: Signing.xcconfig
