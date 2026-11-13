@@ -11,6 +11,7 @@ struct FlashConfirmView: View {
     @State private var switching = SwitchingCheck()
     @State private var backedUp = false
     @State private var acceptsUntested = false
+    @State private var acceptsOlderChip = false
     @State private var confirmsNotOfficial = false
     /// Whether to ask what starts the FM-1, decided once as it opens so the question stays while
     /// it's answered.
@@ -101,8 +102,14 @@ struct FlashConfirmView: View {
         }
         if !switching.knowsOnlyFirstChip.isEmpty {
             let warning = FlashChipWords.warning(
-                switching.knowsOnlyFirstChip, hasNewerFlashChip: switching.hasNewerFlashChip)
+                switching.refusesFlashChip ? switching.hubListsFirstChipOnly : switching.knowsOnlyFirstChip,
+                hasNewerFlashChip: switching.hasNewerFlashChip,
+                refuses: switching.refusesFlashChip)
             MonoText("! \(warning)", size: 14)
+            if switching.asksAboutFlashChip {
+                NoteText(FlashChipWords.installAnywayDetail)
+                PixelToggle(FlashChipWords.installAnyway.uppercased(), isOn: $acceptsOlderChip)
+            }
             if !switching.hasNewerFlashChip {
                 PixelToggle(FlashChipWords.howToTellQuestion.uppercased(), isOn: $showsHowToTell)
                 if showsHowToTell { NoteText(FlashChipWords.howToTell) }
@@ -164,7 +171,10 @@ struct FlashConfirmView: View {
             .buttonStyle(.pixelProminent)
             .disabled(
                 !readiness.canStart(
-                    confirmsSwitch: backedUp, acceptsUntested: acceptsUntested, confirmsNotOfficial: confirmsNotOfficial
+                    confirmsSwitch: backedUp,
+                    acceptsUntested: acceptsUntested,
+                    confirmsNotOfficial: confirmsNotOfficial,
+                    acceptsOlderChip: acceptsOlderChip
                 ))
         }
     }

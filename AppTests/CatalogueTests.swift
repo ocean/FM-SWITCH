@@ -58,7 +58,7 @@ struct CatalogueTests {
         #expect(entries[0].sha256 == "dd05")
         #expect(entries[0].packageURL?.absoluteString == "https://thefirmwarehub.com/fw/zp12-2.4.2.fwsc")
         #expect(entries[0].packageOrigin == .hub)
-        #expect(entries[0].links.map(\.label) == ["Project site"])
+        #expect(entries[0].links.map(\.label) == ["Project site", "On The Firmware Hub"])
         #expect(entries[1].kinds == ["groove", "drums"])
         #expect(entries[1].requiresOfficialFirmware)
         #expect(!entries[0].requiresOfficialFirmware)

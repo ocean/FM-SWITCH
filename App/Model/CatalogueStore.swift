@@ -158,7 +158,10 @@ final class CatalogueStore {
             } catch PublishedList.Failure.unusable {
                 // Building it here makes about 90 GitHub requests, so only when the list is there but
                 // can't be used, not when the network's down.
-                built = try await CatalogueBuilder(fetch: Network.fetch).build(previous: catalogue?.entries ?? [])
+                // Not The Firmware Hub's, which asks to be read once a day for everyone, not by each
+                // phone: its firmwares are kept from the list saved before.
+                built = try await CatalogueBuilder(fetch: Network.fetch, readsTheHub: false)
+                    .build(previous: catalogue?.entries ?? [])
             }
             catalogue = Self.correctingTestFlags(of: built)
             // The lists may have caught up; pages check their sources again when opened.

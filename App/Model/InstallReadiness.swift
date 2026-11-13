@@ -36,11 +36,23 @@ struct SwitchingCheck: Equatable {
     var followsV16 = false
     /// Whether V16 goes on, after which going back to V15 needs a Mac.
     var installsV16 = false
-    /// The firmwares planned that only know the first FM-1s' flash chip, unless the FM-1 says it
-    /// has that one.
+    /// The firmwares planned that only know the first FM-1s' flash chip, as FM1Kit reads their
+    /// code or The Firmware Hub lists them, unless the FM-1 says it has that one.
     var knowsOnlyFirstChip: [String] = []
+    /// The firmwares planned that The Firmware Hub lists as knowing only the first chip.
+    var hubListsFirstChipOnly: [String] = []
     /// Whether the FM-1 says it has the newer flash chip, rather than not saying which it has.
     var hasNewerFlashChip = false
+
+    /// Whether The Firmware Hub lists a firmware planned as knowing only the older flash chip and
+    /// the FM-1 says it has the newer one, so it isn't installed: the hub's terms for apps that
+    /// use its list ask for that, as it can leave the FM-1 unable to install another firmware.
+    var refusesFlashChip: Bool { hasNewerFlashChip && !hubListsFirstChipOnly.isEmpty }
+
+    /// Whether a firmware planned looks like it only knows the older flash chip and the FM-1 says
+    /// it has the newer one, so the person is asked first: FM1Kit reads it from the code, which
+    /// names the chips it compares against, not what it does with them.
+    var asksAboutFlashChip: Bool { hasNewerFlashChip && !knowsOnlyFirstChip.isEmpty && !refusesFlashChip }
 
     /// Whether the firmware running can't install the one planned directly, so another goes on first.
     var needsFirstStep: Bool { route == .throughFixedFirmware }
@@ -83,9 +95,12 @@ struct SwitchingCheck: Equatable {
         check.route = check.destination.flatMap { check.running?.route(to: $0) }
         check.installsV16 = packages.contains { LeavingDestination(installing: $0) == .v16 }
         if device.flashChipID != FM1FlashChip.p25q80 {
+            check.hubListsFirstChipOnly = steps.filter { step in
+                step.catalogueID.flatMap { model.catalogue.entry(id: $0)?.flashChip } == .old
+            }
+            .map(\.name)
             check.knowsOnlyFirstChip = zip(steps, packages).filter { step, package in
-                let listed = step.catalogueID.flatMap { model.catalogue.entry(id: $0)?.flashChip?.support }
-                return (package.flashChipSupport ?? listed) == .firstChipOnly
+                package.flashChipSupport == .firstChipOnly || check.hubListsFirstChipOnly.contains(step.name)
             }
             .map(\.0.name)
             check.hasNewerFlashChip = device.flashChipID == FM1FlashChip.uc25hq80
@@ -236,10 +251,16 @@ struct InstallReadiness: Equatable {
     }
 
     /// Whether the install can start, once the person has (or hasn't) confirmed a switch,
-    /// accepted an untested firmware, and said the FM-1 isn't really running the official
-    /// firmware it reports.
-    func canStart(confirmsSwitch: Bool, acceptsUntested: Bool, confirmsNotOfficial: Bool = false) -> Bool {
+    /// accepted an untested firmware or one that looks like it only knows the older flash chip,
+    /// and said the FM-1 isn't really running the official firmware it reports.
+    func canStart(
+        confirmsSwitch: Bool,
+        acceptsUntested: Bool,
+        confirmsNotOfficial: Bool = false,
+        acceptsOlderChip: Bool = false
+    ) -> Bool {
         guard identity != nil, switching.isRead, !isMissingOfficial, !isMissingFirstStep,
+            !switching.refusesFlashChip, !switching.asksAboutFlashChip || acceptsOlderChip,
             !isUntested || acceptsUntested, !needsStartUp
         else { return false }
         switch checked {

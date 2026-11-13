@@ -149,11 +149,13 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var credits: some View {
+        Link(destination: ListCredit.hubURL) { NoteText(ListCredit.hub) }
+        Link(destination: ListCredit.licenceURL) { NoteText("Licence: \(ListCredit.licence)") }
+        NoteText(ListCredit.changes)
         NoteText(
             """
-            Firmware lists: thefirmwarehub.com (mirrors each project's GitHub releases), \
-            fm1-editor.com/firmware, aroum's FM1 Resource Hub and mutant.cloud. Packages come from the \
-            hub, GitHub releases, publishers' own sites, and M-VAVE.
+            Other firmware lists: fm1-editor.com/firmware, aroum's FM1 Resource Hub and mutant.cloud. \
+            Packages come from GitHub releases, publishers' own sites, and M-VAVE.
             """
         )
         NoteText("Update protocol: written from the AL-255/FM-1-RE reverse-engineering notes.")

@@ -24,7 +24,7 @@ extension CatalogueEntry {
     var packageSource: String {
         if isFromFile { return "A file you added" }
         return switch packageOrigin {
-        case .hub: "The Firmware Hub mirror"
+        case .hub: "None from its maker"
         case .githubRelease: "GitHub release"
         case .publisherManifest: "The publisher's site"
         case .projectPage: "The project's page"

@@ -5,11 +5,12 @@ import SwiftUI
 struct FlashChipNotice: View {
     var names: [String]
     var hasNewerFlashChip = false
+    var refuses = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Notice(
-                FlashChipWords.warning(names, hasNewerFlashChip: hasNewerFlashChip),
+                FlashChipWords.warning(names, hasNewerFlashChip: hasNewerFlashChip, refuses: refuses),
                 systemImage: "exclamationmark.triangle",
                 isWarning: true
             )
