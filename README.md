@@ -227,3 +227,5 @@ These files keep their own licences, which sit beside them:
 - `App/Resources/Firmware/FM-1_015.fwsc`, M-VAVE's original V15 firmware: Apache License 2.0.
 - The fonts in `App/Resources/Fonts` (Departure Mono, Silkscreen and VT323): SIL Open Font
   License 1.1.
+
+Related: try FM-1 firmwares in the browser with the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
