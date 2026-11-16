@@ -129,11 +129,12 @@ public struct CatalogueBuilder: Sendable {
         let merged = Self.carry(previous, listedOnlyBy: unread, into: fresh)
         let previousByID = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let resolved = await discoverPackages(for: merged, previous: previousByID)
+        let described = describesFromGitHub ? await describe(resolved, previous: previousByID) : resolved
         return MergedCatalogue(
             formatVersion: MergedCatalogue.currentFormat,
             builtAt: .now,
             hubUpdated: hub?.updated,
-            entries: describesFromGitHub ? await describe(resolved, previous: previousByID) : resolved,
+            entries: KindWords.filled(described),
             problems: problems,
             credit: ListCredit.plain
         )

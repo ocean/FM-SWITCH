@@ -276,7 +276,7 @@ struct HubFeed: Decodable, Sendable {
 
         enum CodingKeys: String, CodingKey {
             case id, name, author, what, version, date, beta, pkg, product, size, sha256, loader, site, source, release,
-                editor, play, repo, stars, installs, chip, provenance, card
+                editor, play, repo, stars, installs, chip, provenance, card, ambient
             case kinds = "kind"
         }
 
@@ -290,6 +290,8 @@ struct HubFeed: Decodable, Sendable {
             } else {
                 kinds = (try? container.decode(String.self, forKey: .kinds)).map { [$0] } ?? []
             }
+            let markedAmbient = (try? container.decodeIfPresent(Bool.self, forKey: .ambient)) ?? false
+            if markedAmbient, !kinds.contains("ambient") { kinds.append("ambient") }
             what = try container.decodeIfPresent(String.self, forKey: .what)
             version = try container.decode(String.self, forKey: .version)
             date = try container.decodeIfPresent(String.self, forKey: .date)
