@@ -21,10 +21,10 @@ struct MutantCloudListing: Sendable {
 
     /// mutant.cloud's tags as the kinds the other lists give, e.g. "groovebox" as "groove".
     ///
-    /// Tags with no kind of their own, such as "generative", show only under All.
+    /// Tags with no kind of their own show only under All.
     static let kindsByTag = [
         "synth": "synth", "groovebox": "groove", "drums": "drums", "sampler": "drums", "chords": "chords",
-        "tracker": "tracker", "game": "game",
+        "tracker": "tracker", "game": "game", "ambient": "ambient", "generative": "ambient", "drone": "ambient",
     ]
 
     private struct Feed: Decodable {

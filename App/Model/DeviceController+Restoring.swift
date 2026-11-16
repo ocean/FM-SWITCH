@@ -40,6 +40,48 @@ extension DeviceController {
         }
     }
 
+    // MARK: - Sounds.
+
+    /// Writes the resources, such as samples, that `item` carries into the FM-1, which must be
+    /// running it, after an install that left them out.
+    ///
+    /// If it's interrupted, the firmware does without them until they're written again.
+    func writeSounds(of item: StoredFirmware) async {
+        guard !isWriting else { return }
+        soundsWrite = .writing(fraction: 0)
+        setKeepAwake(true)
+        defer { setKeepAwake(false) }
+        do {
+            let package = try await library.loadPackage(item)
+            guard let resources = package.resources else { throw SoundsMissing(firmware: item.name) }
+            let (fractions, continuation) = AsyncStream<Double>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            let consumer = Task { @MainActor [weak self] in
+                for await fraction in fractions {
+                    self?.soundsWrite = .writing(fraction: fraction)
+                }
+            }
+            let result: Result<Void, any Error>
+            do {
+                try await updater.writeResources(resources) { continuation.yield($0) }
+                result = .success(())
+            } catch {
+                result = .failure(error)
+            }
+            continuation.finish()
+            await consumer.value
+            try result.get()
+            soundsWrite = .succeeded
+        } catch {
+            soundsWrite = .failed(error.localizedDescription)
+        }
+    }
+
+    /// A package that doesn't carry the resources it was asked for.
+    private struct SoundsMissing: LocalizedError {
+        var firmware: String
+        var errorDescription: String? { "\(firmware)'s package doesn't carry its sounds." }
+    }
+
     #if os(macOS)
         /// Asks the connected FM-1 to restart into the chip's USB download mode, and waits for it
         /// to appear there.

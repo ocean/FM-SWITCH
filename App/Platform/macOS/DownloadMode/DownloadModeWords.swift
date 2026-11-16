@@ -138,6 +138,8 @@ enum DownloadModeWords {
     static let alreadyHoldsThis = "Your FM-1 already holds this, so nothing was written."
     static let written = "Written and checked"
     static let writtenDetail = "Every change matches the FM-1's own check. Switch it off and on to start it."
+    static let soundsAfterwards =
+        "Its sounds aren't written yet. Once it's running, install it again over USB, and they go on with it."
     static let mBootloaderKeys = """
         From now on, holding PLAY while switching it on opens m-bootloader's menu, and holding REC \
         starts download mode.

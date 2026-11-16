@@ -90,6 +90,9 @@ struct FlashView: View {
         case .succeeded(let reported):
             PixelPanel(title: "DONE") {
                 MonoText("The FM-1 now reports \(reported).", size: 15)
+                if let reason = job.resourcesNotWritten {
+                    soundsNote(installed: job.steps[job.steps.count - 1], reason: reason)
+                }
                 if reported == FM1Identity.officialV15.text {
                     NoteText(
                         """
@@ -169,6 +172,29 @@ struct FlashView: View {
             model.requestedPage = .help(.wontInstall)
         }
         .buttonStyle(.pixel)
+    }
+
+    /// The firmware's sounds, which it didn't write when it was installed, and a way to write them.
+    @ViewBuilder private func soundsNote(installed: StoredFirmware, reason: String) -> some View {
+        switch model.device.soundsWrite {
+        case .idle:
+            NoteText("\(installed.name) is installed, but its sounds aren't yet. \(reason)")
+            writeSoundsButton(installed)
+        case .writing(let fraction):
+            MonoText("WRITING SOUNDS…", size: 14)
+            PixelProgressBar(fraction: fraction)
+        case .succeeded:
+            NoteText("Done: its sounds are written.")
+        case .failed(let reason):
+            NoteText(reason)
+            writeSoundsButton(installed)
+        }
+    }
+
+    private func writeSoundsButton(_ installed: StoredFirmware) -> some View {
+        Button("WRITE SOUNDS") { Task { await model.device.writeSounds(of: installed) } }
+            .buttonStyle(.pixel)
+            .disabled(model.device.isWriting)
     }
 
     private func headerTitle(_ job: DeviceController.FlashJob) -> String {

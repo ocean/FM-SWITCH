@@ -187,6 +187,7 @@ struct StandardSettingsView: View {
                 Toggle("Run open firmware, with projects to save", isOn: $settings.simulatedOpenFirmware)
                 Toggle("Connect a second one, running V15", isOn: $settings.simulatedSecondFM1)
                 Toggle("Give its USB port another name", isOn: $settings.simulatedRenamedPort)
+                Toggle("Refuse a new firmware's sounds", isOn: $settings.simulatedRefusesSounds)
                 Button("Reset the simulated FM-1") { model.applyConnectionSettings() }
                     .disabled(model.device.isWriting)
             }

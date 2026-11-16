@@ -26,7 +26,7 @@ struct ListSourceTests {
         let cat = listing.entries[1]
         #expect(cat.author == "Sea")
         #expect(cat.licence == "MIT")
-        #expect(cat.kinds == ["groove"])
+        #expect(cat.kinds == ["groove", "ambient"])
         #expect(cat.links.map(\.label) == ["Source code", "Project site", "Install"])
         #expect(cat.page?.absoluteString == "https://mutant.cloud/#/p/orange-cat")
     }

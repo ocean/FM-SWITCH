@@ -10,6 +10,9 @@ extension DeviceController {
         /// The loader's second pass over the image, in which Felucca's loader still writes, so it's
         /// never safe to interrupt; not every loader makes one.
         case secondPass(fraction: Double)
+        /// The firmware's resources, such as samples, being written: by the loader before it
+        /// restarts, or by the new firmware once it's running.
+        case writingResources(fraction: Double)
         case rebooting
         case succeeded(String)
         case failed(String, canResume: Bool)
@@ -21,6 +24,7 @@ extension DeviceController {
             case .waitingForLoader: "WAITING FOR LOADER"
             case .writing: "WRITING"
             case .secondPass: "WRITING PASS 2"
+            case .writingResources: "WRITING SOUNDS"
             case .rebooting: "REBOOTING"
             case .succeeded: "DONE"
             case .failed: "STOPPED"
@@ -30,6 +34,19 @@ extension DeviceController {
 
     /// Restoring V15's factory voices, which M-VAVE's updater offers after installing V15.
     enum VoiceRestore: Equatable {
+        case idle
+        case writing(fraction: Double)
+        case succeeded
+        case failed(String)
+
+        var isRunning: Bool {
+            if case .writing = self { true } else { false }
+        }
+    }
+
+    /// Writing a firmware's resources, such as samples, once it's running, after an install that
+    /// left them out.
+    enum SoundsWrite: Equatable {
         case idle
         case writing(fraction: Double)
         case succeeded
@@ -80,11 +97,26 @@ extension DeviceController {
         /// The most of the firmware the loader has read in this step, which is all of it once it
         /// starts its second pass.
         var writtenFraction = 0.0
+        /// Whether this step's loader reads the image twice, checking it then writing it, as
+        /// Felucca's does.
+        var loaderReadsTwice = false
+        /// Why the firmware just installed didn't write its resources, such as samples, though it's
+        /// installed; `nil` when it did or has none.
+        var resourcesNotWritten: String?
 
         /// How long to look for the FM-1 after an error that can hide a finished install.
         static let returnSearch = Duration.seconds(20)
 
         var current: StoredFirmware { steps[index] }
+
+        /// Starts step `index` afresh.
+        mutating func start(step index: Int) {
+            self.index = index
+            phase = .preparing
+            writtenFraction = 0
+            resourcesNotWritten = nil
+            loaderReadsTwice = false
+        }
 
         /// Whether the FM-1 is left waiting in its loader after `error`, so the install can carry on.
         static func canResume(after error: any Error) -> Bool {
@@ -190,7 +222,7 @@ extension DeviceController {
         var phaseFraction: Double? {
             switch phase {
             case .staging(let requests): min(Double(requests) / 75, 1)
-            case .writing(let fraction), .secondPass(let fraction): fraction
+            case .writing(let fraction), .secondPass(let fraction), .writingResources(let fraction): fraction
             case .succeeded: 1
             case .preparing, .waitingForLoader, .rebooting, .failed: nil
             }

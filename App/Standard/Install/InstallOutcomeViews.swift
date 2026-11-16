@@ -26,6 +26,9 @@ struct InstallDoneView: View {
                 .foregroundStyle(Palette.secondaryInk)
         }
         .multilineTextAlignment(.center)
+        if let reason = job.resourcesNotWritten {
+            SoundsCard(installed: installed, reason: reason)
+        }
         if reported == FM1Identity.officialV15.text {
             VStack(alignment: .leading, spacing: 10) {
                 Text(
@@ -52,6 +55,44 @@ struct InstallDoneView: View {
             .sheet(isPresented: $restoresVoices) {
                 FactoryVoicesView().environment(model)
             }
+    }
+}
+
+/// The firmware's sounds, which it didn't write when it was installed, and a way to write them.
+private struct SoundsCard: View {
+    @Environment(AppModel.self) private var model
+    var installed: StoredFirmware
+    /// Why they weren't written.
+    var reason: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            switch model.device.soundsWrite {
+            case .idle:
+                Text("\(installed.name) is installed, but its sounds aren't yet. \(reason)")
+                    .font(.callout)
+                writeButton
+            case .writing(let fraction):
+                Text("Writing sounds…").font(.headline)
+                ProgressBar(fraction: fraction)
+            case .succeeded:
+                Label("Done: its sounds are written.", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Palette.goodInk)
+            case .failed(let reason):
+                Notice(reason, systemImage: "exclamationmark.triangle", isWarning: true)
+                writeButton
+            }
+        }
+        .foregroundStyle(Palette.ink)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground()
+    }
+
+    private var writeButton: some View {
+        Button("Write sounds") { Task { await model.device.writeSounds(of: installed) } }
+            .buttonStyle(.secondary)
+            .disabled(model.device.isWriting)
     }
 }
 

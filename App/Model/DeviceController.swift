@@ -26,6 +26,7 @@ final class DeviceController {
     /// What the voice restore and the backup are doing; only DeviceController+Restoring sets them.
     var voiceRestore = VoiceRestore.idle
     var backupRun = BackupRun.idle
+    var soundsWrite = SoundsWrite.idle
     private(set) var log: [String] = []
     /// Where the install's log is saved as it goes, if it can be.
     private var logFile: InstallLogFile?
@@ -54,9 +55,10 @@ final class DeviceController {
 
     /// Whether the FM-1 is busy, so nothing else may talk to it.
     ///
-    /// It's busy during a flash, a voice restore or a backup. A backup doesn't write a project
-    /// slot or the sample bank, but it does load each project in turn.
-    var isWriting: Bool { isFlashing || voiceRestore.isRunning || backupRun.isRunning }
+    /// It's busy during a flash, a voice restore, a backup or a write of a firmware's sounds. A
+    /// backup doesn't write a project slot or the sample bank, but it does load each project in
+    /// turn.
+    var isWriting: Bool { isFlashing || voiceRestore.isRunning || backupRun.isRunning || soundsWrite.isRunning }
 
     // MARK: - Transport.
 
@@ -152,7 +154,8 @@ final class DeviceController {
     /// An updater for `device`, or whichever FM-1 is connected, that also talks to the ports the
     /// person chose to try.
     func makeUpdater(for device: FM1DeviceSummary? = nil) -> FM1Updater {
-        FM1Updater(transport: transport, device: device, alsoProbing: settings?.triedPortNames ?? [])
+        FM1Updater(
+            transport: transport, timing: Self.timing, device: device, alsoProbing: settings?.triedPortNames ?? [])
     }
 
     // MARK: - Flashing.
@@ -206,8 +209,9 @@ final class DeviceController {
     }
 
     func dismissFlash() {
-        guard !isFlashing else { return }
+        guard !isFlashing, !soundsWrite.isRunning else { return }
         job = nil
+        soundsWrite = .idle
         Task { await scan() }
     }
 
@@ -222,26 +226,27 @@ final class DeviceController {
         defer { setKeepAwake(false) }
 
         for index in startIndex..<steps.count {
-            job?.index = index
-            job?.phase = .preparing
-            job?.writtenFraction = 0
+            job?.start(step: index)
             let item = steps[index]
             appendLog("▸ \(item.name) \(item.version) (\(item.product))")
             do {
                 let package = try await library.loadPackage(item)
                 simulatedDevice?.prepare(for: package)
 
-                let (events, continuation) = AsyncStream<UpdateEvent>.makeStream()
+                let (events, continuation) = AsyncStream<(event: UpdateEvent, quiet: Duration?)>.makeStream()
                 let consumer = Task { @MainActor [weak self] in
-                    for await event in events {
-                        self?.apply(event)
+                    for await (event, quiet) in events {
+                        self?.apply(event, quiet: quiet)
                     }
                 }
+                let filter = InstallEventFilter()
                 let before = await updater.identify()
                 let isLoaderRunning = before?.isLoader ?? false
                 let result: Result<FM1Identity, any Error>
                 do {
-                    let report: @Sendable (UpdateEvent) -> Void = { continuation.yield($0) }
+                    let report: @Sendable (UpdateEvent) -> Void = { event in
+                        if let passed = filter.filter(event) { continuation.yield(passed) }
+                    }
                     result = .success(
                         isLoaderRunning
                             ? try await updater.resume(package, events: report)
@@ -326,7 +331,8 @@ final class DeviceController {
         if let guide = installed.guide { job?.guide = guide }
     }
 
-    private func apply(_ event: UpdateEvent) {
+    /// Shows `event`; `quiet` is how long the loader had been quiet when it's `rebooting`.
+    private func apply(_ event: UpdateEvent, quiet: Duration?) {
         switch event {
         case .connected(let identity):
             appendLog("Connected: \(identity.text)")
@@ -337,6 +343,7 @@ final class DeviceController {
             appendLog("Package accepted; rebooting into the update loader.")
         case .loaderFound(let identity):
             appendLog("Loader: \(identity.text)")
+            job?.loaderReadsTwice = identity.text == Self.feluccaLoader
         case .writing(let fraction, _):
             job?.phase = .writing(fraction: fraction)
             let written = job?.writtenFraction ?? 0
@@ -345,12 +352,28 @@ final class DeviceController {
             if case .secondPass = job?.phase {} else { appendLog("Written once; the loader is going over it again.") }
             job?.phase = .secondPass(fraction: fraction)
             job?.writtenFraction = 1
+        case .writingResources(let fraction, _):
+            if case .writingResources = job?.phase {} else { appendLog("Writing the firmware's resources.") }
+            job?.phase = .writingResources(fraction: fraction)
+        case .resourcesNotWritten(let error):
+            job?.resourcesNotWritten = error.localizedDescription
+            appendLog("Resources not written: \(error.localizedDescription)")
         case .rebooting:
             job?.phase = .rebooting
-            appendLog("Rebooting into the new firmware.")
+            logRebooting(quiet: quiet)
         case .finished(let identity):
             appendLog("Device reports \(identity.text).")
         }
+    }
+
+    /// Logs the restart, with how long ago the loader last read the image.
+    private func logRebooting(quiet: Duration?) {
+        guard let quiet else {
+            appendLog("Rebooting into the new firmware.")
+            return
+        }
+        let tenths = quiet / .milliseconds(100)
+        appendLog("Rebooting into the new firmware; the loader's last read was \(tenths.rounded() / 10) s ago.")
     }
 
     private func appendLog(_ line: String) {

@@ -124,6 +124,11 @@ final class AppSettings {
     var simulatedRenamedPort: Bool {
         didSet { defaults.set(simulatedRenamedPort, forKey: Keys.simulatedRenamedPort) }
     }
+    /// The simulated FM-1's new firmware refuses its sounds after an install, as fm1-base's do
+    /// while still moving an older build's projects.
+    var simulatedRefusesSounds: Bool {
+        didSet { defaults.set(simulatedRefusesSounds, forKey: Keys.simulatedRefusesSounds) }
+    }
     /// The MIDI ports the person chose to try, though they aren't named like an FM-1's, for
     /// firmwares that rename their USB port.
     var triedPortNames: Set<String> {
@@ -134,6 +139,7 @@ final class AppSettings {
         [
             simulatedRecoveryMode, simulatedCablePull, simulatedReadsBackwards, simulatedVerifies,
             simulatedMBootloader, simulatedOpenFirmware, simulatedSecondFM1, simulatedRenamedPort,
+            simulatedRefusesSounds,
         ]
     }
     /// The `SafetyNotice.version` the user last acknowledged (0 for never).
@@ -193,6 +199,7 @@ final class AppSettings {
         simulatedOpenFirmware = defaults.bool(forKey: Keys.simulatedOpenFirmware)
         simulatedSecondFM1 = defaults.bool(forKey: Keys.simulatedSecondFM1)
         simulatedRenamedPort = defaults.bool(forKey: Keys.simulatedRenamedPort)
+        simulatedRefusesSounds = defaults.bool(forKey: Keys.simulatedRefusesSounds)
         triedPortNames = Set(defaults.stringArray(forKey: Keys.triedPortNames) ?? [])
         acknowledgedNoticeVersion = defaults.integer(forKey: Keys.acknowledgedNotice)
         tipNudgesShown = defaults.integer(forKey: Keys.tipNudgesShown)
@@ -249,6 +256,7 @@ final class AppSettings {
         static let simulatedOpenFirmware = "simulatedOpenFirmware"
         static let simulatedSecondFM1 = "simulatedSecondFM1"
         static let simulatedRenamedPort = "simulatedRenamedPort"
+        static let simulatedRefusesSounds = "simulatedRefusesSounds"
         static let triedPortNames = "triedPortNames"
         static let acknowledgedNotice = "acknowledgedNoticeVersion"
         static let tipNudgesShown = "tipNudgesShown"

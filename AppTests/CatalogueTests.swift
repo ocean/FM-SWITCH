@@ -11,7 +11,8 @@ struct CatalogueTests {
            "size": 610110, "sha256": "DD05", "beta": false, "loader": null, "stars": 21, "installs": 2429,
            "unknownField": 1,
            "repo": "zvenson/zp12", "site": "https://zp12.designburgapps.com"},
-          {"id": "bubba", "kind": ["groove", "drums"], "name": "Bubba Machine", "version": "0.5.0-beta",
+          {"id": "bubba", "kind": ["groove", "drums"], "ambient": true,
+           "name": "Bubba Machine", "version": "0.5.0-beta",
            "pkg": "fw/bubba-0.5.0-beta.fwsc", "product": "FM-1_003", "size": 1, "sha256": "ab", "beta": true,
            "loader": "mvave"}
         ]}
@@ -59,7 +60,7 @@ struct CatalogueTests {
         #expect(entries[0].packageURL?.absoluteString == "https://thefirmwarehub.com/fw/zp12-2.4.2.fwsc")
         #expect(entries[0].packageOrigin == .hub)
         #expect(entries[0].links.map(\.label) == ["Project site", "On The Firmware Hub"])
-        #expect(entries[1].kinds == ["groove", "drums"])
+        #expect(entries[1].kinds == ["groove", "drums", "ambient"])
         #expect(entries[1].requiresOfficialFirmware)
         #expect(!entries[0].requiresOfficialFirmware)
     }
@@ -185,6 +186,27 @@ struct CatalogueTests {
         let repos = PackageDiscovery.gitHubRepos(in: links)
         #expect(repos.count == 1)
         #expect(repos.first?.name == "PurpleMonkeyFM1")
+    }
+
+    @Test func sortsFirmwaresNoListSortsByTheirOwnWords() {
+        #expect(KindWords.kinds(in: "A generative chord-progression firmware") == ["ambient", "chords"])
+        #expect(KindWords.kinds(in: "A 16-step sequencer with 808 drums") == ["groove", "drums"])
+        #expect(KindWords.kinds(in: "An ARPEGGIATOR for the FM1") == ["chords"])
+        // Whole words only: "drumming" isn't "drum", nor "archords" "chords".
+        #expect(KindWords.kinds(in: "Drumming archords").isEmpty)
+        #expect(KindWords.kinds(in: "The FM1 as a USB audio interface") == ["other"])
+        // Words for the FM-1 itself don't sort the firmware.
+        #expect(KindWords.kinds(in: "An emulator for the M-VAVE FM-1 pocket synth").isEmpty)
+
+        let listed = CatalogueEntry(id: "a", name: "Generative", kinds: ["synth"], listing: .hub)
+        let unsorted = CatalogueEntry(id: "b", name: "Drift", what: "Ambient drones.", listing: .editor)
+        let plain = CatalogueEntry(id: "c", name: "Plain", listing: .editor)
+        #expect(KindWords.filled([listed, unsorted, plain]).map(\.kinds) == [["synth"], ["ambient"], []])
+
+        // A correction replaces a misleading guess.
+        let doom = CatalogueEntry(
+            id: "fm1-editor-doom-fm1-smk", name: "Doom", what: "A Doom port with drums.", listing: .editor)
+        #expect(KindWords.filled([doom]).map(\.kinds) == [["game"]])
     }
 
     @Test func showsTheSiteSourceAndManualFirstAndFoldsAwayTheRest() {

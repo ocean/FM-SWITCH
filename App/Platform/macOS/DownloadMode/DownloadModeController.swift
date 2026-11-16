@@ -52,8 +52,9 @@ final class DownloadModeController {
         case backedUp(SavedFlashBackup)
         /// The FM-1 already holds what was asked for.
         case nothingToWrite(SavedFlashBackup)
-        /// A write's done and checked.
-        case written(saved: SavedFlashBackup)
+        /// A write's done and checked, leaving the firmware's sounds to write over USB-MIDI if
+        /// `leavesSounds`.
+        case written(saved: SavedFlashBackup, leavesSounds: Bool = false)
         /// It stopped; `saved` is the backup made first, if it got that far.
         case failed(FlashFailure, saved: SavedFlashBackup?)
 
@@ -193,13 +194,13 @@ final class DownloadModeController {
 
     /// Writes the planned change, checking every part of it.
     func confirm() async {
-        guard case .confirming(_, let saved) = phase, let service else { return }
+        guard case .confirming(let plan, let saved) = phase, let service else { return }
         phase = .writing(0, saved: saved)
         do {
             try await withProgress(
                 showing: { self.phase = .writing($0, saved: saved) },
                 running: { try await service.write(progress: $0) })
-            phase = .written(saved: saved)
+            phase = .written(saved: saved, leavesSounds: plan.leavesSounds)
             await closeService()
         } catch {
             await fail(error, saved: saved)

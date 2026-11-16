@@ -33,7 +33,7 @@ struct DownloadModeView: View {
                     case .writing(let fraction, _): writing(fraction)
                     case .backedUp(let saved): backedUp(saved)
                     case .nothingToWrite(let saved): nothingToWrite(saved)
-                    case .written(let saved): written(saved)
+                    case .written(let saved, let leavesSounds): written(saved, leavesSounds: leavesSounds)
                     case .failed(let failure, let saved): failed(failure, saved: saved)
                     }
                 }
@@ -195,12 +195,15 @@ struct DownloadModeView: View {
         }
     }
 
-    private func written(_ saved: SavedFlashBackup) -> some View {
+    private func written(_ saved: SavedFlashBackup, leavesSounds: Bool) -> some View {
         DownloadModeCard {
             Label(DownloadModeWords.written, systemImage: "checkmark.circle.fill")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(Palette.goodInk)
             Text(DownloadModeWords.writtenDetail)
+            if leavesSounds {
+                Text(DownloadModeWords.soundsAfterwards)
+            }
             if tools.job == .mBootloader {
                 Text(DownloadModeWords.mBootloaderKeys)
                     .foregroundStyle(Palette.secondaryInk)
