@@ -9,6 +9,8 @@ struct InstallProgress: Equatable {
     enum Stage: Int, CaseIterable, Identifiable {
         case gettingReady
         case installing
+        /// Only shown once it's under way, as only firmwares with resources have it.
+        case writingSounds
         case restarting
 
         var id: Int { rawValue }
@@ -17,6 +19,7 @@ struct InstallProgress: Equatable {
             switch self {
             case .gettingReady: "Getting ready"
             case .installing: "Installing"
+            case .writingSounds: "Writing sounds"
             case .restarting: "Restarting"
             }
         }
@@ -30,7 +33,11 @@ struct InstallProgress: Equatable {
     private static let staging = 0.0...0.1
     private static let waiting = 0.1...0.12
     private static let writing = 0.12...0.85
-    private static let secondPass = 0.85...0.97
+    private static let secondPass = 0.85...0.95
+    /// The passes of a loader known to read the image twice.
+    private static let firstOfTwo = 0.12...0.53
+    private static let secondOfTwo = 0.53...0.95
+    private static let sounds = 0.95...0.97
     private static let restarting = 0.97...1.0
 
     init(fraction: Double, stage: Stage) {
@@ -40,15 +47,20 @@ struct InstallProgress: Equatable {
 
     /// The progress of `job` as it is now, before ``Tracker`` stops it going backwards.
     init(_ job: DeviceController.FlashJob) {
-        let (within, stage) = Self.position(of: job.phase)
+        let (within, stage) = Self.position(of: job.phase, readsTwice: job.loaderReadsTwice)
         let steps = Double(max(job.steps.count, 1))
         fraction = min(max((Double(job.index) + within) / steps, 0), 1)
         self.stage = stage
     }
 
     /// How far through one step `phase` is, and its stage.
-    private static func position(of phase: DeviceController.FlashPhase) -> (Double, Stage) {
-        switch phase {
+    ///
+    /// A loader known to read the image twice gets the same share for each pass, as Felucca's
+    /// takes as long to check the package as to write it.
+    private static func position(of phase: DeviceController.FlashPhase, readsTwice: Bool) -> (Double, Stage) {
+        let writing = readsTwice ? Self.firstOfTwo : Self.writing
+        let secondPass = readsTwice ? Self.secondOfTwo : Self.secondPass
+        return switch phase {
         case .preparing:
             (staging.lowerBound, .gettingReady)
         case .staging(let requests):
@@ -60,6 +72,8 @@ struct InstallProgress: Equatable {
         // Felucca's loader still writes in its second pass, so it counts as installing.
         case .secondPass(let fraction):
             (point(in: secondPass, at: fraction), .installing)
+        case .writingResources(let fraction):
+            (point(in: sounds, at: fraction), .writingSounds)
         case .rebooting:
             (point(in: restarting, at: 0.5), .restarting)
         case .succeeded:
@@ -78,16 +92,20 @@ struct InstallProgress: Equatable {
     /// write restarts its phase from 0).
     struct Tracker: Equatable {
         private(set) var current = InstallProgress(fraction: 0, stage: .gettingReady)
+        /// Whether the firmware's sounds have been written in this install, so their stage is shown.
+        private(set) var showsSounds = false
 
         /// Takes the job's latest progress, keeping the furthest point reached.
         ///
-        /// A failed job keeps where it stopped.
+        /// A failed job keeps where it stopped. Sounds the new firmware writes once it's running
+        /// come after restarting, so their stage is shown then too, without the bar going back.
         mutating func update(with job: DeviceController.FlashJob) {
             if case .failed = job.phase { return }
             let next = InstallProgress(job)
+            if next.stage == .writingSounds { showsSounds = true }
             if next.fraction >= current.fraction {
                 current = next
-            } else if next.stage.rawValue > current.stage.rawValue {
+            } else if next.stage.rawValue > current.stage.rawValue || next.stage == .writingSounds {
                 current.stage = next.stage
             }
         }

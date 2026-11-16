@@ -117,6 +117,7 @@ struct SettingsView: View {
                 PixelToggle("RUN OPEN FIRMWARE, WITH PROJECTS", isOn: $settings.simulatedOpenFirmware)
                 PixelToggle("CONNECT A SECOND ONE, ON V15", isOn: $settings.simulatedSecondFM1)
                 PixelToggle("GIVE ITS USB PORT ANOTHER NAME", isOn: $settings.simulatedRenamedPort)
+                PixelToggle("REFUSE A NEW FIRMWARE'S SOUNDS", isOn: $settings.simulatedRefusesSounds)
                 Button("RESET SIMULATED FM-1") { model.applyConnectionSettings() }
                     .buttonStyle(.pixel)
             }

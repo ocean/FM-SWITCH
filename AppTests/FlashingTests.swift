@@ -35,6 +35,16 @@ struct FlashingTests {
         return try library.importFile(at: url)
     }
 
+    /// Saves a package that carries its resources, as fm1-base's do from c8e0599.
+    static func saveWithSounds(_ product: String, in library: FirmwareLibrary) throws -> StoredFirmware {
+        let sounds = ResourceRegion.sampleBytes(payloadLength: 5_000)
+        let image = FwscPackage.sampleImage(
+            parts: [.flash(), .loader(), .resources(size: sounds.count, at: 0x9_7000)], contents: [2: sounds])
+        let url = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).fwsc")
+        try Data(FwscPackage.sampleFile(logicalImage: image, product: product)).write(to: url)
+        return try library.importFile(at: url)
+    }
+
     static func waitUntil(seconds: Int, _ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now + .seconds(seconds)
         while !condition() {
@@ -96,6 +106,40 @@ struct FlashingTests {
         setup.controller.resume()
         try await Self.waitUntil(seconds: 90) { setup.controller.job?.isRunning == false }
         #expect(setup.controller.job?.phase == .succeeded("FM-1_916"))
+    }
+
+    @Test func writesTheSoundsAPackageCarries() async throws {
+        let setup = try await Self.setUp()
+        let item = try Self.saveWithSounds("FM-1_916", in: setup.library)
+
+        setup.controller.flash([item], confirmsSwitchingFirmware: true)
+        try await Self.waitUntil(seconds: 90) { setup.controller.job?.isRunning == false }
+        #expect(setup.controller.job?.phase == .succeeded("FM-1_916"))
+        #expect(setup.controller.job?.resourcesNotWritten == nil)
+        #expect(setup.controller.simulatedDevice?.currentResources?.count == 5_000)
+
+        // Writing them again is answered at once, as the FM-1 holds them.
+        await setup.controller.writeSounds(of: item)
+        #expect(setup.controller.soundsWrite == .succeeded)
+    }
+
+    @Test func saysWhenTheNewFirmwareRefusesItsSounds() async throws {
+        let setup = try await Self.setUp { $0.simulatedRefusesSounds = true }
+        let item = try Self.saveWithSounds("FM-1_916", in: setup.library)
+
+        setup.controller.flash([item], confirmsSwitchingFirmware: true)
+        try await Self.waitUntil(seconds: 90) { setup.controller.job?.isRunning == false }
+        #expect(setup.controller.job?.phase == .succeeded("FM-1_916"))
+        let reason = try #require(setup.controller.job?.resourcesNotWritten)
+        #expect(reason.contains("moving its projects"))
+        #expect(setup.controller.simulatedDevice?.currentResources == nil)
+
+        await setup.controller.writeSounds(of: item)
+        guard case .failed(let message) = setup.controller.soundsWrite else {
+            Issue.record("Expected the simulated firmware to refuse the sounds again.")
+            return
+        }
+        #expect(message.contains("moving its projects"))
     }
 
     @Test func refusesToInstallTheSameIdentityUnconfirmed() async throws {

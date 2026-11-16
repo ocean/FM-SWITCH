@@ -25,6 +25,10 @@ final class SimulatedPair: MIDITransport, Sendable {
             options.comparesBootArea = true
         }
         if settings.simulatedOpenFirmware { SimulatedOpenFirmware.apply(to: &options) }
+        if settings.simulatedRefusesSounds {
+            options.loaderLeavesResources = true
+            options.resourceRefusal = 21
+        }
         if settings.simulatedRenamedPort { return RenamedPortFM1(SimulatedFM1(options: options)) }
         guard settings.simulatedSecondFM1 else { return SimulatedFM1(options: options) }
         var v15 = SimulatedFM1.Options()

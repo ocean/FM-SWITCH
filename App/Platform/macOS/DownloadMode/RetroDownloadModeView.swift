@@ -28,7 +28,7 @@ struct RetroDownloadModeView: View {
                         progress(DownloadModeWords.writingTitle, DownloadModeWords.writingDetail, fraction)
                     case .backedUp(let saved): backedUp(saved)
                     case .nothingToWrite(let saved): nothingToWrite(saved)
-                    case .written(let saved): written(saved)
+                    case .written(let saved, let leavesSounds): written(saved, leavesSounds: leavesSounds)
                     case .failed(let failure, let saved): failed(failure, saved: saved)
                     }
                 }
@@ -123,9 +123,12 @@ struct RetroDownloadModeView: View {
         }
     }
 
-    private func written(_ saved: SavedFlashBackup) -> some View {
+    private func written(_ saved: SavedFlashBackup, leavesSounds: Bool) -> some View {
         PixelPanel(title: DownloadModeWords.written.uppercased()) {
             MonoText(DownloadModeWords.writtenDetail, size: 14)
+            if leavesSounds {
+                MonoText(DownloadModeWords.soundsAfterwards, size: 14)
+            }
             if tools.job == .mBootloader {
                 NoteText(DownloadModeWords.mBootloaderKeys)
             }

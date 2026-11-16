@@ -35,6 +35,30 @@ struct StandardLookTests {
         #expect(seen.last?.fraction == 1)
     }
 
+    @Test func installEventsPassOnlyProgressThatMovesTheBar() {
+        let filter = InstallEventFilter()
+        let reads = (0...1_000).map { UpdateEvent.writing(fraction: Double($0) / 1_000, requests: $0) }
+        let passed = reads.compactMap { filter.filter($0)?.event }
+        #expect(passed.count < 250)
+        #expect(passed.last == reads.last)
+        // Every other event is passed on, the second pass's first read included.
+        #expect(filter.filter(.checking(fraction: 0, requests: 1))?.event == .checking(fraction: 0, requests: 1))
+        let rebooting = filter.filter(.rebooting)
+        #expect(rebooting?.event == .rebooting)
+        #expect(rebooting?.quiet != nil)
+    }
+
+    @Test func aLoaderThatReadsTwiceGetsHalfTheBarForEachPass() throws {
+        var job = try Self.job()
+        job.loaderReadsTwice = true
+        job.phase = .writing(fraction: 1)
+        let firstPass = FMSwitch.InstallProgress(job).fraction
+        job.phase = .secondPass(fraction: 0.5)
+        let halfway = FMSwitch.InstallProgress(job).fraction
+        #expect(abs(firstPass - 0.53) < 0.001)
+        #expect(abs(halfway - 0.74) < 0.001)
+    }
+
     @Test func progressSpreadsAcrossTheSteps() throws {
         var job = try Self.job(steps: 2)
         job.phase = .succeeded("")
@@ -60,6 +84,30 @@ struct StandardLookTests {
 
         job.phase = .failed("Unplugged", canResume: true)
         tracker.update(with: job)
+        #expect(tracker.current.fraction == reached)
+    }
+
+    @Test func soundsShowTheirStageWhenTheyAreWritten() throws {
+        var job = try Self.job()
+        var tracker = FMSwitch.InstallProgress.Tracker()
+        job.phase = .secondPass(fraction: 1)
+        tracker.update(with: job)
+        #expect(!tracker.showsSounds)
+
+        // The loader writes them before restarting.
+        job.phase = .writingResources(fraction: 0.5)
+        tracker.update(with: job)
+        #expect(tracker.showsSounds)
+        #expect(tracker.current.stage == .writingSounds)
+        job.phase = .rebooting
+        tracker.update(with: job)
+        #expect(tracker.current.stage == .restarting)
+
+        // The new firmware writes them once it's running, without the bar going back.
+        let reached = tracker.current.fraction
+        job.phase = .writingResources(fraction: 0.2)
+        tracker.update(with: job)
+        #expect(tracker.current.stage == .writingSounds)
         #expect(tracker.current.fraction == reached)
     }
 

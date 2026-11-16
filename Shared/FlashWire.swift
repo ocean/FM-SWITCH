@@ -140,6 +140,9 @@ struct FlashPlanSummary: Codable, Sendable, Hashable {
     var writesBootArea: Bool
     /// Whether m-bootloader is on the FM-1 now, and stays.
     var keepsMBootloader: Bool
+    /// Whether the firmware's resources, such as samples, are left to write over USB-MIDI once
+    /// it's running.
+    var leavesSounds: Bool
 
     /// The boot area at the start of the flash, as FM1Rescue defines it.
     static let bootArea = 0..<0x4000
@@ -150,6 +153,8 @@ struct FlashPlanSummary: Codable, Sendable, Hashable {
         sectorCount = plan.sectors.count
         writesBootArea = plan.sectors.contains { Self.bootArea.contains($0) }
         keepsMBootloader = !writesBootArea && plan.original.mBootloader != nil
+        // FM1Rescue's steps for afterwards are only ever about resources, and name fm1probe.
+        leavesSounds = !plan.afterwards.isEmpty
     }
 
     var isEmpty: Bool { sectorCount == 0 }

@@ -73,7 +73,7 @@ struct InstallingView: View {
         ProgressBar(fraction: tracker.current.fraction)
             .accessibilityLabel("Installing")
             .accessibilityValue("\(Int(tracker.current.fraction * 100)) percent")
-        StageList(current: tracker.current.stage)
+        StageList(current: tracker.current.stage, showsSounds: tracker.showsSounds)
         Text(keepOpenMessage)
             .font(.footnote)
             .foregroundStyle(Palette.secondaryInk)
@@ -113,13 +113,15 @@ struct ProgressBar: View {
     }
 }
 
-/// The three stages, ticked off as they pass.
+/// The stages, ticked off as they pass.
 private struct StageList: View {
     var current: InstallProgress.Stage
+    /// Whether to show writing the sounds, which only firmwares with resources have.
+    var showsSounds: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(InstallProgress.Stage.allCases) { stage in
+            ForEach(InstallProgress.Stage.allCases.filter { $0 != .writingSounds || showsSounds }) { stage in
                 let isDone = stage.rawValue < current.rawValue
                 let isNow = stage == current
                 HStack(spacing: 12) {

@@ -3,6 +3,18 @@ import FM1Kit
 /// What the FM-1 is running as far as switching away goes, which device is worked with, and what
 /// an install will put on it.
 extension DeviceController {
+    /// FM1Kit's timings, but looking for the new firmware after 2 s of quiet from a loader that
+    /// restarts without finishing, rather than 5 s, so the install ends soon after the FM-1 is
+    /// back (kata vk61).
+    static let timing: UpdaterTiming = {
+        var timing = UpdaterTiming.standard
+        timing.returnCheckAfter = .seconds(2)
+        return timing
+    }()
+
+    /// What Felucca's update loader reports, which fm1-base's firmwares bring too.
+    static let feluccaLoader = "ota-FM-1_900"
+
     /// The simulated FM-1 being worked with: the one chosen, when there are two.
     var simulatedDevice: SimulatedFM1? {
         guard let pair = transport as? SimulatedPair else { return transport as? SimulatedFM1 }
