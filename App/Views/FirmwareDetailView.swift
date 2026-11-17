@@ -29,6 +29,7 @@ struct FirmwareDetailView: View {
 
                 if let what = entry.what {
                     MonoText(FirmwareDescription.plain(what), size: 15)
+                        .textSelection(.enabled)
                     if entry.whatSource == .gitHub {
                         NoteText("The author's description of the project on GitHub.")
                     }
@@ -70,6 +71,14 @@ struct FirmwareDetailView: View {
         }
     }
 
+    /// Shares the description, say into Notes or an AI app, or copies it.
+    private var shareDescription: some View {
+        ShareLink(item: FirmwareSharing.text(for: entry)) {
+            Text("SHARE")
+        }
+        .buttonStyle(.pixelCompact)
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -85,6 +94,7 @@ struct FirmwareDetailView: View {
                 } else if entry.beta {
                     PixelTag(text: "BETA", inverted: false)
                 }
+                shareDescription
                 starButton
             }
             VStack(alignment: .leading, spacing: 6) {

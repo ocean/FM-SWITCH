@@ -48,6 +48,7 @@ struct FirmwarePageView: View {
             .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
+            ToolbarItem { shareButton }
             ToolbarItem { starButton }
         }
         .task { await model.catalogue.checkSource(of: listed.id) }
@@ -55,6 +56,13 @@ struct FirmwarePageView: View {
         .sheet(item: $installing) { item in
             BeforeYouStartView(target: item, requiresOfficial: entry.requiresOfficialFirmware)
                 .environment(model)
+        }
+    }
+
+    /// Shares the description, say into Notes or an AI app, or copies it.
+    private var shareButton: some View {
+        ShareLink(item: FirmwareSharing.text(for: entry)) {
+            Label("Share", systemImage: "square.and.arrow.up")
         }
     }
 
@@ -82,6 +90,7 @@ struct FirmwarePageView: View {
                     Text(FirmwareDescription.styled(what))
                         .font(.body)
                         .foregroundStyle(Palette.ink)
+                        .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                     if entry.whatSource == .gitHub {
                         Text("The author's own description, from GitHub.")
