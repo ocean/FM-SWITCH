@@ -54,10 +54,13 @@ final class FirmwareUpdateNotices: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Posts one notification about `entries`, then counts them as announced.
+    ///
+    /// Each check's notification has its own ID, so an earlier one stays in Notification Centre
+    /// rather than being replaced.
     func announce(_ entries: [CatalogueEntry]) async {
         guard !entries.isEmpty else { return }
         let request = UNNotificationRequest(
-            identifier: "firmware-updates", content: Self.content(for: entries), trigger: nil)
+            identifier: "firmware-updates-\(UUID().uuidString)", content: Self.content(for: entries), trigger: nil)
         do {
             try await UNUserNotificationCenter.current().add(request)
             markAnnounced(entries)

@@ -22,6 +22,17 @@ struct FlashConfirmView: View {
     var requiresOfficial = false
     var onStart: () -> Void = {}
 
+    /// Why it can't install: the device isn't an FM-1, or the official firmware it needs first isn't
+    /// saved.
+    @ViewBuilder private func missing(_ readiness: InstallReadiness) -> some View {
+        if readiness.isOtherDevice {
+            MonoText(InstallReadiness.otherDeviceWarning, size: 14)
+        }
+        if readiness.isMissingOfficial {
+            MonoText("This needs the official firmware first, and none is saved. Add it under SAVED.", size: 14)
+        }
+    }
+
     var body: some View {
         let readiness = InstallReadiness(
             target: target,
@@ -40,10 +51,7 @@ struct FlashConfirmView: View {
                     ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
                         MonoText("\(index + 1). \(step.name) \(step.version)", size: 17)
                     }
-                    if readiness.isMissingOfficial {
-                        MonoText(
-                            "This needs the official firmware first, and none is saved. Add it under SAVED.", size: 14)
-                    }
+                    missing(readiness)
                     if readiness.isUntested {
                         MonoText("IN TESTING. \(InstallReadiness.untestedWarning)", size: 14)
                         PixelToggle("I'LL TRY IT WHILE IT'S IN TESTING", isOn: $acceptsUntested)

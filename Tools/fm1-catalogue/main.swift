@@ -3,8 +3,10 @@ import Foundation
 
 // Builds the merged firmware list and writes it as JSON:
 //
-//     swift run -c release fm1-catalogue --output firmwares.json [--previous firmwares.json]
+//     swift run -c release fm1-catalogue --output firmwares.json [--previous firmwares.json] [--without-hub]
 //
+// --without-hub leaves The Firmware Hub's feed unread and keeps its firmwares from --previous, for
+// the runs after the day's first: its terms ask for the feed to be read at most once a day.
 // --previous is the list published last time. Packages that can't be found this time fall back
 // on it, as do the firmwares of a source that can't be read, and the new list is refused if it's
 // much shorter. Firmwares no list describes get their
@@ -30,12 +32,17 @@ struct Stop: Error {
 struct Options {
     var output: URL
     var previous: URL?
+    var readsTheHub = true
 
     init(_ arguments: [String]) throws {
         var output: URL?
         var previous: URL?
         var remaining = arguments[...]
         while let argument = remaining.popFirst() {
+            if argument == "--without-hub" {
+                readsTheHub = false
+                continue
+            }
             guard let value = remaining.popFirst() else {
                 throw Stop(code: 1, message: "\(argument) needs a path.")
             }
@@ -46,7 +53,11 @@ struct Options {
             }
         }
         guard let output else {
-            throw Stop(code: 1, message: "Usage: fm1-catalogue --output <file> [--previous <file>]")
+            throw Stop(
+                code: 1, message: "Usage: fm1-catalogue --output <file> [--previous <file>] [--without-hub]")
+        }
+        guard readsTheHub || previous != nil else {
+            throw Stop(code: 1, message: "--without-hub needs --previous, to keep the hub's firmwares from.")
         }
         self.output = output
         self.previous = previous
@@ -91,8 +102,10 @@ func run() async throws {
 
     let catalogue: MergedCatalogue
     do {
-        catalogue = try await CatalogueBuilder(fetch: fetch, describesFromGitHub: true, pagesFiles: pagesFiles)
-            .build(after: previous)
+        catalogue = try await CatalogueBuilder(
+            fetch: fetch, describesFromGitHub: true, readsTheHub: options.readsTheHub, pagesFiles: pagesFiles
+        )
+        .build(after: previous)
     } catch {
         throw Stop(code: 2, message: error.localizedDescription)
     }

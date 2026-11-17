@@ -144,10 +144,27 @@ final class CatalogueStore {
 
     /// Downloads the published list, or builds it here if that list can't be used.
     ///
+    /// A refresh asked for while one is running waits for that one, so a second pull to refresh
+    /// doesn't end at once, which can leave the list stuck pulled down.
+    func refresh() async {
+        if let running {
+            await running.value
+            return
+        }
+        let refresh = Task { await fetchList() }
+        running = refresh
+        await refresh.value
+        running = nil
+    }
+
+    /// The refresh under way, which a second one waits for.
+    @ObservationIgnored private var running: Task<Void, Never>?
+
+    /// Downloads the published list, or builds it here if that list can't be used.
+    ///
     /// A refresh that fails only says so when the saved list is more than a day old, as one that
     /// fresh is as good as the published one, and a cancelled refresh says nothing.
-    func refresh() async {
-        guard !isRefreshing else { return }
+    private func fetchList() async {
         isRefreshing = true
         errorMessage = nil
         defer { isRefreshing = false }
@@ -161,9 +178,9 @@ final class CatalogueStore {
                 // Not The Firmware Hub's, which asks to be read once a day for everyone, not by each
                 // phone: its firmwares are kept from the list saved before.
                 built = try await CatalogueBuilder(fetch: Network.fetch, readsTheHub: false)
-                    .build(previous: catalogue?.entries ?? [])
+                    .build(after: catalogue)
             }
-            catalogue = Self.correctingTestFlags(of: built)
+            catalogue = Self.forTheFM1(Self.correctingTestFlags(of: built))
             // The lists may have caught up; pages check their sources again when opened.
             sourceChecks = [:]
             if let data = try? JSONEncoder().encode(built) {
@@ -192,7 +209,14 @@ final class CatalogueStore {
         // Lists saved before 17 October 2026 could hold an ID twice, which shows as a blank row.
         var seenIDs: Set<String> = []
         cached.entries = cached.entries.filter { seenIDs.insert($0.id).inserted }
-        catalogue = Self.correctingTestFlags(of: cached)
+        catalogue = Self.forTheFM1(Self.correctingTestFlags(of: cached))
+    }
+
+    /// The list without builds for other devices, which lists built before 17 November 2026 have.
+    static func forTheFM1(_ catalogue: MergedCatalogue) -> MergedCatalogue {
+        var catalogue = catalogue
+        catalogue.entries = catalogue.entries.map { $0.onlyForTheFM1() }
+        return catalogue
     }
 
     /// The list, with The Firmware Hub's test flag kept only for versions that look like tests,

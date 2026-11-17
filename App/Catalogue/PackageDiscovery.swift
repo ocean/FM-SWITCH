@@ -162,9 +162,13 @@ struct PackageDiscovery: Sendable {
         )
     }
 
-    /// The release's `.fwsc` packages (M-VAVE's own excepted), named by what sets them apart.
+    /// The release's `.fwsc` packages for the FM-1 (M-VAVE's own excepted), named by what sets them
+    /// apart.
     static func builds(of release: GitHubRelease) -> [CatalogueEntry.Build] {
-        let assets = release.assets.filter { $0.name.lowercased().hasSuffix(".fwsc") && !isOfficialFileName($0.name) }
+        let assets = release.assets.filter { asset in
+            asset.name.lowercased().hasSuffix(".fwsc") && !isOfficialFileName(asset.name)
+                && !OtherDevices.isPackage(asset.name)
+        }
         let names = buildNames(for: assets.map(\.name))
         return zip(assets, names).map { asset, name in
             let digest = asset.digest.flatMap { $0.hasPrefix("sha256:") ? String($0.dropFirst("sha256:".count)) : nil }

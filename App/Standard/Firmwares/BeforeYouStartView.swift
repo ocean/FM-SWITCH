@@ -85,6 +85,9 @@ struct BeforeYouStartView: View {
                 }
             }
         }
+        if readiness.isOtherDevice {
+            Notice(InstallReadiness.otherDeviceWarning, systemImage: "xmark.octagon", isWarning: true)
+        }
         if readiness.isMissingOfficial {
             Notice(
                 "This needs M-VAVE's official firmware to go on first, and there's no copy of it here.",

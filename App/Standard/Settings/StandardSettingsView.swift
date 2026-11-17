@@ -66,6 +66,7 @@ struct StandardSettingsView: View {
         return Section {
             Toggle("Show test versions", isOn: $settings.showBeta)
             Toggle("Show firmwares without a download", isOn: $settings.showLinksOnly)
+            Toggle(LongerListWords.toggle, isOn: $settings.showAuthorListed)
             Toggle("Always install the official firmware first", isOn: $settings.alwaysViaOfficial)
             Toggle(UpdateNoticeWords.toggle, isOn: model.notifiesFirmwareUpdatesBinding)
             Picker("Your FM-1's start-up", selection: $settings.startUp) {
@@ -75,7 +76,10 @@ struct StandardSettingsView: View {
         } header: {
             caption("Firmware list")
         } footer: {
-            caption(model.areNotificationsRefused ? UpdateNoticeWords.refused : UpdateNoticeWords.explained)
+            VStack(alignment: .leading, spacing: 8) {
+                caption(LongerListWords.explained)
+                caption(model.areNotificationsRefused ? UpdateNoticeWords.refused : UpdateNoticeWords.explained)
+            }
         }
     }
 
