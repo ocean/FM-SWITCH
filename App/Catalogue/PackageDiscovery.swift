@@ -170,10 +170,11 @@ struct PackageDiscovery: Sendable {
                 && !OtherDevices.isPackage(asset.name)
         }
         let names = buildNames(for: assets.map(\.name))
-        return zip(assets, names).map { asset, name in
+        let builds = zip(assets, names).map { asset, name in
             let digest = asset.digest.flatMap { $0.hasPrefix("sha256:") ? String($0.dropFirst("sha256:".count)) : nil }
             return CatalogueEntry.Build(name: name, url: asset.downloadURL, size: asset.size, sha256: digest)
         }
+        return OtherDevices.forTheFM1(builds)
     }
 
     /// Short names for a release's packages: what's left of each file name once the part they all

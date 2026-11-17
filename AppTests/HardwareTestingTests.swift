@@ -45,6 +45,17 @@ struct HardwareTestingTests {
         let forTheFM1 = fune.onlyForTheFM1()
         #expect(forTheFM1.packageURL?.lastPathComponent == "fune-fm1.fwsc")
         #expect(forTheFM1.builds == nil)
+
+        // Erik37's plain package is for the SMK-37 Pro; only the one marked "fm1" is for the FM-1.
+        var erik = CatalogueEntry(id: "erik37", name: "Erik37", listing: .resourceHub)
+        erik.packageURL = URL(filePath: "/erik37.fwsc")
+        erik.builds = [build("fm1", "erik37-fm1.fwsc"), build("standard", "erik37.fwsc")]
+        #expect(erik.onlyForTheFM1().packageURL?.lastPathComponent == "erik37-fm1.fwsc")
+        #expect(erik.onlyForTheFM1().builds == nil)
+
+        // A collection whose file names mention the FM-1 keeps every firmware.
+        let collection = [build("analog-summer-fm1", "analog-summer-fm1.fwsc"), build("araminta", "araminta.fwsc")]
+        #expect(OtherDevices.forTheFM1(collection).count == 2)
     }
 
     @Test func knowsAnSMK37ByWhatItReports() {

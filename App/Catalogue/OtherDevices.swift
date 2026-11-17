@@ -18,9 +18,28 @@ public enum OtherDevices {
 
     /// Whether `fileName` is a package for another device.
     static func isPackage(_ fileName: String) -> Bool {
-        fileName.lowercased().split { "-_. ".contains($0) }.contains { word in
-            word.hasPrefix("smk") || words.contains(String(word))
+        fileWords(fileName).contains { word in
+            word.hasPrefix("smk") || words.contains(word)
         }
+    }
+
+    /// The builds in `builds` for the FM-1, by what sets them apart.
+    ///
+    /// Where one is named "fm1", the others are for another device: Erik37's `erik37-fm1.fwsc` is
+    /// for the FM-1, and its plain `erik37.fwsc` for the SMK-37 Pro.
+    static func forTheFM1(_ builds: [CatalogueEntry.Build]) -> [CatalogueEntry.Build] {
+        let kept = builds.filter { !isPackage($0.url.lastPathComponent) }
+        let marked = kept.filter { fileWords($0.name).contains("fm1") }
+        return kept.contains { $0.name.lowercased() == "fm1" } ? marked : kept
+    }
+
+    /// The words in a file name, with "fm-1" and "fm_1" as one word.
+    private static func fileWords(_ fileName: String) -> [String] {
+        fileName.lowercased()
+            .replacingOccurrences(of: "fm-1", with: "fm1")
+            .replacingOccurrences(of: "fm_1", with: "fm1")
+            .split { "-_. ".contains($0) }
+            .map(String.init)
     }
 }
 
@@ -30,10 +49,10 @@ extension CatalogueEntry {
     /// One that pointed at such a build points at an FM-1 build instead.
     func onlyForTheFM1() -> CatalogueEntry {
         guard let builds else { return self }
-        let kept = builds.filter { !OtherDevices.isPackage($0.url.lastPathComponent) }
+        let kept = OtherDevices.forTheFM1(builds)
         guard kept.count != builds.count else { return self }
         var entry = self
-        if let url = packageURL, OtherDevices.isPackage(url.lastPathComponent), let first = kept.first {
+        if let url = packageURL, !kept.contains(where: { $0.url == url }), let first = kept.first {
             entry.packageURL = first.url
             entry.size = first.size
             entry.sha256 = first.sha256
