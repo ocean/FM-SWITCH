@@ -17,4 +17,25 @@ extension CatalogueEntry {
     var isHardwareTested: Bool {
         isOfficial || !listing.isDisjoint(with: [.hub, .editor]) || HardwareTesting.testedElsewhere.contains(id)
     }
+
+    /// Whether only its maker lists the firmware, on mutant.cloud, with no one else having checked it.
+    ///
+    /// The list hides these unless the settings ask for them, or a copy is saved here.
+    var isListedOnlyByItsMaker: Bool {
+        listing == .mutantCloud && !isHardwareTested
+    }
+
+    /// Why the firmware is in testing, for its page.
+    var inTestingNote: String {
+        if isListedOnlyByItsMaker {
+            return """
+                In testing: listed only by its maker, on mutant.cloud, so no one else has checked it, \
+                and it may not have been widely tested on a real FM-1.
+                """
+        }
+        return """
+            In testing: not yet known to work on a real FM-1. It's only listed in aroum's FM1 Resource \
+            Hub or on mutant.cloud, not on The Firmware Hub or fm1-editor.com.
+            """
+    }
 }

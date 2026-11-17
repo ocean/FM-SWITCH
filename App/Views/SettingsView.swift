@@ -147,6 +147,8 @@ struct SettingsView: View {
         PixelToggle("SHOW BETA FIRMWARES", isOn: $settings.showBeta)
         PixelToggle("SHOW LINKS-ONLY FIRMWARES", isOn: $settings.showLinksOnly)
         NoteText("Links-only firmwares have no file this app can download; they link to their own sites.")
+        PixelToggle("SHOW THE LONGER LIST", isOn: $settings.showAuthorListed)
+        NoteText(LongerListWords.explained)
     }
 
     @ViewBuilder private var credits: some View {

@@ -79,8 +79,13 @@ public struct CatalogueBuilder: Sendable {
 
     /// Fetches the lists and merges them, falling back on `previous` for packages that can't be
     /// found this time, and for the firmwares of a list that can't be read.
+    ///
+    /// Without reading The Firmware Hub, its firmwares and the date of its list are the previous
+    /// list's.
     public func build(after previous: MergedCatalogue?) async throws -> MergedCatalogue {
-        try await build(previous: previous?.entries ?? [])
+        var built = try await build(previous: previous?.entries ?? [])
+        if !readsTheHub { built.hubUpdated = previous?.hubUpdated }
+        return built
     }
 
     /// Fetches the lists and merges them. `previous` supplies discovered packages to fall back

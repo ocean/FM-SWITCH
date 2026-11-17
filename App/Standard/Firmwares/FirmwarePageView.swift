@@ -123,10 +123,7 @@ struct FirmwarePageView: View {
             )
         } else if !entry.isHardwareTested {
             Notice(
-                """
-                In testing: not yet known to work on a real FM-1. It's only listed in aroum's FM1 Resource \
-                Hub or on mutant.cloud, not on The Firmware Hub or fm1-editor.com.
-                """,
+                entry.inTestingNote,
                 systemImage: "exclamationmark.triangle",
                 isWarning: true
             )

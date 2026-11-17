@@ -14,6 +14,9 @@ struct ConnectCard: View {
         let device = model.device
         VStack(alignment: .leading, spacing: 10) {
             Text("Connect your FM-1").font(.headline)
+            if device.ports.contains(where: DeviceController.isOtherDevice) {
+                Text(DeviceController.otherDevicePlugged).foregroundStyle(Palette.warningInk)
+            }
             Text("1. Switch it on.")
             Text("2. Plug it into this \(ThisDevice.name) with a USB data cable.")
             Text("3. Close any other music app that's using it.")
@@ -82,7 +85,7 @@ struct ConnectCard: View {
             if device.isTried(port) {
                 Button("Stop Trying") { Task { await device.stopTrying(port) } }
                     .buttonStyle(.secondary)
-            } else if !device.asks(port) {
+            } else if !device.asks(port), !DeviceController.isOtherDevice(port) {
                 Button("Try This Port") { trying = port }
                     // For UI tests, as the dialog it opens has a button of the same name.
                     .accessibilityIdentifier("tryPort")

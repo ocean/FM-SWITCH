@@ -7,7 +7,7 @@ struct MyFirmwaresView: View {
     var selectedID: String?
     /// Whether picked firmwares show beside the list, so the arrow keys can step through it.
     var isBesidePage = false
-    var onSelect: (CatalogueEntry) -> Void
+    var onSelect: @MainActor (CatalogueEntry) -> Void
 
     /// The listed firmwares saved here, an older release included, then the ones added from files
     /// that no list describes.
@@ -64,7 +64,11 @@ struct MyFirmwaresView: View {
             .padding(.horizontal, 4)
             .padding(.top, 4)
             .accessibilityAddTraits(.isHeader)
-        ForEach(entries) { entry in
+        let selectedID = selectedID
+        let onSelect = onSelect
+        // Sendable, as SwiftUI can build rows off the main thread while the list animates, and a
+        // row built on the main actor would stop the app there.
+        ForEach(entries) { @Sendable entry in
             Button {
                 onSelect(entry)
             } label: {

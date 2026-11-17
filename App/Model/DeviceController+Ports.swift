@@ -8,6 +8,17 @@ extension DeviceController {
         updater.probes(port)
     }
 
+    /// Whether a port is an SMK-37's, by its name, which FM-SWITCH neither talks to nor offers to try.
+    static func isOtherDevice(_ port: MIDIPortDescriptor) -> Bool {
+        OtherDevices.isNamed(port.name) || port.usbProductName.map(OtherDevices.isNamed) == true
+    }
+
+    /// What the connect screens say when an SMK-37's port is plugged in.
+    static let otherDevicePlugged = """
+        An SMK-37 or MKE-P37 is plugged in. FM-SWITCH only installs on the FM-1, as it hasn't been \
+        tested on other devices.
+        """
+
     /// Whether the person chose to try a port that isn't named like an FM-1's.
     func isTried(_ port: MIDIPortDescriptor) -> Bool {
         !FM1Updater.isProbeable(port) && asks(port)

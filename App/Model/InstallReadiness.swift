@@ -211,6 +211,20 @@ struct InstallReadiness: Equatable {
         switching.dependsOnStartUp && startUp == nil
     }
 
+    /// Whether the device connected says it's an SMK-37, which FM-SWITCH doesn't install on, as no
+    /// one has tried it on one.
+    var isOtherDevice: Bool { Self.isOtherDevice(identity) }
+
+    static func isOtherDevice(_ identity: FM1Identity?) -> Bool {
+        identity.map { OtherDevices.isNamed($0.model) } ?? false
+    }
+
+    /// What the install screens say when ``isOtherDevice``.
+    static let otherDeviceWarning = """
+        This is an SMK-37 or MKE-P37, not an FM-1. FM-SWITCH only installs on the FM-1, as it hasn't \
+        been tested on other devices.
+        """
+
     /// Whether MIDIMON has to go on first and couldn't be had.
     var isMissingFirstStep: Bool {
         switching.needsFirstStep && switching.firstStep == nil
@@ -260,7 +274,7 @@ struct InstallReadiness: Equatable {
         confirmsNotOfficial: Bool = false,
         acceptsOlderChip: Bool = false
     ) -> Bool {
-        guard identity != nil, switching.isRead, !isMissingOfficial, !isMissingFirstStep,
+        guard identity != nil, !isOtherDevice, switching.isRead, !isMissingOfficial, !isMissingFirstStep,
             !switching.refusesFlashChip, !switching.asksAboutFlashChip || acceptsOlderChip,
             !isUntested || acceptsUntested, !needsStartUp
         else { return false }

@@ -157,7 +157,7 @@ private struct PressEffect: ViewModifier {
 
 extension ButtonStyle where Self == PressableButtonStyle {
     /// Cards and rows that act as buttons.
-    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+    nonisolated static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }
 
 extension ButtonStyle where Self == ProminentButtonStyle {

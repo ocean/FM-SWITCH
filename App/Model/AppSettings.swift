@@ -71,6 +71,9 @@ final class AppSettings {
     /// List firmwares with no downloadable file (their links are still useful), off by default
     /// so the list only offers what can actually be flashed.
     var showLinksOnly: Bool { didSet { defaults.set(showLinksOnly, forKey: Keys.showLinksOnly) } }
+    /// List firmwares only their makers list, on mutant.cloud, off by default as no one else has
+    /// checked them.
+    var showAuthorListed: Bool { didSet { defaults.set(showAuthorListed, forKey: Keys.showAuthorListed) } }
     /// Install the official firmware first on every swap, not only when a firmware requires it.
     var alwaysViaOfficial: Bool { didSet { defaults.set(alwaysViaOfficial, forKey: Keys.alwaysViaOfficial) } }
     /// Tell the person when a firmware they've saved has a newer release, with a notification.
@@ -181,6 +184,7 @@ final class AppSettings {
             defaults.string(forKey: Keys.transport).flatMap(TransportKind.init(rawValue:)) ?? defaultTransport
         showBeta = defaults.object(forKey: Keys.showBeta) as? Bool ?? true
         showLinksOnly = defaults.object(forKey: Keys.showLinksOnly) as? Bool ?? false
+        showAuthorListed = defaults.object(forKey: Keys.showAuthorListed) as? Bool ?? false
         alwaysViaOfficial = defaults.object(forKey: Keys.alwaysViaOfficial) as? Bool ?? false
         startUp = defaults.string(forKey: Keys.startUp).flatMap(StartUp.init(rawValue:))
         firmwareOrder = defaults.string(forKey: Keys.firmwareOrder).flatMap(FirmwareOrder.init(rawValue:)) ?? .name
@@ -240,6 +244,7 @@ final class AppSettings {
         static let transport = "transport"
         static let showBeta = "showBeta"
         static let showLinksOnly = "showLinksOnly"
+        static let showAuthorListed = "showAuthorListed"
         static let alwaysViaOfficial = "alwaysViaOfficial"
         static let startUp = "startUp"
         static let firmwareOrder = "firmwareOrder"

@@ -219,6 +219,9 @@ struct DeviceView: View {
 
     private var portsPanel: some View {
         PixelPanel(title: "MIDI PORTS") {
+            if device.ports.contains(where: DeviceController.isOtherDevice) {
+                MonoText(DeviceController.otherDevicePlugged, size: 14)
+            }
             if device.ports.isEmpty {
                 MonoText("None found.", size: 14, dim: true)
             }
@@ -252,7 +255,7 @@ struct DeviceView: View {
         if device.isTried(port) {
             Button("STOP TRYING") { Task { await device.stopTrying(port) } }
                 .buttonStyle(.pixel)
-        } else if !device.asks(port) {
+        } else if !device.asks(port), !DeviceController.isOtherDevice(port) {
             Button("TRY THIS PORT") { trying = port }
                 .buttonStyle(.pixel)
         }

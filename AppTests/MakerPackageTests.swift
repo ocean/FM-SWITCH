@@ -155,9 +155,18 @@ struct MakerPackageTests {
                 default: throw URLError(.fileDoesNotExist)
                 }
             }, readsTheHub: false)
-        let catalogue = try await builder.build(previous: [earlier])
+        let previous = MergedCatalogue(
+            formatVersion: MergedCatalogue.currentFormat,
+            builtAt: .now,
+            hubUpdated: "2026-11-16",
+            entries: [earlier],
+            problems: [],
+            credit: nil
+        )
+        let catalogue = try await builder.build(after: previous)
         #expect(catalogue.entries.first { $0.id == "tuna" }?.packageURL?.absoluteString == Self.assetURL)
         #expect(!catalogue.problems.contains("The Firmware Hub couldn't be read."))
+        #expect(catalogue.hubUpdated == "2026-11-16")
     }
 
     @Test func refusesOnTheNewerChipOnlyWhatTheHubListsAsKnowingTheOlder() {

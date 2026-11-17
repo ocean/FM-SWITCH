@@ -113,6 +113,12 @@ struct FirmwareDetailView: View {
             .joined(separator: "  ·  ")
     }
 
+    /// The lists the firmware is on, saying so when only its author lists it.
+    @ViewBuilder private var listedOn: some View {
+        detailRow("LISTED ON", entry.listedOn)
+        if entry.isListedOnlyByItsMaker { NoteText(entry.inTestingNote) }
+    }
+
     private var details: some View {
         PixelPanel(title: "DETAILS") {
             detailRow("REPORTS", entry.product ?? stored?.product ?? "Known once saved")
@@ -124,7 +130,7 @@ struct FirmwareDetailView: View {
             if let stars = entry.stars { detailRow("STARS", "★ \(stars)") }
             if let installs = entry.installs { detailRow("INSTALLS", "\(installs.formatted()) ON THE FIRMWARE HUB") }
             detailRow("RECOVERY", entry.rescueMode?.summary ?? "Not known")
-            detailRow("LISTED ON", entry.listedOn)
+            listedOn
             detailRow("FROM SOURCE", entry.sourceBuildSummary)
             if entry.listing.contains(.hub), let hubUpdated = model.catalogue.catalogue?.hubUpdated {
                 detailRow("HUB LIST", "Updated \(hubUpdated)")

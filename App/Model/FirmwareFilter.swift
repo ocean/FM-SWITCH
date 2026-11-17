@@ -1,14 +1,21 @@
 import Foundation
 
-/// Which firmwares a list shows: the settings' beta and links-only choices, plus a search.
+/// Which firmwares a list shows: the settings' beta, author-listed and links-only choices, plus a
+/// search.
 @MainActor
 struct FirmwareFilter {
     var search = ""
 
-    /// Entries passing the beta and search filters, before links-only ones are hidden.
+    /// Entries passing the beta, author-listed and search filters, before links-only ones are
+    /// hidden.
+    ///
+    /// A firmware only its author lists stays in the list once a copy is saved here.
     func matching(in model: AppModel) -> [CatalogueEntry] {
         model.catalogue.entries.filter { entry in
-            (model.settings.showBeta || !entry.beta) && matches(entry)
+            (model.settings.showBeta || !entry.beta)
+                && (model.settings.showAuthorListed || !entry.isListedOnlyByItsMaker
+                    || model.library.items.contains { $0.catalogueID == entry.id })
+                && matches(entry)
         }
     }
 

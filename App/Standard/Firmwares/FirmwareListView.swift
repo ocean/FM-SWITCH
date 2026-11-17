@@ -13,7 +13,7 @@ struct FirmwareListView: View {
     var selectedID: String?
     /// Whether picked firmwares show beside the list, so the arrow keys can step through it.
     var isBesidePage = false
-    var onSelect: (CatalogueEntry) -> Void
+    var onSelect: @MainActor (CatalogueEntry) -> Void
 
     /// The firmwares to show under `scope`, in order.
     ///
@@ -61,8 +61,12 @@ struct FirmwareListView: View {
     @ViewBuilder private func list(_ entries: [CatalogueEntry]) -> some View {
         summary(count: entries.count)
         let firstUncounted = model.settings.firmwareOrder.firstUncounted(in: entries)
-        ForEach(entries) { entry in
-            if entry.id == firstUncounted { uncountedNote }
+        let selectedID = selectedID
+        let onSelect = onSelect
+        // Sendable, as SwiftUI can build rows off the main thread while the list animates, and a
+        // row built on the main actor would stop the app there.
+        ForEach(entries) { @Sendable entry in
+            if entry.id == firstUncounted { Self.uncountedNote }
             Button {
                 onSelect(entry)
             } label: {
@@ -122,7 +126,7 @@ struct FirmwareListView: View {
     }
 
     /// Under Most installed, between the firmwares The Firmware Hub counts and the rest.
-    private var uncountedNote: some View {
+    nonisolated private static var uncountedNote: some View {
         VStack(alignment: .leading, spacing: 10) {
             Divider().overlay(Palette.line)
             Text(FirmwareOrder.uncountedNote)
