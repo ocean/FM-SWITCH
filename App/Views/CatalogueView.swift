@@ -70,9 +70,6 @@ struct CatalogueView: View {
                 .disabled(model.catalogue.isRefreshing)
             }
 
-            searchField
-            kindFilter
-            statusLine
             firmwareList
         }
         .padding(.horizontal, 16)
@@ -162,6 +159,13 @@ struct CatalogueView: View {
             await model.catalogue.refresh()
         } content: {
             LazyVStack(spacing: 8) {
+                // Scrolls away with the list, so the firmwares get the screen once someone's browsing.
+                VStack(alignment: .leading, spacing: 12) {
+                    searchField
+                    kindFilter
+                    statusLine
+                }
+                .padding(.bottom, 4)
                 if model.settings.firmwareOrder == .installs {
                     NoteText(FirmwareOrder.installsSource)
                         .frame(maxWidth: .infinity, alignment: .leading)

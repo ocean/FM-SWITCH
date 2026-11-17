@@ -11,22 +11,8 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 ScreenHeader(title: "SETUP")
 
+                // The settings first, then switching the look, then the notes and credits.
                 AdaptiveColumns {
-                    PixelPanel(title: "SAFETY + RECOVERY") {
-                        MonoText(SafetyNotice.text, size: 14)
-                        MonoText(SafetyNotice.recovery, size: 14)
-                    }
-
-                    PixelPanel(title: "IF IT WON'T START AT ALL") { romRecovery }
-                    PixelPanel(title: "TIP JAR") { RetroTipJar(tipJar: model.tipJar) }
-                    PixelPanel(title: "CREDITS") { credits }
-                } trailing: {
-                    PixelPanel(title: "LOOK") {
-                        MonoText("You're using Retro. The standard look is the app's everyday one.", size: 14)
-                        Button("SWITCH TO STANDARD") { model.settings.look = .standard }
-                            .buttonStyle(.pixel)
-                        if AlternateIcon.isAvailable { RetroIconButton() }
-                    }
                     PixelPanel(title: "COLOUR + SCREEN") { lookSettings }
                     filesPanel
                     PixelPanel(title: "CONNECTION") { connectionSettings }
@@ -34,6 +20,20 @@ struct SettingsView: View {
                     #if os(macOS)
                         PixelPanel(title: "UPDATES") { updateSettings }
                     #endif
+                    PixelPanel(title: "LOOK") {
+                        MonoText("You're using Retro. The standard look is the app's everyday one.", size: 14)
+                        Button("SWITCH TO STANDARD") { model.settings.look = .standard }
+                            .buttonStyle(.pixel)
+                        if AlternateIcon.isAvailable { RetroIconButton() }
+                    }
+                } trailing: {
+                    PixelPanel(title: "SAFETY + RECOVERY") {
+                        MonoText(SafetyNotice.text, size: 14)
+                        MonoText(SafetyNotice.recovery, size: 14)
+                    }
+                    PixelPanel(title: "IF IT WON'T START AT ALL") { romRecovery }
+                    PixelPanel(title: "TIP JAR") { RetroTipJar(tipJar: model.tipJar) }
+                    PixelPanel(title: "CREDITS") { credits }
                 }
             }
             .padding(16)
